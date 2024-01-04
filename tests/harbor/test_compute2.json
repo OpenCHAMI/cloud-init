@@ -1,0 +1,22 @@
+{
+	"name": "compute2",
+	"cloud-init":
+	{
+		"userdata":
+		{
+			"packages": 
+			[
+				"bash",
+				"git"
+			],
+			"runcmds":
+			[
+				"systemctl restart slurmd"
+			]
+		},
+		"metadata":
+		{
+			"instance-id": "test123"
+		}
+	}
+}

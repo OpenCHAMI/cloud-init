@@ -1,0 +1,6 @@
+{
+	"kernel": "http://10.100.0.1:9000/boot-images/efi-images/vmlinuz-4.18.0-477.27.1.el8_8.x86_64",
+	"initrd": "http://10.100.0.1:9000/boot-images/efi-images/initramfs-4.18.0-477.27.1.el8_8.x86_64.img",
+	"macs": ["b4:2e:99:a6:5b:f1","b4:2e:99:a6:06:47","b4:2e:99:a6:61:ee","b4:2e:99:a9:37:bd","b4:2e:99:a6:63:39","b4:2e:99:a6:63:a1","b4:2e:99:a6:63:a9","b4:2e:99:a6:62:33","b4:2e:99:aa:33:7e","b4:2e:99:a6:61:9d"],
+	"params": "nomodeset ro root=live:http://10.100.0.1:9000/boot-images/boot-images/rocky8.8-compute-1196423 ip=dhcp overlayroot=tmpfs overlayroot_cfgdisk=disabled apparmor=0 console=ttyS0,115200 ip6=off ds=nocloud-net;s=http://172.16.0.254:8080/harbor/${mac}/"
+}

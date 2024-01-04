@@ -1,0 +1,76 @@
+{
+	"name": "compute",
+	"cloud-init":
+	{
+		"userdata":
+		{
+		  "ssh_deletekeys": true,
+		  "ssh_genkeytypes": [
+		    "rsa",
+		    "ecdsa",
+		    "ed25519"
+		  ],
+		  "write_files": [
+		    {
+		      "content": "driftfile /var/lib/chrony/drift\nmakestep 1.0 3\nrtcsync\nkeyfile /etc/chrony.keys\nleapsectz right/UTC\nlogdir /var/log/chrony\nserver 172.16.0.254 iburst\n",
+		      "path": "/etc/chrony.conf"
+		    },
+		    {
+		      "content": "ClusterName=cg\nControlMachine=ochami-vm\nSlurmUser=slurm\nSlurmctldPort=6817\nSlurmdPort=6818\nAuthType=auth/munge\nStateSaveLocation=/var/spool/slurmctld\nSlurmdSpoolDir=/var/spool/slurmd\nSwitchType=switch/none\nMpiDefault=none\nSlurmctldPidFile=/var/run/slurmctld.pid\nSlurmdPidFile=/var/run/slurmd.pid\nProctrackType=proctrack/pgid\nLaunchParameters=use_interactive_step\nInteractiveStepOptions=\"-n1 -N1 --mem-per-cpu=0 --interactive --pty --preserve-env --mpi=none $SHELL\"\nSlurmctldTimeout=300\nSlurmdTimeout=300\nInactiveLimit=0\nMinJobAge=300\nKillWait=30\nWaittime=0\nSchedulerType=sched/backfill\nSelectType=select/cons_tres\nSelectTypeParameters=CR_Core\nSlurmctldDebug=info\nSlurmctldLogFile=/var/log/slurmctld.log\nSlurmdDebug=info\nSlurmdLogFile=/var/log/slurmd.log\nTaskPlugin=task/affinity\nPropagateResourceLimitsExcept=MEMLOCK\nJobCompType=jobcomp/filetxt\nNodeName=cg[01-10] Sockets=1 CoresPerSocket=32 ThreadsPerCore=1 State=UNKNOWN \nPartitionName=cluster Nodes=cg[01-10] Default=YES MaxTime=INFINITE State=UP Oversubscribe=EXCLUSIVE\nSlurmctldParameters=enable_configless\nReturnToService=1\nHealthCheckProgram=/usr/sbin/nhc\nHealthCheckInterval=300\nRebootProgram=/sbin/reboot\nResumeTimeout=600\n",
+		      "path": "/etc/slurm/slurm.conf"
+		    },
+		    {
+		      "content": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC5DxA3816XjT0zNmMqzzYz7cnZCjtYD2nIEE8eWvH5zgEvbnKy0qEHzh2N0h08QkWMi3bJ8SXAHt/TZksoGJgRJy6JSJ5eIWdhn7lMhpBPQJzduzDScspbB3PsdtYZzqCzlj9XhrgF3UG7LY5aXfwxwkWX5GamACmHDY9yQaLxXKCgTrp2IbYq0DZugD78uhd+RwqgQdN1zqKpbTyRO9+viSbSUl+fDHuiiNQZ8lTSZ12fQJb4E+RoeSTEp1GiitwiiXgQYIbi+wXP8H3WOoMrS4FO/+L9Ocbo57tNXf5f+FRfaXcAqvkqsni8XxbljWDfuhqOCjeMMqVlOlrOs24w7JYNd46sYtGSguN/Ko2c6QuCncHfhv8mvDBjqwRYf3UApKq/DFSYuidy9vmMg0ZMNTOQAdnirpS4fXN1VW1Ek8trwM/GpI+2nkRamDG2ScvnIyr1aVtlPrI0PFp0HSKCljnfd8NAHdE0HH9CTA20pDl0tn4uLhLw7U1FJHqXaFM= root@cg-head\n",
+		      "path": "/root/.ssh/authorized_keys"
+		    },
+		    {
+		      "content": "127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\n::1         localhost localhost.localdomain localhost6 localhost6.localdomain6\n172.16.0.254\tcg-head\n",
+		      "path": "/etc/hosts"
+		    },
+		    {
+		      "content": "dbautista:x:1001:1001::/home/dbautista:/bin/bash\ntrcotton:x:1002:1002::/home/trcotton:/bin/bash\nalovelltroy:x:1003:1003::/home/alovelltroy:/bin/bash\nallend:x:1004:1004::/home/allend:/bin/bash\n",
+		      "path": "/var/lib/misc/passwd"
+		    },
+		    {
+		      "content": "wheel:x:10:admin,dbautista,trcotton,alovelltroy,allend\ndbautista:x:1001:\ntrcotton:x:1002:\nalovelltroy:x:1003:\nallend:x:1004:\ndocker:x:986:dbautista,trcotton,alovelltroy,allend\n",
+		      "path": "/var/lib/misc/group"
+		    },
+		    {
+		      "content": "dbautista:x:19597:0:99999:7:::\ntrcotton:x:19597:0:99999:7:::\nalovelltroy:x:19597:0:99999:7:::\nallend:x:19597:0:99999:7:::\n",
+		      "path": "/var/lib/misc/shadow"
+		    },
+		    {
+		      "content": "passwd:      db files sss systemd\nshadow:     db files sss\ngroup:       db files sss systemd\nhosts:      files dns myhostname\nservices:   files sss\nnetgroup:   sss\nautomount:  files sss\naliases:    files\nethers:     files\ngshadow:    files\nnetworks:   files dns\nprotocols:  files\npublickey:  files\nrpc:        files\n",
+		      "path": "/etc/nsswitch.conf"
+		    },
+		    {
+		      "content": "zHtUkDIkKmsCtXAKcYRqh8PmC13Uwmn7Eo53KtRW3RisrcBTbEZiuvcp6Vgf1pqH/dW+Q1QJupQ/\ne40hvKutyYvTvPITRkMB+6laU3WCUh7t+qBXo1iWCPgd3VUXaMC3xCmiEXt898hrZnD/CouPW3cY\nkYIU/0EoE5hh3VGXTcvHeU7QTEvKtLEZpE+11Bcd4KioR7omH5bgRiKWxbndor3ngaUvmKjKr0xi\nIeo4reuMgsuBKJwNkbuCoBbt1axbsnCMcH/u4o2aT8oIm5XWPv2RwiYOLJ8O+vb3/3Ry+iStlDFj\nee08kNSO60KEfUguynObjIvxLR3NaXoF9cQZfCPoUlR4wgjLTWJ0Red/95iLHKUMaLFVvAQqbiof\noNww2lzm1lxqLg+EPQYz9LatLi6zNH+kC8r9p6riruS2fyMdRpAEObfNAAaLL345iemDDA9ZSami\nBqoVqpN1wTAyR262JuEaYxQ7zWZlJsYIAKMwZLVlP/M3JevZFv+APbyyvw/2LstdjAJsdiAFWPC6\nuzFudqLojsN/ecOHtCXkf/clV+/td8opQLKsDTadedEzCFeBAr3AxCB12MANYKhQeK5pyF5kxX/h\n3ZI/ytTmgq1HbQB4X6Mn5K8HaTgLGhHfMEhoob968trGzYSiAvtqi6yOyQuw81BQlwWkzdo98zt7\nkncrqBaah46LsgnP0ZqJeYGBEC4SZb4kvhIELDtVLLcV+BAEX5X/txOvCfp45bu2NkEYyPZzzfYK\n/2XZXH0SCB5XFolThTmJtB56Jp7G9s5oBr5yUpA5cZyngpH/X3yMO6Fy7OWEeib6/1LxVnxKeNd3\nguGtmxsBXGNa0KL2yL6ckHRXuKSjlfpWBUR6C8HRVi9Nf/rpuvFaUQ9bH5pxwTKIYKMLr9mN7/Iz\nzosdHtV2Lo5GLnBDKjTjUIEMjw0s+fsQDxcgEQX0lRw1uwctTe0MtHzW4FIX0pI9zOb5ULb38ymN\nRA4ERHJHP1ZjMVpV6HW81uDlT3GKjQl6lmCHyjqqcWvuEKYob/802s7j3nNuzt/QrEBPW6E7moEF\nAkHoEWYn/8xlu9ZkfjnNtHwuCUalsgJE9YQNmZTQwi1FFCSY8FjErvi4k1aLeiSG89KT9edx4620\ncbhi53/WUxvrBJzLzKwcBlNtzJyNYURG5IH/CIEr73CwSM2v5qPmEoptkNuINAw6JCwtSHM0R+7Y\n05P24TRVYGNWuJlwoKvXsN54qYvKK72gy65OfS0UxSw4pvwCYkFGkH1Ty3feP0MRLeAUESD4YOd8\nFsbVFll6Gku6I3rDOn34d6sUM2Wl3rP3OGGXmfCcKj4Uu4NGtmIFlHFAG3ajdSx13Oo9KZpJJA==\n",
+		      "encoding": "base64",
+		      "permissions": "0400",
+		      "path": "/etc/munge/munge.key"
+		    },
+		    {
+		      "content": "127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\n::1         localhost localhost.localdomain localhost6 localhost6.localdomain6\n172.16.0.254        cg-head\n172.16.0.253        ochami-vm\n172.16.0.1 cg01 cg01.localdomain\n172.16.0.2 cg02 cg02.localdomain\n172.16.0.3 cg03 cg03.localdomain\n172.16.0.4 cg04 cg04.localdomain\n172.16.0.5 cg05 cg05.localdomain\n172.16.0.6 cg06 cg06.localdomain\n172.16.0.7 cg07 cg07.localdomain\n172.16.0.8 cg08 cg08.localdomain\n172.16.0.9 cg09 cg09.localdomain\n172.16.0.10 cg10 cg10.localdomain\n",
+		      "path": "/etc/hosts"
+		    }
+		  ],
+		  "disable_root": false,
+		  "runcmd": [
+		    "setenforce 0",
+		    "systemctl stop firewalld",
+		    "systemctl restart chronyd",
+		    "systemctl restart slurmd",
+		    "chown munge:munge /etc/munge/munge.key",
+		    "systemctl restart munge",
+		    "mount -t nfs 172.16.0.254:/home /home",
+		    "sed -i 's/etc/var\\/lib\\/misc/g' /var/db/Makefile",
+		    "make -C /var/db"
+		  ]
+		},
+		"metadata":
+		{
+			"instance-id": "test123"
+		},
+		"vendosrdata": ""
+	}
+}

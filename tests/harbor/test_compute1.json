@@ -1,0 +1,30 @@
+{
+	"name": "compute1",
+	"cloud-init":
+	{
+		"userdata":
+		{
+			"packages": 
+			[
+				"bash",
+				"git",
+				"ansible"
+			],
+			"runcmds":
+			[
+				"systemctl restart slurmctld"
+			],
+			"ssh_deletekeys": true,
+			"ssh_genkeytypes": 
+			[
+    				"rsa",
+				"ecdsa",
+    				"ed25519"
+  			]
+		},
+		"metadata":
+		{
+			"instance-id": "test123"
+		}
+	}
+}

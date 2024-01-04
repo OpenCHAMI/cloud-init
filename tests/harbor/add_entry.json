@@ -1,0 +1,25 @@
+{
+	"name": "x1000c1s7b1",
+	"cloud-init":
+	{
+		"userdata":
+		{
+			"packages": 
+			[
+				"bash",
+				"git",
+				"ansible",
+				"slurm-slurmd"
+			],
+			"runcmds":
+			[
+				"systemctl restart slurmd",
+				"setenforce 0"
+			]
+		},
+		"metadata":
+		{
+			"instance-id": "unit-single"
+		}
+	}
+}
