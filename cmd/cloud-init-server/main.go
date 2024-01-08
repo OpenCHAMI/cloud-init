@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"flag"
 	yaml "gopkg.in/yaml.v2"
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
@@ -11,11 +12,19 @@ import (
 	"github.com/travisbcotton/harbor/internal/smdclient"
 )
 
-func main() {
-	router := gin.Default()
+var (
+	ciEndpoint = ":27777"
+	smdEndpoint = "http://localhost:27779"
+)
 
+func main() {
+	flag.StringVar(&ciEndpoint, "ci-listen", ciEndpoint, "Server IP and port for cloud-init-server to listen on")
+	flag.StringVar(&smdEndpoint, "smd-endpoint", smdEndpoint, "http IP/url and port for running SMD")
+	flag.Parse()
+
+	router := gin.Default()
 	store := memstore.NewMemStore()
-	sm := smdclient.NewSMDClient("http://ochami-vm:27779")
+	sm := smdclient.NewSMDClient(smdEndpoint)
 	ciHandler := NewCiHandler(store, sm)
 
 	router.GET("/harbor", ciHandler.ListEntries)
@@ -28,7 +37,7 @@ func main() {
 	router.DELETE("harbor/:id", ciHandler.DeleteEntry)
 	
 
-	router.Run()
+	router.Run(ciEndpoint)
 }
 
 
