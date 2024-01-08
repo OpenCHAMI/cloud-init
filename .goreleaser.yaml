@@ -34,9 +34,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     extra_files:
       - LICENSE
-      - CHANGELOG.md
       - README.md
-      - .version
 
 archives:
   - format: tar.gz
@@ -50,7 +48,6 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
     files:
       - LICENSE
-      - CHANGELOG.md
       - README.md
 
 

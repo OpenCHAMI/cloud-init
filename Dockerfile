@@ -34,14 +34,14 @@ RUN set -ex \
     && apk add --no-cache curl
 
 # Get the boot-script-service from the builder stage.
-COPY cloud-init-service /usr/local/bin/
-COPY .version /
+COPY cloud-init-server /usr/local/bin/
+#COPY .version /
 
 # nobody 65534:65534
 USER 65534:65534
 
 # Set up the command to start the service.
-CMD /usr/local/bin/cloud-init-service \
+CMD /usr/local/bin/cloud-init-server \
 	--ci-listen ":27777" \
 	--smd-endpoint "http://localhost:27779"
 
