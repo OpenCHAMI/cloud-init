@@ -7,9 +7,9 @@ import (
 	yaml "gopkg.in/yaml.v2"
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
-	"github.com/travisbcotton/harbor/internal/memstore"
-	"github.com/travisbcotton/harbor/pkg/citypes"
-	"github.com/travisbcotton/harbor/internal/smdclient"
+	"github.com/OpenCHAMI/cloud-init/internal/memstore"
+	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 )
 
 var (
