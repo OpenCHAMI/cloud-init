@@ -7,8 +7,8 @@ import (
 	"reflect"
 
 	"github.com/samber/lo"
-	"github.com/travisbcotton/harbor/pkg/citypes"
-	"github.com/travisbcotton/harbor/internal/smdclient"
+	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 )
 
 var (
