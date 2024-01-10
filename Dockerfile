@@ -41,11 +41,11 @@ COPY cloud-init-server /usr/local/bin/
 USER 65534:65534
 
 ENV SMD_URL=http://smd:27779
-ENV CI_LISTEN_PORT=27777
+ENV CI_LISTEN=":27777"
 
 # Set up the command to start the service.
 CMD /usr/local/bin/cloud-init-server \
-	--ci-listen ":${CI_LISTEN}" \
+	--ci-listen $CI_LISTEN \
 	--smd-endpoint ${SMD_URL}
 
 ENTRYPOINT ["/sbin/tini", "--"]
