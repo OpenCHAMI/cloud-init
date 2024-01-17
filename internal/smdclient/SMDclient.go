@@ -17,7 +17,7 @@ import (
 // Expand this client to handle more of the SMD API and work more directly with the resources it manages
 
 var (
-	UnMarsharlError = errors.New("Can not unmarshal JSON")
+	ErrUnmarshal = errors.New("cannot unmarshal JSON")
 )
 
 // godoc ?
@@ -46,9 +46,9 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 	// check http retrun value
 	defer resp.Body.Close()
 	// ioutil is deprecated
-	body, err := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	if err := json.Unmarshal(body, smd); err != nil {
-		return UnMarsharlError
+		return ErrUnmarshal
 	}
 	return nil
 }
