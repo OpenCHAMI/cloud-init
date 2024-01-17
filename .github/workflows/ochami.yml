@@ -1,0 +1,41 @@
+# This workflow will build and release a golang-based microservice 
+# using goreleaser any time a new version tag is pushed to the repository
+
+name: Release with goreleaser
+
+on:
+  push:
+    tags:
+      - v*
+permissions: write-all # Necessary for creating containers
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Go 1.21
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.21
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: 1
+          fetch-depth: 1
+      - name: Release with goreleaser
+        uses: goreleaser/goreleaser-action@v5
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          version: latest
+          args: release --clean
