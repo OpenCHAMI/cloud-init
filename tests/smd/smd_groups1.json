@@ -1,0 +1,20 @@
+{
+  "label": "compute",
+  "description": "This is the Compute group",
+  "tags": [
+  ],
+  "exclusiveGroup": "compute",
+  "members": {
+    "ids": [
+      "x1000c1s7b1",
+      "x1000c1s7b2",
+      "x1000c1s7b3",
+      "x1000c1s7b4",
+      "x1000c1s7b5",
+      "x1000c1s7b6",
+      "x1000c1s7b7",
+      "x1000c1s7b8",
+      "x1000c1s7b9"
+    ]
+  }
+}

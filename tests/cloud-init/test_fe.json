@@ -1,0 +1,39 @@
+{
+	"name": "fe",
+	"cloud-init":
+	{
+		"userdata":
+		{
+			"ansible":
+			{
+				"package_name": "ansible",
+  				"install_method": "distro",
+  				"pull":
+				{
+					"url": "https://somegit.com/cluster/",
+					"playbook_name": "fe.yml"
+				}
+    			},
+			"packages": 
+			[
+				"bash",
+				"git",
+				"ansible",
+				"gcc",
+				"tmux",
+				"NessusAgent",
+				"htop",
+				"paraview"
+			],
+			"runcmds":
+			[
+				"systemctl start iptables",
+				"systemctl start NessusAgent"
+			]
+		},
+		"metadata":
+		{
+			"instance-id": "fe-test"
+		}
+	}
+}

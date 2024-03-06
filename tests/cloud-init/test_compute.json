@@ -1,0 +1,32 @@
+{
+	"name": "compute",
+	"cloud-init":
+	{
+		"userdata":
+		{
+			"ansible":
+			{
+				"package_name": "ansible",
+  				"install_method": "distro",
+  				"pull":
+				{
+					"url": "https://somegit.com/cluster/",
+					"playbook_name": "compute.yml"
+				}
+    			},
+			"packages": 
+			[
+				"bash",
+				"ansible"
+			],
+			"runcmds":
+			[
+				"systemctl start slurmd"
+			]
+		},
+		"metadata":
+		{
+			"instance-id": "test-compute"
+		}
+	}
+}

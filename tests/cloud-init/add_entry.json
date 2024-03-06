@@ -1,5 +1,5 @@
 {
-	"name": "x1000c1s7b1",
+	"name": "x1000c1s7b0",
 	"cloud-init":
 	{
 		"userdata":
@@ -10,16 +10,11 @@
 				"git",
 				"ansible",
 				"slurm-slurmd"
-			],
-			"runcmds":
-			[
-				"systemctl restart slurmd",
-				"setenforce 0"
 			]
 		},
 		"metadata":
 		{
-			"instance-id": "unit-single"
+			"instance-id": "override"
 		}
 	}
 }

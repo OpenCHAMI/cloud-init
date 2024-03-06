@@ -1,0 +1,12 @@
+{
+  "label": "fe",
+  "description": "This is the Compute group",
+  "tags": [
+  ],
+  "exclusiveGroup": "compute",
+  "members": {
+    "ids": [
+      "x1000c1s7b0"
+    ]
+  }
+}

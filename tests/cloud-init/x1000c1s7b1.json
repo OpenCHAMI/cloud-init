@@ -1,0 +1,63 @@
+{
+	"name": "x1000c1s7b1",
+	"cloud-init":
+	{
+		"userdata":
+		{
+		  "ssh_deletekeys": true,
+		  "ssh_genkeytypes": [
+		    "rsa",
+		    "ecdsa",
+		    "ed25519"
+		  ],
+		  "write_files": [
+		    {
+		      "content": "driftfile /var/lib/chrony/drift\nmakestep 1.0 3\nrtcsync\nkeyfile /etc/chrony.keys\nleapsectz right/UTC\nlogdir /var/log/chrony\nserver 172.16.0.254 iburst\n",
+		      "path": "/etc/chrony.conf"
+		    },
+		    {
+		      "content": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC5DxA3816XjT0zNmMqzzYz7cnZCjtYD2nIEE8eWvH5zgEvbnKy0qEHzh2N0h08QkWMi3bJ8SXAHt/TZksoGJgRJy6JSJ5eIWdhn7lMhpBPQJzduzDScspbB3PsdtYZzqCzlj9XhrgF3UG7LY5aXfwxwkWX5GamACmHDY9yQaLxXKCgTrp2IbYq0DZugD78uhd+RwqgQdN1zqKpbTyRO9+viSbSUl+fDHuiiNQZ8lTSZ12fQJb4E+RoeSTEp1GiitwiiXgQYIbi+wXP8H3WOoMrS4FO/+L9Ocbo57tNXf5f+FRfaXcAqvkqsni8XxbljWDfuhqOCjeMMqVlOlrOs24w7JYNd46sYtGSguN/Ko2c6QuCncHfhv8mvDBjqwRYf3UApKq/DFSYuidy9vmMg0ZMNTOQAdnirpS4fXN1VW1Ek8trwM/GpI+2nkRamDG2ScvnIyr1aVtlPrI0PFp0HSKCljnfd8NAHdE0HH9CTA20pDl0tn4uLhLw7U1FJHqXaFM= root@cg-head\n",
+		      "path": "/root/.ssh/authorized_keys"
+		    },
+		    {
+		      "content": "127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\n::1         localhost localhost.localdomain localhost6 localhost6.localdomain6\n172.16.0.254\tcg-head\n",
+		      "path": "/etc/hosts"
+		    },
+		    {
+		      "content": "dbautista:x:1001:1001::/home/dbautista:/bin/bash\ntrcotton:x:1002:1002::/home/trcotton:/bin/bash\nalovelltroy:x:1003:1003::/home/alovelltroy:/bin/bash\nallend:x:1004:1004::/home/allend:/bin/bash\n",
+		      "path": "/var/lib/misc/passwd"
+		    },
+		    {
+		      "content": "wheel:x:10:admin,dbautista,trcotton,alovelltroy,allend\ndbautista:x:1001:\ntrcotton:x:1002:\nalovelltroy:x:1003:\nallend:x:1004:\ndocker:x:986:dbautista,trcotton,alovelltroy,allend\n",
+		      "path": "/var/lib/misc/group"
+		    },
+		    {
+		      "content": "dbautista:x:19597:0:99999:7:::\ntrcotton:x:19597:0:99999:7:::\nalovelltroy:x:19597:0:99999:7:::\nallend:x:19597:0:99999:7:::\n",
+		      "path": "/var/lib/misc/shadow"
+		    },
+		    {
+		      "content": "passwd:      db files sss systemd\nshadow:     db files sss\ngroup:       db files sss systemd\nhosts:      files dns myhostname\nservices:   files sss\nnetgroup:   sss\nautomount:  files sss\naliases:    files\nethers:     files\ngshadow:    files\nnetworks:   files dns\nprotocols:  files\npublickey:  files\nrpc:        files\n",
+		      "path": "/etc/nsswitch.conf"
+		    },
+		    {
+		      "content": "127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\n::1         localhost localhost.localdomain localhost6 localhost6.localdomain6\n172.16.0.254        cg-head\n172.16.0.253        ochami-vm\n172.16.0.1 cg01 cg01.localdomain\n172.16.0.2 cg02 cg02.localdomain\n172.16.0.3 cg03 cg03.localdomain\n172.16.0.4 cg04 cg04.localdomain\n172.16.0.5 cg05 cg05.localdomain\n172.16.0.6 cg06 cg06.localdomain\n172.16.0.7 cg07 cg07.localdomain\n172.16.0.8 cg08 cg08.localdomain\n172.16.0.9 cg09 cg09.localdomain\n172.16.0.10 cg10 cg10.localdomain\n",
+		      "path": "/etc/hosts"
+		    }
+		  ],
+		  "disable_root": false,
+		  "runcmd": [
+		    "setenforce 0",
+		    "systemctl stop firewalld",
+		    "systemctl restart chronyd",
+		    "mount -t nfs 172.16.0.254:/home /home",
+		    "sed -i 's/etc/var\\/lib\\/misc/g' /var/db/Makefile",
+		    "make -C /var/db"
+		  ]
+		},
+		"metadata":
+		{
+			"instance-id": "test123"
+		},
+		"vendosrdata": ""
+	}
+}
