@@ -36,7 +36,6 @@ dockers:
       - LICENSE
       - CHANGELOG.md
       - README.md
-      - .version
 
 archives:
   - format: tar.gz
