@@ -1,14 +1,14 @@
 # This is an example .goreleaser.yml file with some sensible defaults.
 # Make sure to check the documentation at https://goreleaser.com
 
-project_name: cloud-init-server
+project_name: cloud-init
 before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
 
 builds:
-  - id: cloud-init-server
+  - id: cloud-init
     main: ./cmd/cloud-init-server
     binary: cloud-init-server
     goos:
