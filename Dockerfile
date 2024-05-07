@@ -21,7 +21,6 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 FROM cgr.dev/chainguard/wolfi-base
-EXPOSE 27777
 STOPSIGNAL SIGTERM
 
 RUN apk add --no-cache tini
@@ -38,13 +37,13 @@ COPY cloud-init-server /usr/local/bin/
 
 ENV SMD_URL="http://smd:27779"
 ENV SMD_TOKEN=""
-ENV LISTEN_PORT="27777"
+ENV LISTEN_ADDR="0.0.0.0:27777"
 
 # nobody 65534:65534
 USER 65534:65534
 
 # Set up the command to start the service.
-CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_PORT} --smd-url ${SMD_URL} --smd-token ${SMD_TOKEN}
+CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_ADDR} --smd-url ${SMD_URL} --smd-token ${SMD_TOKEN}
 
 
 ENTRYPOINT ["/sbin/tini", "--"]
