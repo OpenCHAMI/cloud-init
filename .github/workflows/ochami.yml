@@ -1,17 +1,18 @@
-# This workflow will build and release a golang-based microservice 
-# using goreleaser any time a new version tag is pushed to the repository
-
 name: Release with goreleaser
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - v*
-permissions: write-all # Necessary for creating containers
+      
+permissions: write-all # Necessary for the generate-build-provenance action with containers
 
 jobs:
 
   build:
+
+
     runs-on: ubuntu-latest
 
     steps:
@@ -39,3 +40,24 @@ jobs:
         with:
           version: latest
           args: release --clean
+        id: goreleaser
+      - name: Process goreleaser output
+        id: process_goreleaser_output
+        run: |
+          echo "const fs = require('fs');" > process.js
+          echo 'const artifacts = ${{ steps.goreleaser.outputs.artifacts }}' >> process.js
+          echo "const firstNonNullDigest = artifacts.find(artifact => artifact.extra && artifact.extra.Digest != null)?.extra.Digest;" >> process.js
+          echo "console.log(firstNonNullDigest);" >> process.js
+          echo "fs.writeFileSync('digest.txt', firstNonNullDigest);" >> process.js
+          node process.js
+          echo "digest=$(cat digest.txt)" >> $GITHUB_OUTPUT
+      - name: Attest Binaries
+        uses: github-early-access/generate-build-provenance@main
+        with:
+          subject-path: dist/smd*
+      - name: generate build provenance
+        uses: github-early-access/generate-build-provenance@main
+        with:
+          subject-name: ghcr.io/openchami/cloud-init
+          subject-digest: ${{ steps.process_goreleaser_output.outputs.digest }}
+          push-to-registry: true
