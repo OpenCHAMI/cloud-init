@@ -36,13 +36,15 @@ RUN set -ex \
 # Get the boot-script-service from the builder stage.
 COPY cloud-init-server /usr/local/bin/
 
+ENV SMD_URL="http://smd:27779"
+ENV SMD_TOKEN=""
+ENV LISTEN_PORT="27777"
 
 # nobody 65534:65534
 USER 65534:65534
 
 # Set up the command to start the service.
-CMD /usr/local/bin/cloud-init-server \
-	--ci-listen ":27777" \
-	--smd-endpoint "http://localhost:27779"
+CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_PORT} --smd-url ${SMD_URL} --smd-token ${SMD_TOKEN}
+
 
 ENTRYPOINT ["/sbin/tini", "--"]

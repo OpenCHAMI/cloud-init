@@ -8,7 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"log"
+
 	"github.com/OpenCHAMI/smd/v2/pkg/sm"
+	"github.com/golang-jwt/jwt"
 )
 
 // Add client usage examples
@@ -20,32 +23,49 @@ var (
 	ErrUnmarshal = errors.New("cannot unmarshal JSON")
 )
 
-// godoc ?
 // SMDClient is a client for SMD
 type SMDClient struct {
-	smdClient  *http.Client
-	smdBaseURL string
+	smdClient   *http.Client
+	smdBaseURL  string
+	accessToken string
 }
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
-func NewSMDClient(baseurl string) *SMDClient {
+// and uses the provided JWT for authentication
+func NewSMDClient(baseurl string, jwt string) *SMDClient {
 	c := &http.Client{Timeout: 2 * time.Second}
 	return &SMDClient{
-		smdClient:  c,
-		smdBaseURL: baseurl,
+		smdClient:   c,
+		smdBaseURL:  baseurl,
+		accessToken: jwt,
 	}
 }
 
 // getSMD is a helper function to initialize the SMDClient
 func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 	url := s.smdBaseURL + ep
-	resp, err := s.smdClient.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
-	// check http retrun value
+	if s.accessToken != "" {
+		//validate the JWT without verifying the signature
+		//if the JWT is not valid, the request will fail
+		token, _, err := new(jwt.Parser).ParseUnverified(s.accessToken, jwt.MapClaims{})
+		if err != nil {
+			return errors.New("poorly formed JWT: " + err.Error())
+		}
+		log.Println("Loaded JWT token:", s.accessToken)
+		log.Println("Claims:", token.Claims)
+		req.Header.Set("Authorization", "Bearer "+s.accessToken)
+	} else {
+		return errors.New("poorly formed JWT")
+	}
+	resp, err := s.smdClient.Do(req)
+	if err != nil {
+		return err
+	}
 	defer resp.Body.Close()
-	// ioutil is deprecated
 	body, _ := io.ReadAll(resp.Body)
 	if err := json.Unmarshal(body, smd); err != nil {
 		return ErrUnmarshal

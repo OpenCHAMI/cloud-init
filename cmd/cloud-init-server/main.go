@@ -10,27 +10,29 @@ import (
 
 var (
 	ciEndpoint  = ":27777"
-	smdEndpoint = "http://localhost:27779"
+	smdEndpoint = "http://smd:27779"
+	smdToken    = "" // jwt for access to smd
 )
 
 func main() {
-	flag.StringVar(&ciEndpoint, "ci-listen", ciEndpoint, "Server IP and port for cloud-init-server to listen on")
-	flag.StringVar(&smdEndpoint, "smd-endpoint", smdEndpoint, "http IP/url and port for running SMD")
+	flag.StringVar(&ciEndpoint, "listen", ciEndpoint, "Server IP and port for cloud-init-server to listen on")
+	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "http IP/url and port for running SMD")
+	flag.StringVar(&smdToken, "smd-token", smdToken, "JWT token for SMD access")
 	flag.Parse()
 
 	router := gin.Default()
 	store := memstore.NewMemStore()
-	sm := smdclient.NewSMDClient(smdEndpoint)
+	sm := smdclient.NewSMDClient(smdEndpoint, smdToken)
 	ciHandler := NewCiHandler(store, sm)
 
-	router.GET("/harbor", ciHandler.ListEntries)
-	router.POST("/harbor", ciHandler.AddEntry)
-	router.GET("/harbor/:id", ciHandler.GetEntry)
-	router.GET("/harbor/:id/user-data", ciHandler.GetUserData)
-	router.GET("/harbor/:id/meta-data", ciHandler.GetMetaData)
-	router.GET("/harbor/:id/vendor-data", ciHandler.GetVendorData)
-	router.PUT("/harbor/:id", ciHandler.UpdateEntry)
-	router.DELETE("harbor/:id", ciHandler.DeleteEntry)
+	router.GET("/cloud-init", ciHandler.ListEntries)
+	router.POST("/cloud-init", ciHandler.AddEntry)
+	router.GET("/cloud-init/:id", ciHandler.GetEntry)
+	router.GET("/cloud-init/:id/user-data", ciHandler.GetUserData)
+	router.GET("/cloud-init/:id/meta-data", ciHandler.GetMetaData)
+	router.GET("/cloud-init/:id/vendor-data", ciHandler.GetVendorData)
+	router.PUT("/cloud-init/:id", ciHandler.UpdateEntry)
+	router.DELETE("cloud-init/:id", ciHandler.DeleteEntry)
 
 	router.Run(ciEndpoint)
 }
