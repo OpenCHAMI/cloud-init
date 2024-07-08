@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added an additional URL endpoint (`/cloud-init-secure`) which will require JWT authentication for access
+
 ### Changed
 
 - Switched from [Gin](https://github.com/gin-gonic/gin) HTTP router to [Chi](https://github.com/go-chi/chi)

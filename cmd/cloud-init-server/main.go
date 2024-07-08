@@ -21,19 +21,36 @@ func main() {
 	flag.StringVar(&smdToken, "smd-token", smdToken, "JWT token for SMD access")
 	flag.Parse()
 
+	// Primary router and shared SMD client
 	router := chi.NewRouter()
-	store := memstore.NewMemStore()
 	sm := smdclient.NewSMDClient(smdEndpoint, smdToken)
+
+	// Unsecured datastore and router
+	store := memstore.NewMemStore()
 	ciHandler := NewCiHandler(store, sm)
+	router_unsec := newCiRouter(ciHandler)
+	router.Mount("/cloud-init", router_unsec)
 
-	router.Get("/cloud-init", ciHandler.ListEntries)
-	router.Post("/cloud-init", ciHandler.AddEntry)
-	router.Get("/cloud-init/{id}", ciHandler.GetEntry)
-	router.Get("/cloud-init/{id}/user-data", ciHandler.GetUserData)
-	router.Get("/cloud-init/{id}/meta-data", ciHandler.GetMetaData)
-	router.Get("/cloud-init/{id}/vendor-data", ciHandler.GetVendorData)
-	router.Put("/cloud-init/{id}", ciHandler.UpdateEntry)
-	router.Delete("/cloud-init/{id}", ciHandler.DeleteEntry)
+	// Secured datastore and router
+	store_sec := memstore.NewMemStore()
+	ciHandler_sec := NewCiHandler(store_sec, sm)
+	router_sec := newCiRouter(ciHandler_sec)
+	router.Mount("/cloud-init-secure", router_sec)
 
+	// Serve all routes
 	http.ListenAndServe(ciEndpoint, router)
+}
+
+func newCiRouter(handler *CiHandler) chi.Router {
+	// Create a fresh Router with cloud-init endpoints
+	router := chi.NewRouter()
+	router.Get("/", handler.ListEntries)
+	router.Post("/", handler.AddEntry)
+	router.Get("/{id}", handler.GetEntry)
+	router.Get("/{id}/user-data", handler.GetUserData)
+	router.Get("/{id}/meta-data", handler.GetMetaData)
+	router.Get("/{id}/vendor-data", handler.GetVendorData)
+	router.Put("/{id}", handler.UpdateEntry)
+	router.Delete("/{id}", handler.DeleteEntry)
+	return router
 }
