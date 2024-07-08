@@ -38,12 +38,13 @@ COPY cloud-init-server /usr/local/bin/
 ENV SMD_URL="http://smd:27779"
 ENV SMD_TOKEN=""
 ENV LISTEN_ADDR="0.0.0.0:27777"
+ENV JWKS_URL=""
 
 # nobody 65534:65534
 USER 65534:65534
 
 # Set up the command to start the service.
-CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_ADDR} --smd-url ${SMD_URL} --smd-token ${SMD_TOKEN}
+CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_ADDR} --smd-url ${SMD_URL} --smd-token ${SMD_TOKEN} --jwks-url ${JWKS_URL}
 
 
 ENTRYPOINT ["/sbin/tini", "--"]
