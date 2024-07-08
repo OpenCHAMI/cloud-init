@@ -88,9 +88,9 @@ func (h CiHandler) GetEntry(w http.ResponseWriter, r *http.Request) {
 	ci, err := h.store.Get(id, h.sm)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
+	} else {
+		render.JSON(w, r, ci)
 	}
-
-	render.JSON(w, r, ci)
 }
 
 func (h CiHandler) GetUserData(w http.ResponseWriter, r *http.Request) {
