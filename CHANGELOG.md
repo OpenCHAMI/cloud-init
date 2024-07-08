@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added an additional URL endpoint (`/cloud-init-secure`) which will require JWT authentication for access
+- Added an additional URL endpoint (`/cloud-init-secure`) which requires JWT authentication for access
 
 ### Changed
 

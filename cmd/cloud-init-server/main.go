@@ -2,10 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
+	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -13,13 +15,31 @@ var (
 	ciEndpoint  = ":27777"
 	smdEndpoint = "http://smd:27779"
 	smdToken    = "" // jwt for access to smd
+	jwksUrl     = "" // jwt keyserver URL for secure-route token validation
 )
 
 func main() {
 	flag.StringVar(&ciEndpoint, "listen", ciEndpoint, "Server IP and port for cloud-init-server to listen on")
 	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "http IP/url and port for running SMD")
 	flag.StringVar(&smdToken, "smd-token", smdToken, "JWT token for SMD access")
+	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
 	flag.Parse()
+
+	// Set up JWT verification via the specified URL, if any
+	var keyset *jwtauth.JWTAuth
+	secureRouteEnable := false
+	if jwksUrl != "" {
+		var err error
+		keyset, err = fetchPublicKeyFromURL(jwksUrl)
+		if err != nil {
+			fmt.Printf("JWKS initialization failed: %s\n", err)
+		} else {
+			// JWKS init SUCCEEDED, secure route supported
+			secureRouteEnable = true
+		}
+	} else {
+		fmt.Println("No JWKS URL provided; secure route will be disabled")
+	}
 
 	// Primary router and shared SMD client
 	router := chi.NewRouter()
@@ -31,11 +51,17 @@ func main() {
 	router_unsec := newCiRouter(ciHandler)
 	router.Mount("/cloud-init", router_unsec)
 
-	// Secured datastore and router
-	store_sec := memstore.NewMemStore()
-	ciHandler_sec := NewCiHandler(store_sec, sm)
-	router_sec := newCiRouter(ciHandler_sec)
-	router.Mount("/cloud-init-secure", router_sec)
+	if secureRouteEnable {
+		// Secured datastore and router
+		store_sec := memstore.NewMemStore()
+		ciHandler_sec := NewCiHandler(store_sec, sm)
+		router_sec := newCiRouter(ciHandler_sec)
+		router_sec.Use(
+			jwtauth.Verifier(keyset),
+			jwtauth.Authenticator(keyset),
+		)
+		router.Mount("/cloud-init-secure", router_sec)
+	}
 
 	// Serve all routes
 	http.ListenAndServe(ciEndpoint, router)
