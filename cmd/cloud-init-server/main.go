@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
+	"net/http"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 )
 
 var (
@@ -20,19 +21,19 @@ func main() {
 	flag.StringVar(&smdToken, "smd-token", smdToken, "JWT token for SMD access")
 	flag.Parse()
 
-	router := gin.Default()
+	router := chi.NewRouter()
 	store := memstore.NewMemStore()
 	sm := smdclient.NewSMDClient(smdEndpoint, smdToken)
 	ciHandler := NewCiHandler(store, sm)
 
-	router.GET("/cloud-init", ciHandler.ListEntries)
-	router.POST("/cloud-init", ciHandler.AddEntry)
-	router.GET("/cloud-init/:id", ciHandler.GetEntry)
-	router.GET("/cloud-init/:id/user-data", ciHandler.GetUserData)
-	router.GET("/cloud-init/:id/meta-data", ciHandler.GetMetaData)
-	router.GET("/cloud-init/:id/vendor-data", ciHandler.GetVendorData)
-	router.PUT("/cloud-init/:id", ciHandler.UpdateEntry)
-	router.DELETE("cloud-init/:id", ciHandler.DeleteEntry)
+	router.Get("/cloud-init", ciHandler.ListEntries)
+	router.Post("/cloud-init", ciHandler.AddEntry)
+	router.Get("/cloud-init/{id}", ciHandler.GetEntry)
+	router.Get("/cloud-init/{id}/user-data", ciHandler.GetUserData)
+	router.Get("/cloud-init/{id}/meta-data", ciHandler.GetMetaData)
+	router.Get("/cloud-init/{id}/vendor-data", ciHandler.GetVendorData)
+	router.Put("/cloud-init/{id}", ciHandler.UpdateEntry)
+	router.Delete("/cloud-init/{id}", ciHandler.DeleteEntry)
 
-	router.Run(ciEndpoint)
+	http.ListenAndServe(ciEndpoint, router)
 }
