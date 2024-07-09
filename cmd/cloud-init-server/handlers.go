@@ -59,6 +59,9 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The datastore key must be URL-safe, or it will be impossible to
+	// view/delete the entry (since these actions require the key to be part of
+	// the URL)
 	id := slug.Make(ci.Name)
 
 	err := h.store.Add(id, ci)
@@ -71,7 +74,7 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.JSON(w, r, ci.Name)
+	render.JSON(w, r, id)
 }
 
 // GetEntry godoc
