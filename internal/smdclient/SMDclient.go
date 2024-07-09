@@ -88,7 +88,7 @@ func (s *SMDClient) IDfromMAC(mac string) (string, error) {
 			}
 		}
 	}
-	return "", errors.New("MAC " + mac + " not found for an xname in CompenentEndpoints")
+	return "", errors.New("MAC " + mac + " not found for an xname in ComponentEndpoints")
 }
 
 // GroupMembership returns the group labels for the xname with the given ID
