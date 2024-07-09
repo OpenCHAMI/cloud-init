@@ -4,11 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 var (
@@ -43,6 +45,14 @@ func main() {
 
 	// Primary router and shared SMD client
 	router := chi.NewRouter()
+	router.Use(
+		middleware.RequestID,
+		middleware.RealIP,
+		middleware.Logger,
+		middleware.Recoverer,
+		middleware.StripSlashes,
+		middleware.Timeout(60 * time.Second),
+	)
 	sm := smdclient.NewSMDClient(smdEndpoint, smdToken)
 
 	// Unsecured datastore and router
