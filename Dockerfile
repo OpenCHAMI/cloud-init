@@ -44,7 +44,7 @@ ENV JWKS_URL=""
 USER 65534:65534
 
 # Set up the command to start the service.
-CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_ADDR} --smd-url ${SMD_URL} --smd-token ${SMD_TOKEN} --jwks-url ${JWKS_URL}
+CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_ADDR} --smd-url ${SMD_URL} --smd-token ${SMD_TOKEN:-""} --jwks-url ${JWKS_URL:-""}
 
 
 ENTRYPOINT ["/sbin/tini", "--"]
