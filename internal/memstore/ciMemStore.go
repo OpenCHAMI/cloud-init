@@ -63,6 +63,7 @@ func (m MemStore) Get(name string, sm *smdclient.SMDClient) (citypes.CI, error) 
 	id, err := sm.IDfromMAC(name)
 	if err != nil {
 		log.Print(err)
+		id = name  // Fall back to using the given name as an ID
 	} else {
 		log.Printf("xname %s with mac %s found\n", id, name)
 	}
@@ -81,7 +82,7 @@ func (m MemStore) Get(name string, sm *smdclient.SMDClient) (citypes.CI, error) 
 			}
 		}
 	} else {
-		log.Printf("ID %s is not a member of any groups\n", name)
+		log.Printf("ID %s is not a member of any groups\n", id)
 	}
 
 	if val, ok := m.list[id]; ok {
