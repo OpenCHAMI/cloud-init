@@ -48,18 +48,20 @@ func main() {
 	// Unsecured datastore and router
 	store := memstore.NewMemStore()
 	ciHandler := NewCiHandler(store, sm)
-	router_unsec := newCiRouter(ciHandler)
+	router_unsec := chi.NewRouter()
+	initCiRouter(router_unsec, ciHandler)
 	router.Mount("/cloud-init", router_unsec)
 
 	if secureRouteEnable {
 		// Secured datastore and router
 		store_sec := memstore.NewMemStore()
 		ciHandler_sec := NewCiHandler(store_sec, sm)
-		router_sec := newCiRouter(ciHandler_sec)
+		router_sec := chi.NewRouter()
 		router_sec.Use(
 			jwtauth.Verifier(keyset),
 			jwtauth.Authenticator(keyset),
 		)
+		initCiRouter(router_sec, ciHandler_sec)
 		router.Mount("/cloud-init-secure", router_sec)
 	}
 
@@ -67,9 +69,8 @@ func main() {
 	http.ListenAndServe(ciEndpoint, router)
 }
 
-func newCiRouter(handler *CiHandler) chi.Router {
-	// Create a fresh Router with cloud-init endpoints
-	router := chi.NewRouter()
+func initCiRouter(router chi.Router, handler *CiHandler) {
+	// Add cloud-init endpoints to router
 	router.Get("/", handler.ListEntries)
 	router.Post("/", handler.AddEntry)
 	router.Get("/{id}", handler.GetEntry)
@@ -78,5 +79,4 @@ func newCiRouter(handler *CiHandler) chi.Router {
 	router.Get("/{id}/vendor-data", handler.GetVendorData)
 	router.Put("/{id}", handler.UpdateEntry)
 	router.Delete("/{id}", handler.DeleteEntry)
-	return router
 }
