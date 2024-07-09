@@ -10,7 +10,6 @@ import (
 	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
-	"github.com/gosimple/slug"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -59,12 +58,7 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The datastore key must be URL-safe, or it will be impossible to
-	// view/delete the entry (since these actions require the key to be part of
-	// the URL)
-	id := slug.Make(ci.Name)
-
-	err := h.store.Add(id, ci)
+	err := h.store.Add(ci.Name, ci)
 	if err != nil {
 		if err == memstore.ExistingEntryErr {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -74,7 +68,7 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	render.JSON(w, r, id)
+	render.JSON(w, r, ci.Name)
 }
 
 // GetEntry godoc
