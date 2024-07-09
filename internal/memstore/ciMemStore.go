@@ -2,7 +2,6 @@ package memstore
 
 import (
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
@@ -28,8 +27,6 @@ func NewMemStore() *MemStore {
 
 func (m MemStore) Add(name string, ci citypes.CI) error {
 	curr := m.list[name]
-	fmt.Printf("current: %s\n", curr.CIData.UserData)
-	fmt.Printf("new: %s\n", ci.CIData.UserData)
 
 	if ci.CIData.UserData != nil {
 		if curr.CIData.UserData == nil {
@@ -67,14 +64,14 @@ func (m MemStore) Get(name string, sm *smdclient.SMDClient) (citypes.CI, error) 
 	if err != nil {
 		log.Print(err)
 	} else {
-		fmt.Printf("xname %s with mac %s found\n", id, name)
+		log.Printf("xname %s with mac %s found\n", id, name)
 	}
 
 	gl, err := sm.GroupMembership(id)
 	if err != nil {
 		log.Print(err)
 	} else if len(gl) > 0 {
-		fmt.Printf("xname %s is a member of these groups: %s\n", id, gl)
+		log.Printf("xname %s is a member of these groups: %s\n", id, gl)
 
 		for g := 0; g < len(gl); g++ {
 			if val, ok := m.list[gl[g]]; ok {
@@ -84,13 +81,15 @@ func (m MemStore) Get(name string, sm *smdclient.SMDClient) (citypes.CI, error) 
 			}
 		}
 	} else {
-		fmt.Printf("ID %s is not a member of any groups\n", name)
+		log.Printf("ID %s is not a member of any groups\n", name)
 	}
 
 	if val, ok := m.list[id]; ok {
 		ci_merged.CIData.UserData = lo.Assign(ci_merged.CIData.UserData, val.CIData.UserData)
 		ci_merged.CIData.VendorData = lo.Assign(ci_merged.CIData.VendorData, val.CIData.VendorData)
 		ci_merged.CIData.MetaData = lo.Assign(ci_merged.CIData.MetaData, val.CIData.MetaData)
+	} else {
+		log.Printf("ID %s has no specific configuration\n", id)
 	}
 
 	if len(ci_merged.CIData.UserData) == 0 &&
