@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
-	"log"
-
 	"github.com/OpenCHAMI/smd/v2/pkg/sm"
-	"github.com/golang-jwt/jwt"
 )
 
 // Add client usage examples
@@ -27,43 +26,56 @@ var (
 type SMDClient struct {
 	smdClient   *http.Client
 	smdBaseURL  string
+	tokenServer string
 	accessToken string
 }
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
-// and uses the provided JWT for authentication
-func NewSMDClient(baseurl string, jwt string) *SMDClient {
+// and uses the provided JWT server for authentication
+func NewSMDClient(baseurl string, jwtServer string) *SMDClient {
 	c := &http.Client{Timeout: 2 * time.Second}
 	return &SMDClient{
 		smdClient:   c,
 		smdBaseURL:  baseurl,
-		accessToken: jwt,
+		tokenServer: jwtServer,
+		accessToken: "",
 	}
 }
 
 // getSMD is a helper function to initialize the SMDClient
 func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 	url := s.smdBaseURL + ep
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return err
-	}
-	if s.accessToken != "" {
-		//validate the JWT without verifying the signature
-		//if the JWT is not valid, the request will fail
-		token, _, err := new(jwt.Parser).ParseUnverified(s.accessToken, jwt.MapClaims{})
+	var resp *http.Response
+	// Manage fetching a new JWT if we initially fail
+	freshToken := false
+	for true {
+		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			return errors.New("poorly formed JWT: " + err.Error())
+			return err
 		}
-		log.Println("Loaded JWT token:", s.accessToken)
-		log.Println("Claims:", token.Claims)
 		req.Header.Set("Authorization", "Bearer "+s.accessToken)
-	} else {
-		return errors.New("poorly formed JWT")
-	}
-	resp, err := s.smdClient.Do(req)
-	if err != nil {
-		return err
+		resp, err = s.smdClient.Do(req)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode == http.StatusUnauthorized {
+			// Request failed; handle appropriately (based on whether or not
+			// this was a fresh JWT)
+			log.Println("Cached JWT was rejected by SMD")
+			if !freshToken {
+				log.Println("Fetching new JWT and retrying...")
+				s.RefreshToken()
+				freshToken = true
+			} else {
+				log.Fatalln("SMD authentication failed, even with a fresh" +
+					" JWT. Something has gone terribly wrong; exiting to" +
+					" avoid invalid request spam.")
+				os.Exit(2)
+			}
+		} else {
+			// Request succeeded; we're done here
+			break
+		}
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
