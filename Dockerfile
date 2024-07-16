@@ -35,8 +35,8 @@ RUN set -ex \
 # Get the boot-script-service from the builder stage.
 COPY cloud-init-server /usr/local/bin/
 
+ENV OPAAL_URL="http://opaal:3333"
 ENV SMD_URL="http://smd:27779"
-ENV SMD_TOKEN=""
 ENV LISTEN_ADDR="0.0.0.0:27777"
 ENV JWKS_URL=""
 
@@ -44,7 +44,7 @@ ENV JWKS_URL=""
 USER 65534:65534
 
 # Set up the command to start the service.
-CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_ADDR} --smd-url ${SMD_URL} --smd-token ${SMD_TOKEN:-""} --jwks-url ${JWKS_URL:-""}
+CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_ADDR} --smd-url ${SMD_URL} --opaal-url ${OPAAL_URL} --jwks-url ${JWKS_URL:-""}
 
 
 ENTRYPOINT ["/sbin/tini", "--"]
