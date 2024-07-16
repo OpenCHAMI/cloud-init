@@ -1,10 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
-	"gitea.com/go-chi/binding"
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
@@ -52,13 +53,17 @@ func (h CiHandler) ListEntries(w http.ResponseWriter, r *http.Request) {
 // @Router /harbor [post]
 func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 	var ci citypes.CI
-	if err := binding.Bind(r, &ci); err.Len() > 0 {
-		// This binding function can generate multiple errors; just return the first one
-		http.Error(w, err[0].Classification+": "+err[0].Message, http.StatusBadRequest)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err = json.Unmarshal(body, &ci); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	err := h.store.Add(ci.Name, ci)
+	err = h.store.Add(ci.Name, ci)
 	if err != nil {
 		if err == memstore.ExistingEntryErr {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -138,15 +143,19 @@ func (h CiHandler) GetVendorData(w http.ResponseWriter, r *http.Request) {
 
 func (h CiHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	var ci citypes.CI
-	if err := binding.Bind(r, &ci); err.Len() > 0 {
-		// This binding function can generate multiple errors; just return the first one
-		http.Error(w, err[0].Classification+": "+err[0].Message, http.StatusBadRequest)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err = json.Unmarshal(body, &ci); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 
-	err := h.store.Update(id, ci)
+	err = h.store.Update(id, ci)
 	if err != nil {
 		if err == memstore.NotFoundErr {
 			http.Error(w, err.Error(), http.StatusNotFound)
