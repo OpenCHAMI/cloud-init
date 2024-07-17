@@ -15,6 +15,9 @@ type oidcTokenData struct {
 }
 
 // Refresh the cached access token, using the provided JWT server
+// TODO: OPAAL returns a token without having to perform the usual OAuth2
+// authorization grant. Support for said grant should probably be implemented
+// at some point.
 func (s *SMDClient) RefreshToken() error {
 	// Request new token from OIDC server
 	r, err := http.Get(s.tokenEndpoint)
