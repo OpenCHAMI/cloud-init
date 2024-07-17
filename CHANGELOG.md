@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2024-07-09
+## [0.1.0] - 2024-07-17
 
 ### Added
 
@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched from [Gin](https://github.com/gin-gonic/gin) HTTP router to [Chi](https://github.com/go-chi/chi)
 - When adding entries to the internal datastore, names are no longer "slug-ified" (via the `gosimple/slug` package).
   This means that when a user requests data for a node, the name they query should be a standard colon-separated MAC address, as opposed to using dashes.
+- Rather than requiring a single static JWT on launch, we now accept an OPAAL server name. New JWTs are requested from OPAAL as necessary, allowing us to run for longer than the lifetime of a single token.
 
 ## [0.0.4] - 2024-01-17
 
