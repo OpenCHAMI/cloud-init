@@ -6,8 +6,8 @@ import (
 	"net/http"
 )
 
-// Structure of a token reponse from OPAAL
-type opaalTokenData struct {
+// Structure of a token reponse from OIDC server
+type oidcTokenData struct {
 	Access_token string `json:"access_token"`
 	Expires_in   int    `json:"expires_in"`
 	Scope        string `json:"scope"`
@@ -16,8 +16,8 @@ type opaalTokenData struct {
 
 // Refresh the cached access token, using the provided JWT server
 func (s *SMDClient) RefreshToken() error {
-	// Request new token from OPAAL
-	r, err := http.Get(s.tokenServer + "/token")
+	// Request new token from OIDC server
+	r, err := http.Get(s.tokenEndpoint)
 	if err != nil {
 		return err
 	}
@@ -25,8 +25,8 @@ func (s *SMDClient) RefreshToken() error {
 	if err != nil {
 		return err
 	}
-	// Decode OPAAL's response to the expected structure
-	var tokenResp opaalTokenData
+	// Decode server's response to the expected structure
+	var tokenResp oidcTokenData
 	if err = json.Unmarshal(body, &tokenResp); err != nil {
 		return err
 	}

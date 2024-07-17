@@ -15,14 +15,14 @@ import (
 
 var (
 	ciEndpoint    = ":27777"
-	opaalEndpoint = "http://opaal:3333" // jwt for smd access obtained from here
+	tokenEndpoint = "http://opaal:3333/token" // jwt for smd access obtained from here
 	smdEndpoint   = "http://smd:27779"
 	jwksUrl       = "" // jwt keyserver URL for secure-route token validation
 )
 
 func main() {
 	flag.StringVar(&ciEndpoint, "listen", ciEndpoint, "Server IP and port for cloud-init-server to listen on")
-	flag.StringVar(&opaalEndpoint, "opaal-url", opaalEndpoint, "http IP/url and port for OPAAL (or other JWT) server")
+	flag.StringVar(&tokenEndpoint, "token-url", tokenEndpoint, "OIDC server URL (endpoint) to fetch new tokens from (for SMD access)")
 	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "http IP/url and port for running SMD")
 	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
 	flag.Parse()
@@ -53,7 +53,7 @@ func main() {
 		middleware.StripSlashes,
 		middleware.Timeout(60 * time.Second),
 	)
-	sm := smdclient.NewSMDClient(smdEndpoint, opaalEndpoint)
+	sm := smdclient.NewSMDClient(smdEndpoint, tokenEndpoint)
 
 	// Unsecured datastore and router
 	store := memstore.NewMemStore()

@@ -24,20 +24,20 @@ var (
 
 // SMDClient is a client for SMD
 type SMDClient struct {
-	smdClient   *http.Client
-	smdBaseURL  string
-	tokenServer string
-	accessToken string
+	smdClient     *http.Client
+	smdBaseURL    string
+	tokenEndpoint string
+	accessToken   string
 }
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
 // and uses the provided JWT server for authentication
-func NewSMDClient(baseurl string, jwtServer string) *SMDClient {
+func NewSMDClient(baseurl string, jwtURL string) *SMDClient {
 	c := &http.Client{Timeout: 2 * time.Second}
 	return &SMDClient{
 		smdClient:   c,
 		smdBaseURL:  baseurl,
-		tokenServer: jwtServer,
+		tokenEndpoint: jwtURL,
 		accessToken: "",
 	}
 }
