@@ -5,7 +5,7 @@ on:
   push:
     tags:
       - v*
-      
+
 permissions: write-all # Necessary for the generate-build-provenance action with containers
 
 jobs:
@@ -52,11 +52,11 @@ jobs:
           node process.js
           echo "digest=$(cat digest.txt)" >> $GITHUB_OUTPUT
       - name: Attest Binaries
-        uses: github-early-access/generate-build-provenance@main
+        uses: actions/attest-build-provenance@v1
         with:
-          subject-path: dist/smd*
+          subject-path: dist/cloud-init*
       - name: generate build provenance
-        uses: github-early-access/generate-build-provenance@main
+        uses: actions/attest-build-provenance@v1
         with:
           subject-name: ghcr.io/openchami/cloud-init
           subject-digest: ${{ steps.process_goreleaser_output.outputs.digest }}

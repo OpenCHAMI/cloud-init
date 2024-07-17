@@ -1,1 +1,3 @@
 dist
+# Our compiled binary
+/cloud-init-server

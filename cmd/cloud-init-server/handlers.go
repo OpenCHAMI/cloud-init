@@ -1,14 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
-	"github.com/gin-gonic/gin"
-	"github.com/gosimple/slug"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -30,13 +32,13 @@ func NewCiHandler(s ciStore, c *smdclient.SMDClient) *CiHandler {
 // @Produce json
 // @Success 200 {object} map[string]CI
 // @Router /harbor [get]
-func (h CiHandler) ListEntries(c *gin.Context) {
+func (h CiHandler) ListEntries(w http.ResponseWriter, r *http.Request) {
 	ci, err := h.store.List()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	c.JSON(200, ci)
+	render.JSON(w, r, ci)
 }
 
 // AddEntry godoc
@@ -49,26 +51,29 @@ func (h CiHandler) ListEntries(c *gin.Context) {
 // @Failure 400 {string} string "bad request"
 // @Failure 500 {string} string "internal server error"
 // @Router /harbor [post]
-func (h CiHandler) AddEntry(c *gin.Context) {
+func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 	var ci citypes.CI
-	if err := c.ShouldBindJSON(&ci); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err = json.Unmarshal(body, &ci); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	id := slug.Make(ci.Name)
-
-	err := h.store.Add(id, ci)
+	err = h.store.Add(ci.Name, ci)
 	if err != nil {
 		if err == memstore.ExistingEntryErr {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, ci.Name)
+	render.JSON(w, r, ci.Name)
 }
 
 // GetEntry godoc
@@ -79,89 +84,102 @@ func (h CiHandler) AddEntry(c *gin.Context) {
 // @Success 200 {object} CI
 // @Failure 404 {string} string "not found"
 // @Router /harbor/{id} [get]
-func (h CiHandler) GetEntry(c *gin.Context) {
-	id := c.Param("id")
+func (h CiHandler) GetEntry(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 
 	ci, err := h.store.Get(id, h.sm)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusNotFound)
+	} else {
+		render.JSON(w, r, ci)
 	}
-
-	c.JSON(200, ci)
 }
 
-func (h CiHandler) GetUserData(c *gin.Context) {
-	id := c.Param("id")
+func (h CiHandler) GetUserData(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 
 	ci, err := h.store.Get(id, h.sm)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusNotFound)
 	}
 	ud, err := yaml.Marshal(ci.CIData.UserData)
 	if err != nil {
 		fmt.Print(err)
 	}
 	s := fmt.Sprintf("#cloud-config\n%s", string(ud[:]))
-	//c.Header("Content-Type", "text/yaml")
-	c.Data(200, "text/yaml", []byte(s))
+	w.Header().Set("Content-Type", "text/yaml")
+	w.Write([]byte(s))
 }
 
-func (h CiHandler) GetMetaData(c *gin.Context) {
-	id := c.Param("id")
+func (h CiHandler) GetMetaData(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 
 	ci, err := h.store.Get(id, h.sm)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusNotFound)
 	}
-
-	c.YAML(200, ci.CIData.MetaData)
+	md, err := yaml.Marshal(ci.CIData.MetaData)
+	if err != nil {
+		fmt.Print(err)
+	}
+	w.Header().Set("Content-Type", "text/yaml")
+	w.Write([]byte(md))
 }
 
-func (h CiHandler) GetVendorData(c *gin.Context) {
-	id := c.Param("id")
+func (h CiHandler) GetVendorData(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 
 	ci, err := h.store.Get(id, h.sm)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusNotFound)
 	}
-
-	c.YAML(200, ci.CIData.VendorData)
+	md, err := yaml.Marshal(ci.CIData.VendorData)
+	if err != nil {
+		fmt.Print(err)
+	}
+	w.Header().Set("Content-Type", "text/yaml")
+	w.Write([]byte(md))
 }
 
-func (h CiHandler) UpdateEntry(c *gin.Context) {
+func (h CiHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	var ci citypes.CI
-	if err := c.ShouldBindJSON(&ci); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err = json.Unmarshal(body, &ci); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	id := c.Param("id")
+	id := chi.URLParam(r, "id")
 
-	err := h.store.Update(id, ci)
+	err = h.store.Update(id, ci)
 	if err != nil {
 		if err == memstore.NotFoundErr {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, id)
+	render.JSON(w, r, id)
 }
 
-func (h CiHandler) DeleteEntry(c *gin.Context) {
-	id := c.Param("id")
+func (h CiHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 
 	err := h.store.Remove(id)
 	if err != nil {
 		if err == memstore.NotFoundErr {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+	render.JSON(w, r, map[string]string{"status": "success"})
 }
