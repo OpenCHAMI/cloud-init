@@ -85,22 +85,24 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 	return nil
 }
 
+// Helper array type
+// TODO: This probably belongs in OpenCHAMI/smd, pkg/sm/endpoints.go
+type CompEthInterfaceV2Array struct {
+	Array []*sm.CompEthInterfaceV2
+}
+
 // IDfromMAC returns the ID of the xname that has the MAC address
 func (s *SMDClient) IDfromMAC(mac string) (string, error) {
-	endpointData := new(sm.ComponentEndpointArray)
-	ep := "/hsm/v2/Inventory/ComponentEndpoints/"
+	endpointData := new(CompEthInterfaceV2Array)
+	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
 	s.getSMD(ep, endpointData)
 
-	for _, ep := range endpointData.ComponentEndpoints {
-		id := ep.ID
-		nics := ep.RedfishSystemInfo.EthNICInfo
-		for _, v := range nics {
-			if strings.EqualFold(mac, v.MACAddress) {
-				return id, nil
-			}
+	for _, ep := range endpointData.Array {
+		if strings.EqualFold(mac, ep.MACAddr) {
+			return ep.CompID, nil
 		}
 	}
-	return "", errors.New("MAC " + mac + " not found for an xname in ComponentEndpoints")
+	return "", errors.New("MAC " + mac + " not found for an xname in EthernetInterfaces")
 }
 
 // GroupMembership returns the group labels for the xname with the given ID
