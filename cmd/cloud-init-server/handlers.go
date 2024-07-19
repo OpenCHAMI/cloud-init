@@ -105,46 +105,20 @@ func (h CiHandler) GetEntry(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h CiHandler) GetUserData(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	// Retrieve the node's xname based on MAC address
-	name, err := h.sm.IDfromMAC(id)
-	if err != nil {
-		log.Print(err)
-		name = id // Fall back to using the given name as-is
-	} else {
-		log.Printf("xname %s with mac %s found\n", name, id)
+func (h CiHandler) GetDataByMAC(dataKind ciDataKind) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		// Retrieve the node's xname based on MAC address
+		name, err := h.sm.IDfromMAC(id)
+		if err != nil {
+			log.Print(err)
+			name = id // Fall back to using the given name as-is
+		} else {
+			log.Printf("xname %s with mac %s found\n", name, id)
+		}
+		// Actually respond with the data
+		h.getData(name, dataKind, w)
 	}
-	// Actually respond with the data
-	h.getData(name, UserData, w)
-}
-
-func (h CiHandler) GetMetaData(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	// Retrieve the node's xname based on MAC address
-	name, err := h.sm.IDfromMAC(id)
-	if err != nil {
-		log.Print(err)
-		name = id // Fall back to using the given name as-is
-	} else {
-		log.Printf("xname %s with mac %s found\n", name, id)
-	}
-	// Actually respond with the data
-	h.getData(name, MetaData, w)
-}
-
-func (h CiHandler) GetVendorData(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	// Retrieve the node's xname based on MAC address
-	name, err := h.sm.IDfromMAC(id)
-	if err != nil {
-		log.Print(err)
-		name = id // Fall back to using the given name as-is
-	} else {
-		log.Printf("xname %s with mac %s found\n", name, id)
-	}
-	// Actually respond with the data
-	h.getData(name, VendorData, w)
 }
 
 func (h CiHandler) getData(id string, dataKind ciDataKind, w http.ResponseWriter) {

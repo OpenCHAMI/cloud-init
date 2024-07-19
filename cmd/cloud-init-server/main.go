@@ -84,9 +84,9 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 	router.Get("/", handler.ListEntries)
 	router.Post("/", handler.AddEntry)
 	router.Get("/{id}", handler.GetEntry)
-	router.Get("/{id}/user-data", handler.GetUserData)
-	router.Get("/{id}/meta-data", handler.GetMetaData)
-	router.Get("/{id}/vendor-data", handler.GetVendorData)
+	router.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
+	router.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
+	router.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
 	router.Put("/{id}", handler.UpdateEntry)
 	router.Delete("/{id}", handler.DeleteEntry)
 }
