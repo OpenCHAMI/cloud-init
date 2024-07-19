@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
@@ -115,6 +116,30 @@ func (h CiHandler) GetDataByMAC(dataKind ciDataKind) func(w http.ResponseWriter,
 			name = id // Fall back to using the given name as-is
 		} else {
 			log.Printf("xname %s with mac %s found\n", name, id)
+		}
+		// Actually respond with the data
+		h.getData(name, dataKind, w)
+	}
+}
+
+func (h CiHandler) GetDataByIP(dataKind ciDataKind) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Strip port number from RemoteAddr to obtain raw IP
+		portIndex := strings.LastIndex(r.RemoteAddr, ":")
+		var ip string
+		if portIndex > 0 {
+			ip = r.RemoteAddr[:portIndex]
+		} else {
+			ip = r.RemoteAddr
+		}
+		// Retrieve the node's xname based on IP address
+		name, err := h.sm.IDfromIP(ip)
+		if err != nil {
+			log.Print(err)
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		} else {
+			log.Printf("xname %s with ip %s found\n", name, ip)
 		}
 		// Actually respond with the data
 		h.getData(name, dataKind, w)
