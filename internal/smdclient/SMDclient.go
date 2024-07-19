@@ -105,6 +105,22 @@ func (s *SMDClient) IDfromMAC(mac string) (string, error) {
 	return "", errors.New("MAC " + mac + " not found for an xname in EthernetInterfaces")
 }
 
+// IDfromMAC returns the ID of the xname that has the MAC address
+func (s *SMDClient) IDfromIP(ipaddr string) (string, error) {
+	endpointData := new(CompEthInterfaceV2Array)
+	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
+	s.getSMD(ep, endpointData)
+
+	for _, ep := range endpointData.Array {
+		for _, v := range ep.IPAddrs {
+			if strings.EqualFold(ipaddr, v.IPAddr) {
+				return ep.CompID, nil
+			}
+		}
+	}
+	return "", errors.New("IP address " + ipaddr + " not found for an xname in EthernetInterfaces")
+}
+
 // GroupMembership returns the group labels for the xname with the given ID
 func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 	ml := new(sm.Membership)
