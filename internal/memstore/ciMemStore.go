@@ -60,19 +60,11 @@ func (m MemStore) Get(name string, sm *smdclient.SMDClient) (citypes.CI, error) 
 
 	ci_merged := new(citypes.CI)
 
-	id, err := sm.IDfromMAC(name)
-	if err != nil {
-		log.Print(err)
-		id = name  // Fall back to using the given name as an ID
-	} else {
-		log.Printf("xname %s with mac %s found\n", id, name)
-	}
-
-	gl, err := sm.GroupMembership(id)
+	gl, err := sm.GroupMembership(name)
 	if err != nil {
 		log.Print(err)
 	} else if len(gl) > 0 {
-		log.Printf("xname %s is a member of these groups: %s\n", id, gl)
+		log.Printf("Node %s is a member of these groups: %s\n", name, gl)
 
 		for g := 0; g < len(gl); g++ {
 			if val, ok := m.list[gl[g]]; ok {
@@ -82,15 +74,15 @@ func (m MemStore) Get(name string, sm *smdclient.SMDClient) (citypes.CI, error) 
 			}
 		}
 	} else {
-		log.Printf("ID %s is not a member of any groups\n", id)
+		log.Printf("Node %s is not a member of any groups\n", name)
 	}
 
-	if val, ok := m.list[id]; ok {
+	if val, ok := m.list[name]; ok {
 		ci_merged.CIData.UserData = lo.Assign(ci_merged.CIData.UserData, val.CIData.UserData)
 		ci_merged.CIData.VendorData = lo.Assign(ci_merged.CIData.VendorData, val.CIData.VendorData)
 		ci_merged.CIData.MetaData = lo.Assign(ci_merged.CIData.MetaData, val.CIData.MetaData)
 	} else {
-		log.Printf("ID %s has no specific configuration\n", id)
+		log.Printf("Node %s has no specific configuration\n", name)
 	}
 
 	if len(ci_merged.CIData.UserData) == 0 &&

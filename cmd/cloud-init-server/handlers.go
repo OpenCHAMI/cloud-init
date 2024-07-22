@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
@@ -25,6 +27,15 @@ func NewCiHandler(s ciStore, c *smdclient.SMDClient) *CiHandler {
 		sm:    c,
 	}
 }
+
+// Enumeration for cloud-init data categories
+type ciDataKind uint
+// Takes advantage of implicit repetition and iota's auto-incrementing
+const (
+	UserData ciDataKind = iota
+	MetaData
+	VendorData
+)
 
 // ListEntries godoc
 // @Summary List all cloud-init entries
@@ -95,50 +106,69 @@ func (h CiHandler) GetEntry(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h CiHandler) GetUserData(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-
-	ci, err := h.store.Get(id, h.sm)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+func (h CiHandler) GetDataByMAC(dataKind ciDataKind) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		// Retrieve the node's xname based on MAC address
+		name, err := h.sm.IDfromMAC(id)
+		if err != nil {
+			log.Print(err)
+			name = id // Fall back to using the given name as-is
+		} else {
+			log.Printf("xname %s with mac %s found\n", name, id)
+		}
+		// Actually respond with the data
+		h.getData(name, dataKind, w)
 	}
-	ud, err := yaml.Marshal(ci.CIData.UserData)
-	if err != nil {
-		fmt.Print(err)
-	}
-	s := fmt.Sprintf("#cloud-config\n%s", string(ud[:]))
-	w.Header().Set("Content-Type", "text/yaml")
-	w.Write([]byte(s))
 }
 
-func (h CiHandler) GetMetaData(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-
-	ci, err := h.store.Get(id, h.sm)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+func (h CiHandler) GetDataByIP(dataKind ciDataKind) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Strip port number from RemoteAddr to obtain raw IP
+		portIndex := strings.LastIndex(r.RemoteAddr, ":")
+		var ip string
+		if portIndex > 0 {
+			ip = r.RemoteAddr[:portIndex]
+		} else {
+			ip = r.RemoteAddr
+		}
+		// Retrieve the node's xname based on IP address
+		name, err := h.sm.IDfromIP(ip)
+		if err != nil {
+			log.Print(err)
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		} else {
+			log.Printf("xname %s with ip %s found\n", name, ip)
+		}
+		// Actually respond with the data
+		h.getData(name, dataKind, w)
 	}
-	md, err := yaml.Marshal(ci.CIData.MetaData)
-	if err != nil {
-		fmt.Print(err)
-	}
-	w.Header().Set("Content-Type", "text/yaml")
-	w.Write([]byte(md))
 }
 
-func (h CiHandler) GetVendorData(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-
+func (h CiHandler) getData(id string, dataKind ciDataKind, w http.ResponseWriter) {
 	ci, err := h.store.Get(id, h.sm)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	}
-	md, err := yaml.Marshal(ci.CIData.VendorData)
+
+	var data *map[string]interface{}
+	switch dataKind {
+	case UserData:
+		w.Write([]byte("#cloud-config\n"))
+		data = &ci.CIData.UserData
+	case MetaData:
+		data = &ci.CIData.MetaData
+	case VendorData:
+		data = &ci.CIData.VendorData
+	}
+
+	ydata, err := yaml.Marshal(data)
 	if err != nil {
 		fmt.Print(err)
 	}
 	w.Header().Set("Content-Type", "text/yaml")
-	w.Write([]byte(md))
+	w.Write([]byte(ydata))
 }
 
 func (h CiHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {

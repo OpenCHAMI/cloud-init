@@ -35,10 +35,10 @@ type SMDClient struct {
 func NewSMDClient(baseurl string, jwtURL string) *SMDClient {
 	c := &http.Client{Timeout: 2 * time.Second}
 	return &SMDClient{
-		smdClient:   c,
-		smdBaseURL:  baseurl,
+		smdClient:     c,
+		smdBaseURL:    baseurl,
 		tokenEndpoint: jwtURL,
-		accessToken: "",
+		accessToken:   "",
 	}
 }
 
@@ -87,20 +87,32 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 
 // IDfromMAC returns the ID of the xname that has the MAC address
 func (s *SMDClient) IDfromMAC(mac string) (string, error) {
-	endpointData := new(sm.ComponentEndpointArray)
-	ep := "/hsm/v2/Inventory/ComponentEndpoints/"
-	s.getSMD(ep, endpointData)
+	var ethIfaceArray []sm.CompEthInterfaceV2
+	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
+	s.getSMD(ep, &ethIfaceArray)
 
-	for _, ep := range endpointData.ComponentEndpoints {
-		id := ep.ID
-		nics := ep.RedfishSystemInfo.EthNICInfo
-		for _, v := range nics {
-			if strings.EqualFold(mac, v.MACAddress) {
-				return id, nil
+	for _, ep := range ethIfaceArray {
+		if strings.EqualFold(mac, ep.MACAddr) {
+			return ep.CompID, nil
+		}
+	}
+	return "", errors.New("MAC " + mac + " not found for an xname in EthernetInterfaces")
+}
+
+// IDfromIP returns the ID of the xname that has the IP address
+func (s *SMDClient) IDfromIP(ipaddr string) (string, error) {
+	var ethIfaceArray []sm.CompEthInterfaceV2
+	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
+	s.getSMD(ep, &ethIfaceArray)
+
+	for _, ep := range ethIfaceArray {
+		for _, v := range ep.IPAddrs {
+			if strings.EqualFold(ipaddr, v.IPAddr) {
+				return ep.CompID, nil
 			}
 		}
 	}
-	return "", errors.New("MAC " + mac + " not found for an xname in ComponentEndpoints")
+	return "", errors.New("IP address " + ipaddr + " not found for an xname in EthernetInterfaces")
 }
 
 // GroupMembership returns the group labels for the xname with the given ID
