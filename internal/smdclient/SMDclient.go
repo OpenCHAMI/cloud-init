@@ -99,7 +99,7 @@ func (s *SMDClient) IDfromMAC(mac string) (string, error) {
 	return "", errors.New("MAC " + mac + " not found for an xname in EthernetInterfaces")
 }
 
-// IDfromMAC returns the ID of the xname that has the MAC address
+// IDfromIP returns the ID of the xname that has the IP address
 func (s *SMDClient) IDfromIP(ipaddr string) (string, error) {
 	var ethIfaceArray []sm.CompEthInterfaceV2
 	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
