@@ -35,10 +35,10 @@ type SMDClient struct {
 func NewSMDClient(baseurl string, jwtURL string) *SMDClient {
 	c := &http.Client{Timeout: 2 * time.Second}
 	return &SMDClient{
-		smdClient:   c,
-		smdBaseURL:  baseurl,
+		smdClient:     c,
+		smdBaseURL:    baseurl,
 		tokenEndpoint: jwtURL,
-		accessToken: "",
+		accessToken:   "",
 	}
 }
 
@@ -85,19 +85,13 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 	return nil
 }
 
-// Helper array type
-// TODO: This probably belongs in OpenCHAMI/smd, pkg/sm/endpoints.go
-type CompEthInterfaceV2Array struct {
-	Array []*sm.CompEthInterfaceV2
-}
-
 // IDfromMAC returns the ID of the xname that has the MAC address
 func (s *SMDClient) IDfromMAC(mac string) (string, error) {
-	endpointData := new(CompEthInterfaceV2Array)
+	var ethIfaceArray []sm.CompEthInterfaceV2
 	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
-	s.getSMD(ep, endpointData)
+	s.getSMD(ep, &ethIfaceArray)
 
-	for _, ep := range endpointData.Array {
+	for _, ep := range ethIfaceArray {
 		if strings.EqualFold(mac, ep.MACAddr) {
 			return ep.CompID, nil
 		}
@@ -107,11 +101,11 @@ func (s *SMDClient) IDfromMAC(mac string) (string, error) {
 
 // IDfromMAC returns the ID of the xname that has the MAC address
 func (s *SMDClient) IDfromIP(ipaddr string) (string, error) {
-	endpointData := new(CompEthInterfaceV2Array)
+	var ethIfaceArray []sm.CompEthInterfaceV2
 	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
-	s.getSMD(ep, endpointData)
+	s.getSMD(ep, &ethIfaceArray)
 
-	for _, ep := range endpointData.Array {
+	for _, ep := range ethIfaceArray {
 		for _, v := range ep.IPAddrs {
 			if strings.EqualFold(ipaddr, v.IPAddr) {
 				return ep.CompID, nil
