@@ -56,16 +56,12 @@ The workflow described for unprotected data can be used, with the addition of th
 
 #### Usage
 In order to access this protected data, nodes must also supply valid JWTs.
-These may be distributed to nodes at boot time by including [`tpm-manager.yml`](tpm-manager.yml) in the `docker compose` command provided above.
-(It should be provided last, since it supplements service definitions from other files.)
+Distribution of these tokens is out-of-scope for this repository, but may be handled via the [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager).
 
-For nodes without hardware TPMs, the TPM manager will drop a JWT into `/var/run/cloud-init-jwt`.
-The token can be retrieved and included with a request to the cloud-init server, using an invocation such as:
+Once the JWT is known, it can be used to authenticate with the cloud-init server, via an invocation such as:
 ```bash
 curl 'https://foobar.openchami.cluster/cloud-init-secure/<IDENTIFIER>/{meta-data,user-data,vendor-data}' \
     --create-dirs --output '/PATH/TO/DATA-DIR/#1' \
-    --header "Authorization: Bearer $(</var/run/cloud-init-jwt)"
+    --header "Authorization: Bearer $ACCESS_TOKEN"
 ```
 cloud-init (i.e. on the node) can then be pointed at `file:///PATH/TO/DATA-DIR/` as its datasource URL.
-
-For nodes *with* hardware TPMs, the token will be dropped into the TPM's secure storage with `ownerread|ownerwrite` scope, and can be retrieved using the `tpm2_nvread` command.
