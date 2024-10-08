@@ -3,7 +3,6 @@ module github.com/OpenCHAMI/cloud-init
 go 1.21
 
 require (
-	gitea.com/go-chi/binding v0.0.0-20240430071103-39a851e106ed
 	github.com/OpenCHAMI/jwtauth/v5 v5.0.0-20240321222802-e6cb468a2a18
 	github.com/OpenCHAMI/smd/v2 v2.12.15
 	github.com/go-chi/chi/v5 v5.1.0
