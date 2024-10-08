@@ -24,7 +24,7 @@ var (
 	ciEndpoint    = ":27777"
 	tokenEndpoint = "http://opaal:3333/token" // jwt for smd access obtained from here
 	smdEndpoint   = "http://smd:27779"
-	jwksUrl       = "" // jwt keyserver URL for secure-route token validation
+	jwksUrl       = "http://opaal:3333/keys" // jwt keyserver URL for secure-route token validation
 	insecure      = false
 	accessToken   = ""
 	certPath      = ""
@@ -36,7 +36,7 @@ func main() {
 	flag.StringVar(&ciEndpoint, "listen", ciEndpoint, "Server IP and port for cloud-init-server to listen on")
 	flag.StringVar(&tokenEndpoint, "token-url", tokenEndpoint, "OIDC server URL (endpoint) to fetch new tokens from (for SMD access)")
 	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "Server host and port only for running SMD (do not include /hsm/v2)")
-	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
+	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, for JWT validation")
 	flag.StringVar(&accessToken, "access-token", accessToken, "encoded JWT access token")
 	flag.StringVar(&clusterName, "cluster-name", clusterName, "Name of the cluster")
 	flag.StringVar(&certPath, "cacert", certPath, "Path to CA cert. (defaults to system CAs)")
@@ -45,18 +45,12 @@ func main() {
 
 	// Set up JWT verification via the specified URL, if any
 	var keyset *jwtauth.JWTAuth
-	secureRouteEnable := false
-	if jwksUrl != "" {
-		var err error
-		keyset, err = fetchPublicKeyFromURL(jwksUrl)
-		if err != nil {
-			fmt.Printf("JWKS initialization failed: %s\n", err)
-		} else {
-			// JWKS init SUCCEEDED, secure route supported
-			secureRouteEnable = true
-		}
-	} else {
-		fmt.Println("No JWKS URL provided; secure route will be disabled")
+	var err error
+	fmt.Printf("Initializing JWKS from URL: %s\n", jwksUrl)
+	keyset, err = fetchPublicKeyFromURL(jwksUrl)
+	if err != nil {
+		fmt.Printf("JWKS initialization failed: %s\n", err)
+		os.Exit(2)
 	}
 
 	// Setup logger
@@ -99,18 +93,16 @@ func main() {
 	initCiRouter(router_unsec, ciHandler)
 	router.Mount("/cloud-init", router_unsec)
 
-	if secureRouteEnable {
-		// Secured datastore and router
-		store_sec := memstore.NewMemStore()
-		ciHandler_sec := NewCiHandler(store_sec, sm, clusterName)
-		router_sec := chi.NewRouter()
-		router_sec.Use(
-			jwtauth.Verifier(keyset),
-			openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
-		)
-		initCiRouter(router_sec, ciHandler_sec)
-		router.Mount("/cloud-init-secure", router_sec)
-	}
+	// Secured datastore and router
+	store_sec := memstore.NewMemStore()
+	ciHandler_sec := NewCiHandler(store_sec, sm, clusterName)
+	router_sec := chi.NewRouter()
+	router_sec.Use(
+		jwtauth.Verifier(keyset),
+		openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
+	)
+	initCiRouter(router_sec, ciHandler_sec)
+	router.Mount("/cloud-init-secure", router_sec)
 
 	// Serve all routes
 	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
