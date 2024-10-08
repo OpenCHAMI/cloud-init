@@ -50,12 +50,20 @@ func main() {
 	)
 	sm := smdclient.NewSMDClient(smdEndpoint, tokenEndpoint)
 
-	// Unsecured datastore and router
+	// Unsecured datastore and routers
 	store := memstore.NewMemStore()
 	ciHandler := NewCiHandler(store, sm)
 	router_unsec := chi.NewRouter()
-	initCiRouter(router_unsec, ciHandler)
+	// This "unsecured" router still does security checking, and handles
+	// (sensitive) write requests
+	router_unsec_writes := chi.NewRouter()
+	router_unsec_writes.Use(
+		jwtauth.Verifier(keyset),
+		jwtauth.Authenticator(keyset),
+	)
+	initCiRouter(router_unsec, router_unsec_writes, ciHandler)
 	router.Mount("/cloud-init", router_unsec)
+	router.Mount("/cloud-init", router_unsec_writes)
 
 	// Secured datastore and router
 	store_sec := memstore.NewMemStore()
@@ -65,24 +73,24 @@ func main() {
 		jwtauth.Verifier(keyset),
 		jwtauth.Authenticator(keyset),
 	)
-	initCiRouter(router_sec, ciHandler_sec)
+	initCiRouter(router_sec, router_sec, ciHandler_sec)
 	router.Mount("/cloud-init-secure", router_sec)
 
 	// Serve all routes
 	http.ListenAndServe(ciEndpoint, router)
 }
 
-func initCiRouter(router chi.Router, handler *CiHandler) {
+func initCiRouter(getRouter chi.Router, setRouter chi.Router, handler *CiHandler) {
 	// Add cloud-init endpoints to router
-	router.Get("/", handler.ListEntries)
-	router.Post("/", handler.AddEntry)
-	router.Get("/user-data", handler.GetDataByIP(UserData))
-	router.Get("/meta-data", handler.GetDataByIP(MetaData))
-	router.Get("/vendor-data", handler.GetDataByIP(VendorData))
-	router.Get("/{id}", handler.GetEntry)
-	router.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
-	router.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
-	router.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
-	router.Put("/{id}", handler.UpdateEntry)
-	router.Delete("/{id}", handler.DeleteEntry)
+	getRouter.Get("/", handler.ListEntries)
+	getRouter.Get("/user-data", handler.GetDataByIP(UserData))
+	getRouter.Get("/meta-data", handler.GetDataByIP(MetaData))
+	getRouter.Get("/vendor-data", handler.GetDataByIP(VendorData))
+	getRouter.Get("/{id}", handler.GetEntry)
+	getRouter.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
+	getRouter.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
+	getRouter.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
+	setRouter.Post("/", handler.AddEntry)
+	setRouter.Put("/{id}", handler.UpdateEntry)
+	setRouter.Delete("/{id}", handler.DeleteEntry)
 }
