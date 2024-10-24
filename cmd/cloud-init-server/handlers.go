@@ -30,6 +30,7 @@ func NewCiHandler(s ciStore, c *smdclient.SMDClient) *CiHandler {
 
 // Enumeration for cloud-init data categories
 type ciDataKind uint
+
 // Takes advantage of implicit repetition and iota's auto-incrementing
 const (
 	UserData ciDataKind = iota
@@ -212,4 +213,116 @@ func (h CiHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	render.JSON(w, r, map[string]string{"status": "success"})
+}
+
+func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {
+	// type alias to simplify abstraction
+	var (
+		id   string = chi.URLParam(r, "id")
+		body []byte
+		data memstore.Data
+		err  error
+	)
+
+	// read the POST body for JSON data
+	body, err = io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// unmarshal data to add to MemStore
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// add a new group to meta-data if it doesn't already exist
+	err = h.store.AddGroups(id, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func (h CiHandler) GetGroupData(w http.ResponseWriter, r *http.Request) {
+	var (
+		id    string = chi.URLParam(r, "id")
+		data  memstore.Data
+		bytes []byte
+		err   error
+	)
+
+	// get group data from MemStore if it exists
+	data, err = h.store.GetGroups(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// marshal to YAML and print the group data to standard output
+	bytes, err = yaml.Marshal(data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(bytes)
+
+}
+
+// UpdateGroupData expects a request containing POST data as a JSON. The data
+// received in the request should ONLY contain the data to be included for a
+// "meta-data.groups" and NOT "meta-data". See "AddGroup" in 'ciMemStore.go'
+// for an example.
+func (h CiHandler) UpdateGroupData(w http.ResponseWriter, r *http.Request) {
+	// type alias to simplify abstraction
+	var (
+		id   string = chi.URLParam(r, "id")
+		body []byte
+		data memstore.Data
+		err  error
+	)
+
+	// read the POST body for JSON data
+	body, err = io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// unmarshal data to add to MemStore
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// update groups in meta-data
+	err = h.store.UpdateGroups(id, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func (h CiHandler) RemoveGroupData(w http.ResponseWriter, r *http.Request) {
+	var (
+		id  string = chi.URLParam(r, "id")
+		err error
+	)
+
+	// remove group data with specified name
+	err = h.store.RemoveGroups(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func writeInternalError(w http.ResponseWriter, err string) {
+	http.Error(w, err, http.StatusInternalServerError)
+	// log.Error().Err(err)
 }
