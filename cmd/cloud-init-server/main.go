@@ -22,6 +22,7 @@ var (
 )
 
 func main() {
+	// Parse command-line flags for configuration
 	flag.StringVar(&ciEndpoint, "listen", ciEndpoint, "Server IP and port for cloud-init-server to listen on")
 	flag.StringVar(&tokenEndpoint, "token-url", tokenEndpoint, "OIDC server URL (endpoint) to fetch new tokens from (for SMD access)")
 	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "http IP/url and port for running SMD")
@@ -41,56 +42,64 @@ func main() {
 	// Primary router and shared SMD client
 	router := chi.NewRouter()
 	router.Use(
-		middleware.RequestID,
-		middleware.RealIP,
-		middleware.Logger,
-		middleware.Recoverer,
-		middleware.StripSlashes,
-		middleware.Timeout(60 * time.Second),
+		middleware.RequestID,               // Adds a request ID to each request
+		middleware.RealIP,                  // Sets the RemoteAddr to the client's IP address
+		middleware.Logger,                  // Logs the start and end of each request
+		middleware.Recoverer,               // Recovers from panics and returns a 500 error
+		middleware.StripSlashes,            // Strips slashes from the URL
+		middleware.Timeout(60*time.Second), // Sets a timeout for each request
 	)
 	sm := smdclient.NewSMDClient(smdEndpoint, tokenEndpoint)
 
-	// Unsecured datastore and routers
+	// datastore and handlers
 	store := memstore.NewMemStore()
 	ciHandler := NewCiHandler(store, sm)
-	router_unsec := chi.NewRouter()
-	// This "unsecured" router still does security checking, and handles
-	// (sensitive) write requests
-	router_unsec_writes := chi.NewRouter()
-	router_unsec_writes.Use(
-		jwtauth.Verifier(keyset),
-		jwtauth.Authenticator(keyset),
-	)
-	initCiRouter(router_unsec, router_unsec_writes, ciHandler)
-	router.Mount("/cloud-init", router_unsec)
-	router.Mount("/cloud-init", router_unsec_writes)
 
-	// Secured datastore and router
-	store_sec := memstore.NewMemStore()
-	ciHandler_sec := NewCiHandler(store_sec, sm)
+	// Unsecured router for GET requests
+	router_unsec := chi.NewRouter()
+	initCiRouter(router_unsec, nil, ciHandler)
+	router.Mount("/cloud-init", router_unsec)
+
+	// Secured router for POST/PUT/DELETE requests
 	router_sec := chi.NewRouter()
 	router_sec.Use(
-		jwtauth.Verifier(keyset),
-		jwtauth.Authenticator(keyset),
+		jwtauth.Verifier(keyset),      // Verifies JWT tokens
+		jwtauth.Authenticator(keyset), // Authenticates requests using JWT tokens
 	)
-	initCiRouter(router_sec, router_sec, ciHandler_sec)
-	router.Mount("/cloud-init-secure", router_sec)
+	initCiRouter(nil, router_sec, ciHandler)
+	router.Mount("/cloud-init", router_sec)
+
+	// Secure router for all operations
+	store_sec := memstore.NewMemStore()
+	ciHandler_sec := NewCiHandler(store_sec, sm)
+	router_secure := chi.NewRouter()
+	router_secure.Use(
+		jwtauth.Verifier(keyset),      // Verifies JWT tokens
+		jwtauth.Authenticator(keyset), // Authenticates requests using JWT tokens
+	)
+	initCiRouter(router_secure, router_secure, ciHandler_sec)
+	router.Mount("/cloud-init-secure", router_secure)
 
 	// Serve all routes
 	http.ListenAndServe(ciEndpoint, router)
 }
 
 func initCiRouter(getRouter chi.Router, setRouter chi.Router, handler *CiHandler) {
-	// Add cloud-init endpoints to router
-	getRouter.Get("/", handler.ListEntries)
-	getRouter.Get("/user-data", handler.GetDataByIP(UserData))
-	getRouter.Get("/meta-data", handler.GetDataByIP(MetaData))
-	getRouter.Get("/vendor-data", handler.GetDataByIP(VendorData))
-	getRouter.Get("/{id}", handler.GetEntry)
-	getRouter.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
-	getRouter.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
-	getRouter.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
-	setRouter.Post("/", handler.AddEntry)
-	setRouter.Put("/{id}", handler.UpdateEntry)
-	setRouter.Delete("/{id}", handler.DeleteEntry)
+	if getRouter != nil {
+		// Add cloud-init GET endpoints to router
+		getRouter.Get("/", handler.ListEntries)
+		getRouter.Get("/user-data", handler.GetDataByIP(UserData))
+		getRouter.Get("/meta-data", handler.GetDataByIP(MetaData))
+		getRouter.Get("/vendor-data", handler.GetDataByIP(VendorData))
+		getRouter.Get("/{id}", handler.GetEntry)
+		getRouter.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
+		getRouter.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
+		getRouter.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
+	}
+	if setRouter != nil {
+		// Add cloud-init POST/PUT/DELETE endpoints to router
+		setRouter.Post("/", handler.AddEntry)
+		setRouter.Put("/{id}", handler.UpdateEntry)
+		setRouter.Delete("/{id}", handler.DeleteEntry)
+	}
 }
