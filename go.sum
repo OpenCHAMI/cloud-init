@@ -1,6 +1,4 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
-gitea.com/go-chi/binding v0.0.0-20240430071103-39a851e106ed h1:EZZBtilMLSZNWtHHcgq2mt6NSGhJSZBuduAlinMEmso=
-gitea.com/go-chi/binding v0.0.0-20240430071103-39a851e106ed/go.mod h1:E3i3cgB04dDx0v3CytCgRTTn9Z/9x891aet3r456RVw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/Cray-HPE/hms-base v1.15.0/go.mod h1:+G8KFLPtanLC5lQ602hrf3MDfLTmIXedTavVCOdz5XA=
 github.com/Cray-HPE/hms-base v1.15.1 h1:+f9cl9BsDWvewvGBPzinmBSU//I7yhwaSUTaNUwxwxQ=
