@@ -215,31 +215,41 @@ func (h CiHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]string{"status": "success"})
 }
 
-func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {
-	// type alias to simplify abstraction
+func parseData(w http.ResponseWriter, r *http.Request) (citypes.GroupData, error) {
 	var (
-		id   string = chi.URLParam(r, "id")
 		body []byte
-		data memstore.Data
 		err  error
+		data citypes.GroupData
 	)
 
 	// read the POST body for JSON data
 	body, err = io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
-
-	// unmarshal data to add to MemStore
+	// unmarshal data to add to group data
 	err = json.Unmarshal(body, &data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (h CiHandler) AddGroups(w http.ResponseWriter, r *http.Request) {
+	// type alias to simplify abstraction
+	var (
+		data citypes.GroupData
+		err  error
+	)
+
+	data, err = parseData(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// add a new group to meta-data if it doesn't already exist
-	err = h.store.AddGroups(id, data)
+	err = h.store.AddGroups(data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -247,16 +257,15 @@ func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h CiHandler) GetGroupData(w http.ResponseWriter, r *http.Request) {
+func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
-		id    string = chi.URLParam(r, "id")
-		data  memstore.Data
+		data  citypes.GroupData
 		bytes []byte
 		err   error
 	)
 
 	// get group data from MemStore if it exists
-	data, err = h.store.GetGroups(id)
+	data, err = h.store.GetGroups()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -276,46 +285,30 @@ func (h CiHandler) GetGroupData(w http.ResponseWriter, r *http.Request) {
 // received in the request should ONLY contain the data to be included for a
 // "meta-data.groups" and NOT "meta-data". See "AddGroup" in 'ciMemStore.go'
 // for an example.
-func (h CiHandler) UpdateGroupData(w http.ResponseWriter, r *http.Request) {
+func (h CiHandler) UpdateGroups(w http.ResponseWriter, r *http.Request) {
 	// type alias to simplify abstraction
 	var (
-		id   string = chi.URLParam(r, "id")
-		body []byte
-		data memstore.Data
+		data citypes.GroupData
 		err  error
 	)
 
-	// read the POST body for JSON data
-	body, err = io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// unmarshal data to add to MemStore
-	err = json.Unmarshal(body, &data)
+	data, err = parseData(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// update groups in meta-data
-	err = h.store.UpdateGroups(id, data)
+	err = h.store.UpdateGroups(data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 }
 
-func (h CiHandler) RemoveGroupData(w http.ResponseWriter, r *http.Request) {
-	var (
-		id  string = chi.URLParam(r, "id")
-		err error
-	)
-
+func (h CiHandler) RemoveGroups(w http.ResponseWriter, r *http.Request) {
 	// remove group data with specified name
-	err = h.store.RemoveGroups(id)
+	var err = h.store.RemoveGroups()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -325,4 +318,79 @@ func (h CiHandler) RemoveGroupData(w http.ResponseWriter, r *http.Request) {
 func writeInternalError(w http.ResponseWriter, err string) {
 	http.Error(w, err, http.StatusInternalServerError)
 	// log.Error().Err(err)
+}
+
+func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {
+	var (
+		id   string = chi.URLParam(r, "id")
+		data citypes.GroupData
+		err  error
+	)
+
+	data, err = parseData(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = h.store.AddGroupData(id, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func (h CiHandler) GetGroupData(w http.ResponseWriter, r *http.Request) {
+	var (
+		id    string = chi.URLParam(r, "id")
+		data  citypes.GroupData
+		bytes []byte
+		err   error
+	)
+
+	data, err = h.store.GetGroupData(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	bytes, err = yaml.Marshal(data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(bytes)
+}
+func (h CiHandler) UpdateGroupData(w http.ResponseWriter, r *http.Request) {
+	var (
+		id   string = chi.URLParam(r, "id")
+		data citypes.GroupData
+		err  error
+	)
+
+	data, err = parseData(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// update group key-value data
+	err = h.store.UpdateGroupData(id, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h CiHandler) RemoveGroupData(w http.ResponseWriter, r *http.Request) {
+	var (
+		id  string = chi.URLParam(r, "id")
+		err error
+	)
+	err = h.store.RemoveGroupData(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }

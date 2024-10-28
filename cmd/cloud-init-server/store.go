@@ -6,7 +6,6 @@ import (
 )
 
 // ciStore is an interface for storing cloud-init entries
-
 type ciStore interface {
 	Add(name string, ci citypes.CI) error
 	Get(name string, sm *smdclient.SMDClient) (citypes.CI, error)
@@ -14,9 +13,15 @@ type ciStore interface {
 	Update(name string, ci citypes.CI) error
 	Remove(name string) error
 
-	// metadata group API
-	AddGroups(name string, groupData map[string]any) error
-	GetGroups(name string) (map[string]any, error)
-	UpdateGroups(name string, groupData map[string]any) error
-	RemoveGroups(name string) error
+	// metadata groups API
+	AddGroups(groupsData citypes.GroupData) error
+	GetGroups() (citypes.GroupData, error)
+	UpdateGroups(groupsData citypes.GroupData) error
+	RemoveGroups() error
+
+	// extended group API
+	AddGroupData(groupName string, groupData citypes.GroupData) error
+	GetGroupData(groupName string) (citypes.GroupData, error)
+	UpdateGroupData(groupName string, groupData citypes.GroupData) error
+	RemoveGroupData(groupName string) error
 }

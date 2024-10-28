@@ -11,12 +11,7 @@ import (
 
 var (
 	NotFoundErr      = errors.New("Not found.")
-	ExistingEntryErr = errors.New("Data exists for this entry. Update instead.")
-)
-
-type (
-	Data      = map[string]any
-	GroupData = map[string]Data
+	ExistingEntryErr = errors.New("citypes.GroupData exists for this entry. Update instead.")
 )
 
 type MemStore struct {
@@ -173,14 +168,14 @@ AddGroup("compute", "x3000", data)
 		}
 	}
 */
-func (m MemStore) AddGroups(name string, newGroupData Data) error {
+func (m MemStore) AddGroups(newGroupData citypes.GroupData) error {
 	var (
 		node              citypes.CI
-		existingGroupData Data
+		existingGroupData citypes.GroupData
 	)
 
 	// get CI data and add groups to metadata if not exists
-	node, ok := m.list[name]
+	node, ok := m.list[citypes.NODE_GROUP_NAME]
 	if ok {
 		// check if data already exists, otherwise add
 		if node.CIData.MetaData != nil {
@@ -204,12 +199,12 @@ func (m MemStore) AddGroups(name string, newGroupData Data) error {
 
 // GetGroup returns the 'meta-data.groups' found with the provided 'name' argument.
 // Returns an error if the data is not found.
-func (m MemStore) GetGroups(name string) (Data, error) {
+func (m MemStore) GetGroups() (citypes.GroupData, error) {
 	var (
 		node      citypes.CI
-		groupData Data
+		groupData citypes.GroupData
 	)
-	node, ok := m.list[name]
+	node, ok := m.list[citypes.NODE_GROUP_NAME]
 	if ok {
 		groupData = getGroupsFromMetadata(node)
 		if groupData != nil {
@@ -225,15 +220,16 @@ func (m MemStore) GetGroups(name string) (Data, error) {
 
 // UpdateGroups updates the data for an existing 'meta-data.groups'. An error is
 // returned if it is not found.
-func (m MemStore) UpdateGroups(name string, newGroupData Data) error {
+func (m MemStore) UpdateGroups(newGroupData citypes.GroupData) error {
 	var (
 		node              citypes.CI
-		existingGroupData Data
+		existingGroupData citypes.GroupData
 	)
 
 	// get CI data and update groups whether it exists or not
-	node, ok := m.list[name]
+	node, ok := m.list[citypes.NODE_GROUP_NAME]
 	if ok {
+		// get existing group data and update
 		existingGroupData = getGroupsFromMetadata(node)
 		if existingGroupData != nil {
 			setGroupsInMetadata(node, newGroupData)
@@ -241,34 +237,166 @@ func (m MemStore) UpdateGroups(name string, newGroupData Data) error {
 		}
 		// no groups found so return not found error
 		return NotFoundErr
+	} else {
+		// no node, component, or xname found which is required to update
+		return NotFoundErr
 	}
-	// no node, component, or xname found which is required to update
-	return NotFoundErr
 }
 
-func (m MemStore) RemoveGroups(name string) error {
+func (m MemStore) RemoveGroups() error {
 	var (
 		node                   citypes.CI
-		removeGroupsInMetadata = func(ci citypes.CI, name string) {
-			delete(ci.CIData.MetaData, name)
+		removeGroupsInMetadata = func(ci citypes.CI) {
+			delete(ci.CIData.MetaData, citypes.NODE_GROUP_NAME)
 		}
 	)
 
-	node, ok := m.list[name]
+	node, ok := m.list[citypes.NODE_GROUP_NAME]
 	if ok {
-		removeGroupsInMetadata(node, name)
+		removeGroupsInMetadata(node)
+		return nil
 	}
 	return NotFoundErr
 }
 
-func getGroupsFromMetadata(ci citypes.CI) Data {
+// AddGroupData creates a new key-value for a group is it does not exists.
+//
+// NOTE: For this method, it makes sense to create the `meta-data` automatically
+func (m MemStore) AddGroupData(groupName string, value citypes.GroupData) error {
+	var (
+		node      citypes.CI
+		groupData citypes.GroupData
+	)
+
+	// get CI data and group if exists (creates CI data if it doesn't)
+	node, ok := m.list[citypes.NODE_GROUP_NAME]
+	if ok {
+		// check if metadata already exists, and create if not with group
+		if node.CIData.MetaData == nil {
+			node.CIData.MetaData = make(map[string]any)
+			setGroupsInMetadata(node, citypes.GroupData{groupName: value})
+			return nil
+		}
+
+		// check if group already exists and create if not
+		groupData = getGroupsFromMetadata(node)
+		if groupData == nil {
+			setGroupsInMetadata(node, citypes.GroupData{groupName: value})
+			return nil
+		}
+
+		// check for key in group already exists and only create if it doesn't
+		_, ok = groupData[groupName]
+		if ok {
+			return ExistingEntryErr
+		} else {
+			groupData[groupName] = value
+		}
+		return nil
+
+	} else {
+		// no node data found so create a default one
+		node = citypes.CI{
+			CIData: citypes.CIData{
+				MetaData: make(map[string]any),
+			},
+		}
+		setGroupsInMetadata(node, citypes.GroupData{groupName: value})
+		m.list[citypes.NODE_GROUP_NAME] = node
+		return nil
+	}
+
+}
+
+// GetGroupData returns the value of a specific group
+func (m MemStore) GetGroupData(groupName string) (citypes.GroupData, error) {
+	var (
+		node      citypes.CI
+		groupData citypes.GroupData
+	)
+
+	node, ok := m.list[citypes.NODE_GROUP_NAME]
+	if ok {
+		groupData = getGroupsFromMetadata(node)
+		if groupData != nil {
+			return groupData, nil
+		} else {
+			return nil, NotFoundErr
+		}
+	} else {
+		return nil, NotFoundErr
+	}
+
+}
+
+// UpdateGroupData is similar to AddGroupData but only works if the group exists
+func (m MemStore) UpdateGroupData(groupName string, value citypes.GroupData) error {
+	var (
+		node      citypes.CI
+		groupData citypes.GroupData
+	)
+
+	// get CI data and group if exists (creates CI data if it doesn't)
+	node, ok := m.list[citypes.NODE_GROUP_NAME]
+	if ok {
+		// check if metadata already exists, and create if not
+		if node.CIData.MetaData == nil {
+			node.CIData.MetaData = make(map[string]interface{})
+			setGroupsInMetadata(node, citypes.GroupData{})
+		}
+
+		// check if group exists and create if not (when there's already meta-data)
+		groupData = getGroupsFromMetadata(node)
+		if groupData == nil {
+			setGroupsInMetadata(node, citypes.GroupData{})
+		}
+
+		// check for key in group and only create if it doesn't exist
+		_, ok = groupData[groupName]
+		if ok {
+			groupData[groupName] = value
+		} else {
+			return NotFoundErr
+		}
+
+	} else {
+		// no node data found so
+		return NotFoundErr
+	}
+
+	return NotFoundErr
+}
+
+func (m MemStore) RemoveGroupData(name string) error {
+	var (
+		node                      citypes.CI
+		groupData                 citypes.GroupData
+		removeGroupDataInMetadata = func(ci citypes.CI, name string) {
+			if ci.CIData.MetaData != nil {
+				groupData = getGroupsFromMetadata(node)
+				if groupData != nil {
+					delete(groupData, name)
+				}
+			}
+		}
+	)
+
+	node, ok := m.list[citypes.NODE_GROUP_NAME]
+	if ok {
+		removeGroupDataInMetadata(node, name)
+		return nil
+	}
+	return NotFoundErr
+}
+
+func getGroupsFromMetadata(ci citypes.CI) citypes.GroupData {
 	_, ok := ci.CIData.MetaData["groups"]
 	if ok {
-		return ci.CIData.MetaData["groups"].(Data)
+		return ci.CIData.MetaData["groups"].(citypes.GroupData)
 	}
 	return nil
 }
 
-func setGroupsInMetadata(ci citypes.CI, data Data) {
+func setGroupsInMetadata(ci citypes.CI, data citypes.GroupData) {
 	ci.CIData.MetaData["groups"] = data
 }
