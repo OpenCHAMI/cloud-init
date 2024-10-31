@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	NotFoundErr      = errors.New("Not found.")
-	ExistingEntryErr = errors.New("citypes.GroupData exists for this entry. Update instead.")
+	NoDataInRequestBody = errors.New("No data found in request body.")
+	NotFoundErr         = errors.New("Not found.")
+	ExistingEntryErr    = errors.New("citypes.GroupData exists for this entry. Update instead.")
 )
 
 type MemStore struct {
@@ -174,6 +175,11 @@ func (m MemStore) AddGroups(newGroupData citypes.GroupData) error {
 		existingGroupData citypes.GroupData
 	)
 
+	// do nothing if no data found
+	if len(newGroupData) <= 0 {
+		return NoDataInRequestBody
+	}
+
 	// get CI data and add groups to metadata if not exists
 	node, ok := m.list[citypes.NODE_GROUP_NAME]
 	if ok {
@@ -190,6 +196,7 @@ func (m MemStore) AddGroups(newGroupData citypes.GroupData) error {
 				return ExistingEntryErr
 			}
 		}
+		m.list[citypes.NODE_GROUP_NAME] = node
 	} else {
 		// no node, component, or xname found which is required for groups
 		return NotFoundErr
@@ -225,6 +232,11 @@ func (m MemStore) UpdateGroups(newGroupData citypes.GroupData) error {
 		node              citypes.CI
 		existingGroupData citypes.GroupData
 	)
+
+	// do nothing if no data found
+	if len(newGroupData) <= 0 {
+		return NoDataInRequestBody
+	}
 
 	// get CI data and update groups whether it exists or not
 	node, ok := m.list[citypes.NODE_GROUP_NAME]
@@ -262,26 +274,34 @@ func (m MemStore) RemoveGroups() error {
 // AddGroupData creates a new key-value for a group is it does not exists.
 //
 // NOTE: For this method, it makes sense to create the `meta-data` automatically
-func (m MemStore) AddGroupData(groupName string, value citypes.GroupData) error {
+func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData) error {
 	var (
 		node      citypes.CI
 		groupData citypes.GroupData
 	)
+
+	// do nothing if no data found
+	if len(newGroupData) <= 0 {
+		return NoDataInRequestBody
+	}
 
 	// get CI data and group if exists (creates CI data if it doesn't)
 	node, ok := m.list[citypes.NODE_GROUP_NAME]
 	if ok {
 		// check if metadata already exists, and create if not with group
 		if node.CIData.MetaData == nil {
-			node.CIData.MetaData = make(map[string]any)
-			setGroupsInMetadata(node, citypes.GroupData{groupName: value})
+			node.CIData.MetaData = map[string]any{
+				"groups": map[string]any{
+					groupName: newGroupData,
+				},
+			}
 			return nil
 		}
 
 		// check if group already exists and create if not
 		groupData = getGroupsFromMetadata(node)
 		if groupData == nil {
-			setGroupsInMetadata(node, citypes.GroupData{groupName: value})
+			setGroupsInMetadata(node, citypes.GroupData{groupName: newGroupData})
 			return nil
 		}
 
@@ -290,7 +310,7 @@ func (m MemStore) AddGroupData(groupName string, value citypes.GroupData) error 
 		if ok {
 			return ExistingEntryErr
 		} else {
-			groupData[groupName] = value
+			groupData[groupName] = newGroupData
 		}
 		return nil
 
@@ -298,10 +318,11 @@ func (m MemStore) AddGroupData(groupName string, value citypes.GroupData) error 
 		// no node data found so create a default one
 		node = citypes.CI{
 			CIData: citypes.CIData{
-				MetaData: make(map[string]any),
+				MetaData: map[string]any{
+					groupName: newGroupData,
+				},
 			},
 		}
-		setGroupsInMetadata(node, citypes.GroupData{groupName: value})
 		m.list[citypes.NODE_GROUP_NAME] = node
 		return nil
 	}
@@ -336,25 +357,34 @@ func (m MemStore) UpdateGroupData(groupName string, value citypes.GroupData) err
 		groupData citypes.GroupData
 	)
 
+	// do nothing if no data found
+	if len(value) <= 0 {
+		return NoDataInRequestBody
+	}
+
 	// get CI data and group if exists (creates CI data if it doesn't)
 	node, ok := m.list[citypes.NODE_GROUP_NAME]
 	if ok {
 		// check if metadata already exists, and create if not
 		if node.CIData.MetaData == nil {
-			node.CIData.MetaData = make(map[string]interface{})
-			setGroupsInMetadata(node, citypes.GroupData{})
+			node.CIData.MetaData = map[string]any{
+				"groups": map[string]any{
+					groupName: value,
+				},
+			}
 		}
 
-		// check if group exists and create if not (when there's already meta-data)
+		// check if group exists and create if there isn't
 		groupData = getGroupsFromMetadata(node)
 		if groupData == nil {
-			setGroupsInMetadata(node, citypes.GroupData{})
+			setGroupsInMetadata(node, citypes.GroupData{groupName: value})
 		}
 
 		// check for key in group and only create if it doesn't exist
 		_, ok = groupData[groupName]
 		if ok {
 			groupData[groupName] = value
+			return nil
 		} else {
 			return NotFoundErr
 		}
