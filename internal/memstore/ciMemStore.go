@@ -1,6 +1,7 @@
 package memstore
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -197,16 +198,19 @@ func (m MemStore) AddGroups(newGroupData citypes.GroupData) error {
 				return ExistingEntryErr
 			}
 		}
-		m.list[citypes.GROUP_IDENTIFIER] = node
 	} else {
 		// groups not found in metadata so create everything
 		node = citypes.CI{
 			CIData: citypes.CIData{
-				MetaData: newGroupData,
+				MetaData: citypes.GroupData{
+					"groups": newGroupData,
+				},
 			},
 		}
-		m.list[citypes.GROUP_IDENTIFIER] = node
 	}
+	b, _ := json.MarshalIndent(node, "", "\t")
+	fmt.Printf("%v\n", string(b))
+	m.list[citypes.GROUP_IDENTIFIER] = node
 	return nil
 }
 
