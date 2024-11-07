@@ -1,7 +1,6 @@
 package memstore
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -208,8 +207,6 @@ func (m MemStore) AddGroups(newGroupData citypes.GroupData) error {
 			},
 		}
 	}
-	b, _ := json.MarshalIndent(node, "", "\t")
-	fmt.Printf("%v\n", string(b))
 	m.list[citypes.GROUP_IDENTIFIER] = node
 	return nil
 }
