@@ -248,10 +248,11 @@ func (m MemStore) UpdateGroups(newGroupData citypes.GroupData) error {
 	// get CI data and update groups whether it exists or not
 	node, ok := m.list[citypes.GROUP_IDENTIFIER]
 	if ok {
-		// get existing group data and update
+		// get existing group data and update memstore
 		existingGroupData = getGroupsFromMetadata(node)
 		if existingGroupData != nil {
 			setGroupsInMetadata(node, newGroupData)
+			m.list[citypes.GROUP_IDENTIFIER] = node
 			return nil
 		}
 		// no groups found so return not found error
@@ -263,16 +264,9 @@ func (m MemStore) UpdateGroups(newGroupData citypes.GroupData) error {
 }
 
 func (m MemStore) RemoveGroups() error {
-	var (
-		node                   citypes.CI
-		removeGroupsInMetadata = func(ci citypes.CI) {
-			delete(ci.CIData.MetaData, citypes.GROUP_IDENTIFIER)
-		}
-	)
-
 	node, ok := m.list[citypes.GROUP_IDENTIFIER]
 	if ok {
-		removeGroupsInMetadata(node)
+		delete(node.CIData.MetaData, citypes.GROUP_IDENTIFIER)
 		return nil
 	}
 	return NotFoundErr
@@ -384,30 +378,32 @@ func (m MemStore) UpdateGroupData(groupName string, value citypes.GroupData) err
 	if ok {
 		// check if metadata already exists, and create if not
 		if node.CIData.MetaData == nil {
-			node.CIData.MetaData = map[string]any{
+			node.CIData.MetaData = citypes.GroupData{
 				"groups": map[string]any{
 					groupName: value,
 				},
 			}
-		}
-
-		// check if group exists and create if there isn't
-		groupData = getGroupsFromMetadata(node)
-		if groupData == nil {
-			setGroupsInMetadata(node, citypes.GroupData{groupName: value})
-		}
-
-		// check for key in group and only create if it doesn't exist
-		_, ok = groupData[groupName]
-		if ok {
-			groupData[groupName] = value
-			return nil
 		} else {
-			return NotFoundErr
+			// check if group exists and create if there isn't
+			groupData = getGroupsFromMetadata(node)
+			if groupData == nil {
+				setGroupsInMetadata(node, citypes.GroupData{groupName: value})
+			} else {
+				// check for key in group and only create if it doesn't exist
+				_, ok = groupData[groupName]
+				if ok {
+					groupData[groupName] = value
+					return nil
+				} else {
+					return NotFoundErr
+				}
+			}
 		}
+		// finally, update the memstore
+		m.list[citypes.GROUP_IDENTIFIER] = node
 
 	} else {
-		// no node data found so
+		// no node data found so return error
 		return NotFoundErr
 	}
 
