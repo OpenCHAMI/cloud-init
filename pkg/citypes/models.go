@@ -15,4 +15,4 @@ type (
 	GroupData = map[string]any
 )
 
-const NODE_GROUP_NAME string = "##groups"
+const GROUP_IDENTIFIER string = "##groups"
