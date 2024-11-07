@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
@@ -11,6 +12,11 @@ import (
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
+
+	openchami_authenticator "github.com/openchami/chi-middleware/auth"
+	openchami_logger "github.com/openchami/chi-middleware/log"
 )
 
 var (
@@ -43,6 +49,10 @@ func main() {
 		fmt.Println("No JWKS URL provided; secure route will be disabled")
 	}
 
+	// Setup logger
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	logger := zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	// Primary router and shared SMD client
 	router := chi.NewRouter()
 	router.Use(
@@ -51,7 +61,8 @@ func main() {
 		middleware.Logger,
 		middleware.Recoverer,
 		middleware.StripSlashes,
-		middleware.Timeout(60 * time.Second),
+		middleware.Timeout(60*time.Second),
+		openchami_logger.OpenCHAMILogger(logger),
 	)
 	sm := smdclient.NewSMDClient(smdEndpoint, tokenEndpoint)
 
@@ -69,7 +80,7 @@ func main() {
 		router_sec := chi.NewRouter()
 		router_sec.Use(
 			jwtauth.Verifier(keyset),
-			jwtauth.Authenticator(keyset),
+			openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
 		)
 		initCiRouter(router_sec, ciHandler_sec)
 		router.Mount("/cloud-init-secure", router_sec)
@@ -92,4 +103,12 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 	router.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
 	router.Put("/{id}", handler.UpdateEntry)
 	router.Delete("/{id}", handler.DeleteEntry)
+	router.Post("/groups", handler.AddGroups)
+	router.Get("/groups", handler.GetGroups)
+	router.Put("/groups", handler.UpdateGroups)
+	router.Delete("/groups", handler.RemoveGroups)
+	router.Post("/groups/{id}", handler.AddGroupData)
+	router.Get("/groups/{id}", handler.GetGroupData)
+	router.Put("/groups/{id}", handler.UpdateGroupData)
+	router.Delete("/groups/{id}", handler.RemoveGroupData)
 }
