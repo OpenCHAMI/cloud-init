@@ -1,7 +1,9 @@
 package memstore
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
@@ -10,9 +12,9 @@ import (
 )
 
 var (
-	NoDataInRequestBody = errors.New("No data found in request body.")
-	NotFoundErr         = errors.New("Not found.")
-	ExistingEntryErr    = errors.New("citypes.GroupData exists for this entry. Update instead.")
+	EmptyRequest     = errors.New("No data found in request body.")
+	NotFoundErr      = errors.New("Not found.")
+	ExistingEntryErr = errors.New("citypes.GroupData exists for this entry. Update instead.")
 )
 
 type MemStore struct {
@@ -177,7 +179,7 @@ func (m MemStore) AddGroups(newGroupData citypes.GroupData) error {
 
 	// do nothing if no data found
 	if len(newGroupData) <= 0 {
-		return NoDataInRequestBody
+		return EmptyRequest
 	}
 
 	// get CI data and add groups to metadata if not exists
@@ -198,8 +200,13 @@ func (m MemStore) AddGroups(newGroupData citypes.GroupData) error {
 		}
 		m.list[citypes.NODE_GROUP_NAME] = node
 	} else {
-		// no node, component, or xname found which is required for groups
-		return NotFoundErr
+		// groups not found in metadata so create everything
+		node = citypes.CI{
+			CIData: citypes.CIData{
+				MetaData: newGroupData,
+			},
+		}
+		m.list[citypes.NODE_GROUP_NAME] = node
 	}
 	return nil
 }
@@ -235,7 +242,7 @@ func (m MemStore) UpdateGroups(newGroupData citypes.GroupData) error {
 
 	// do nothing if no data found
 	if len(newGroupData) <= 0 {
-		return NoDataInRequestBody
+		return EmptyRequest
 	}
 
 	// get CI data and update groups whether it exists or not
@@ -280,53 +287,58 @@ func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData)
 		groupData citypes.GroupData
 	)
 
-	// do nothing if no data found
+	// do nothing if no data found from the request
 	if len(newGroupData) <= 0 {
-		return NoDataInRequestBody
+		fmt.Printf("no data")
+		return EmptyRequest
 	}
 
-	// get CI data and group if exists (creates CI data if it doesn't)
+	// get CI data and check if groups IDENTIFIER exists (creates if not)
 	node, ok := m.list[citypes.NODE_GROUP_NAME]
 	if ok {
-		// check if metadata already exists, and create if not with group
+		// check if metadata already exists (create if not)
 		if node.CIData.MetaData == nil {
 			node.CIData.MetaData = map[string]any{
 				"groups": map[string]any{
 					groupName: newGroupData,
 				},
 			}
-			return nil
-		}
-
-		// check if group already exists and create if not
-		groupData = getGroupsFromMetadata(node)
-		if groupData == nil {
-			setGroupsInMetadata(node, citypes.GroupData{groupName: newGroupData})
-			return nil
-		}
-
-		// check for key in group already exists and only create if it doesn't
-		_, ok = groupData[groupName]
-		if ok {
-			return ExistingEntryErr
 		} else {
-			groupData[groupName] = newGroupData
+			// check if group already exists (create if not)
+			groupData = getGroupsFromMetadata(node)
+			if groupData == nil {
+				setGroupsInMetadata(node, citypes.GroupData{groupName: newGroupData})
+			} else {
+				// check for key in group already exists
+				_, ok = groupData[groupName]
+				if ok {
+					// fail here since we don't want to overwrite
+					return ExistingEntryErr
+				} else {
+					groupData[groupName] = newGroupData
+				}
+				// add new group data to metadata
+				node.CIData.MetaData["groups"] = groupData
+			}
 		}
-		return nil
-
 	} else {
 		// no node data found so create a default one
 		node = citypes.CI{
 			CIData: citypes.CIData{
-				MetaData: map[string]any{
-					groupName: newGroupData,
+				MetaData: citypes.GroupData{
+					"groups": map[string]any{groupName: newGroupData},
 				},
 			},
 		}
-		m.list[citypes.NODE_GROUP_NAME] = node
-		return nil
+		// update the node's name with the identifier
+		node.Name = citypes.NODE_GROUP_NAME
 	}
+	b, _ := json.MarshalIndent(node, "", "\t")
+	fmt.Printf("%v\n", string(b))
 
+	// finally, update the CIData after making changes
+	m.list[citypes.NODE_GROUP_NAME] = node
+	return nil
 }
 
 // GetGroupData returns the value of a specific group
@@ -359,7 +371,7 @@ func (m MemStore) UpdateGroupData(groupName string, value citypes.GroupData) err
 
 	// do nothing if no data found
 	if len(value) <= 0 {
-		return NoDataInRequestBody
+		return EmptyRequest
 	}
 
 	// get CI data and group if exists (creates CI data if it doesn't)

@@ -215,26 +215,6 @@ func (h CiHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]string{"status": "success"})
 }
 
-func parseData(w http.ResponseWriter, r *http.Request) (citypes.GroupData, error) {
-	var (
-		body []byte
-		err  error
-		data citypes.GroupData
-	)
-
-	// read the POST body for JSON data
-	body, err = io.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-	// unmarshal data to add to group data
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
 func (h CiHandler) AddGroups(w http.ResponseWriter, r *http.Request) {
 	// type alias to simplify abstraction
 	var (
@@ -315,11 +295,6 @@ func (h CiHandler) RemoveGroups(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func writeInternalError(w http.ResponseWriter, err string) {
-	http.Error(w, err, http.StatusInternalServerError)
-	// log.Error().Err(err)
-}
-
 func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {
 	var (
 		id   string = chi.URLParam(r, "id")
@@ -393,4 +368,29 @@ func (h CiHandler) RemoveGroupData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func writeInternalError(w http.ResponseWriter, err string) {
+	http.Error(w, err, http.StatusInternalServerError)
+	// log.Error().Err(err)
+}
+
+func parseData(w http.ResponseWriter, r *http.Request) (citypes.GroupData, error) {
+	var (
+		body []byte
+		err  error
+		data citypes.GroupData
+	)
+
+	// read the POST body for JSON data
+	body, err = io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	// unmarshal data to add to group data
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
