@@ -1,7 +1,6 @@
 package memstore
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -333,8 +332,6 @@ func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData)
 		// update the node's name with the identifier
 		node.Name = citypes.NODE_GROUP_NAME
 	}
-	b, _ := json.MarshalIndent(node, "", "\t")
-	fmt.Printf("%v\n", string(b))
 
 	// finally, update the CIData after making changes
 	m.list[citypes.NODE_GROUP_NAME] = node
