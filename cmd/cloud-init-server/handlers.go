@@ -88,53 +88,6 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, ci.Name)
 }
 
-// AddUserEntry godoc
-// @Summary Add a new user-data entry in specified cloud-init data
-// @Description Add a new user-data entry in specified cloud-init data
-// @Accept json
-// @Produce json
-// @Param ci body CI true "User-ata entry to add to cloud-init data"
-// @Success 200 {string} string "name of the new entry"
-// @Failure 400 {string} string "bad request"
-// @Failure 500 {string} string "internal server error"
-// @Router /harbor [post]
-func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
-	var (
-		ci       citypes.CI
-		userdata citypes.UserData
-		body     []byte
-		err      error
-	)
-
-	// read the request body for user data
-	body, err = io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	// unmarshal only to user data and not cloud-init data
-	if err = json.Unmarshal(body, &userdata); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// store the userdata in the cloud-init data
-	ci.CIData.UserData = userdata
-
-	// add the cloud-init data
-	err = h.store.Add(ci.Name, ci)
-	if err != nil {
-		if err == memstore.ExistingEntryErr {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	render.JSON(w, r, ci.Name)
-}
-
 // GetEntry godoc
 // @Summary Get a cloud-init entry
 // @Description Get a cloud-init entry
