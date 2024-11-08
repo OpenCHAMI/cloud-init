@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	zlog "github.com/rs/zerolog/log"
 
 	openchami_authenticator "github.com/openchami/chi-middleware/auth"
@@ -87,7 +88,8 @@ func main() {
 	}
 
 	// Serve all routes
-	http.ListenAndServe(ciEndpoint, router)
+	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
+
 }
 
 func initCiRouter(router chi.Router, handler *CiHandler) {
