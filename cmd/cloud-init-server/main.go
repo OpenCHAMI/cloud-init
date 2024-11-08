@@ -95,16 +95,17 @@ func main() {
 func initCiRouter(router chi.Router, handler *CiHandler) {
 	// Add cloud-init endpoints to router
 	router.Get("/", handler.ListEntries)
-	router.Post("/", handler.AddEntry)
 	router.Get("/user-data", handler.GetDataByIP(UserData))
 	router.Get("/meta-data", handler.GetDataByIP(MetaData))
 	router.Get("/vendor-data", handler.GetDataByIP(VendorData))
 	router.Get("/{id}", handler.GetEntry)
 	router.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
+	router.Put("/{id}/user-data", handler.UpdateUserEntry)
 	router.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
 	router.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
-	router.Put("/{id}", handler.UpdateEntry)
 	router.Delete("/{id}", handler.DeleteEntry)
+
+	// groups API endpoints
 	router.Post("/groups", handler.AddGroups)
 	router.Get("/groups", handler.GetGroups)
 	router.Put("/groups", handler.UpdateGroups)

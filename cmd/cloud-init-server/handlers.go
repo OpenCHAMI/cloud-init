@@ -199,6 +199,40 @@ func (h CiHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, id)
 }
 
+func (h CiHandler) UpdateUserEntry(w http.ResponseWriter, r *http.Request) {
+	var (
+		id       = chi.URLParam(r, "id")
+		ci       citypes.CI
+		userdata citypes.UserData
+		err      error
+	)
+
+	// read the request body for user data
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// unmarshal only to user data and not cloud-init data
+	if err = json.Unmarshal(body, &userdata); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// set the user-data to overwrite the existing entry
+	ci.CIData.UserData = userdata
+	err = h.store.Update(id, ci)
+	if err != nil {
+		if err == memstore.NotFoundErr {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	render.JSON(w, r, id)
+}
+
 func (h CiHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
