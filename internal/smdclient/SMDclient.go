@@ -1,6 +1,7 @@
 package smdclient
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
@@ -32,8 +33,15 @@ type SMDClient struct {
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
 // and uses the provided JWT server for authentication
-func NewSMDClient(baseurl string, jwtURL string) *SMDClient {
+func NewSMDClient(baseurl string, jwtURL string, insecure bool) *SMDClient {
 	c := &http.Client{Timeout: 2 * time.Second}
+	if insecure {
+		c.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+	}
 	return &SMDClient{
 		smdClient:     c,
 		smdBaseURL:    baseurl,
@@ -119,6 +127,9 @@ func (s *SMDClient) IDfromIP(ipaddr string) (string, error) {
 func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 	ml := new(sm.Membership)
 	ep := "/hsm/v2/memberships/" + id
-	s.getSMD(ep, ml)
+	err := s.getSMD(ep, ml)
+	if err != nil {
+		return nil, err
+	}
 	return ml.GroupLabels, nil
 }
