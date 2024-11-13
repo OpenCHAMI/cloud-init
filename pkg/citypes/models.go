@@ -14,11 +14,6 @@ type CIData struct {
 type (
 	// only defined for readibility
 	UserData  = map[string]any
-	GroupData = map[string]any
+	Group     map[string]GroupData
+	GroupData map[string]any
 )
-
-// NOTE: This is just a unique constant value for access group data being stored
-// as a citypes.CI since the API's require an IDENTIFIER to access.
-//
-// NOTE: This may be removed later after creating a separate group structure.
-const GROUP_IDENTIFIER string = "%%groups%%"
