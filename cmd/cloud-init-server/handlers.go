@@ -88,6 +88,7 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, ci.Name)
 }
 
+
 // AddUserEntry godoc
 // @Summary Add a new user-data entry in specified cloud-init data
 // @Description Add a new user-data entry in specified cloud-init data
@@ -134,6 +135,7 @@ func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
 
 	render.JSON(w, r, ci.Name)
 }
+
 
 // GetEntry godoc
 // @Summary Get a cloud-init entry
