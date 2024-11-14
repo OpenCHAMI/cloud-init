@@ -66,8 +66,7 @@ func (m MemStore) Add(name string, ci citypes.CI) error {
 func (m MemStore) Get(id string, sm *smdclient.SMDClient) (citypes.CI, error) {
 	var (
 		groupLabels []string
-		// ci_merged  citypes.CI
-		err error
+		err         error
 	)
 
 	// fetch group name/labels from SMD
@@ -170,7 +169,8 @@ func (m MemStore) Update(name string, ci citypes.CI) error {
 		}
 		m.list[name] = existing
 	} else {
-		// add all of the new data if existing not found
+		// update the IDENTIFIER and add all of the new data if existing not found
+		ci.Name = name
 		m.list[name] = ci
 	}
 	return nil
@@ -212,11 +212,6 @@ AddGroup("x3000", data)
 	}
 */
 func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData) error {
-	var (
-	// node      citypes.CI
-	// groupData citypes.GroupData
-	)
-
 	// do nothing if no data found from the request
 	if len(newGroupData) <= 0 {
 		fmt.Printf("no data")
