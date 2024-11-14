@@ -88,7 +88,6 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, ci.Name)
 }
 
-
 // AddUserEntry godoc
 // @Summary Add a new user-data entry in specified cloud-init data
 // @Description Add a new user-data entry in specified cloud-init data
@@ -135,7 +134,6 @@ func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
 
 	render.JSON(w, r, ci.Name)
 }
-
 
 // GetEntry godoc
 // @Summary Get a cloud-init entry
@@ -205,7 +203,7 @@ func (h CiHandler) getData(id string, dataKind ciDataKind, w http.ResponseWriter
 	var data *map[string]interface{}
 	switch dataKind {
 	case UserData:
-		w.Write([]byte("#cloud-config\n"))
+		w.Write([]byte("## template:jinja\n#cloud-config\n"))
 		data = &ci.CIData.UserData
 	case MetaData:
 		data = &ci.CIData.MetaData
