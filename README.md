@@ -1,12 +1,12 @@
 # OpenCHAMI cloud-init Server
 
-The OpenCHAMI cloud-init server, which retrieves detailed inventory information from SMD and uses it to create cloud-init payloads customized for each node in an OpenCHAMI cluster.
+The OpenCHAMI cloud-init server retrieves detailed inventory information from SMD and uses it to create cloud-init payloads customized for each node in an OpenCHAMI cluster.
 
 ## cloud-init Server Setup
 
 OpenCHAMI utilizes the cloud-init platform for post-boot configuration. A custom cloud-init server container is included with this quickstart Docker Compose setup, but must be populated prior to use.
 
-The cloud-init server provides two API endpoints, described in the sections below. Choose the appropriate option for your needs, or combine them as appropriate.
+The cloud-init server provides multiple API endpoints, described in the sections below. Choose the appropriate option for your needs, or combine them as appropriate.
 
 > [!NOTE]
 > This guide assumes that the cloud-init server is exposed as `foobar.openchami.cluster`.
@@ -14,7 +14,7 @@ The cloud-init server provides two API endpoints, described in the sections belo
 
 ### Unprotected Data
 
-#### Setup
+#### Setup with `user-data`
 
 User data can be injected into the cloud-init payload by making a PUT request to the `/cloud-init/{id}/user-data` endpoint. The request should contain a JSON-formatted body and can contain any arbritrary data desired.
 
@@ -43,7 +43,8 @@ curl 'https://foobar.openchami.cluster/cloud-init/test/user-data' \
 }
 ```
 
-**Note that data can only be injected into the `userdata` section of the payload. There is no way to add data manually to the `metadata` section.*
+> [!NOTE]
+> Data can only be added manually into the `userdata` section of the payload. There is no way to add data directly to the `metadata` section.
 
 `IDENTIFIER` can be:
 
@@ -52,6 +53,56 @@ curl 'https://foobar.openchami.cluster/cloud-init/test/user-data' \
 - An SMD group name
 
 It may be easiest to add nodes to a group for testing, and upload a cloud-init configuration for that group to this server.
+
+#### Generating Custom Metadata with Groups
+
+The cloud-init server provides a group API to inject custom arbitrary data into the metadata section when requesting data with the specified `IDENTIFIER` mentioned above. The server will do a lookup for group labels from SMD and match the labels with the submitted data through the API.
+
+For example, to add group data to the cloud-init server, we can make the following request:
+
+```bash
+curl -k http://127.0.0.1:27780/cloud-init/groups/install-nginx -d@install-nginx.json
+```
+
+The JSON data in `install-nginx.json`:
+
+```json
+{
+    "tier": "frontend",
+    "application": "nginx"
+}
+```
+
+Now, when we fetch data for a node in the `install-nginx` group, this data will be injected into the cloud-init metadata. Additionally, we can view all groups stored in cloud-init by making a GET request to the `/cloud-init/groups` endpoint.
+
+```bash
+curl -k http://127.0.0.1:27780/cloud-init/x3000c1s7b53
+```
+
+And the response:
+
+```json
+{
+  "name": "x3000c1s7b53",
+  "cloud-init": {
+        "userdata": {...},
+        "vendordata": {...},
+        "metadata": {
+            "groups": {
+                "install-nginx": {
+                    "data": {
+                        "application": "nginx",
+                        "tier": "frontend"
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+> [!NOTE]
+> The `IDENTIFIER` specified MUST be added to SMD for the data injection to work correctly.
 
 #### Usage
 

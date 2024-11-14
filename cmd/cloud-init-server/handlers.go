@@ -77,7 +77,7 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 
 	err = h.store.Add(ci.Name, ci)
 	if err != nil {
-		if err == memstore.ExistingEntryErr {
+		if err == memstore.ExistingErr {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -87,6 +87,55 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 
 	render.JSON(w, r, ci.Name)
 }
+
+
+// AddUserEntry godoc
+// @Summary Add a new user-data entry in specified cloud-init data
+// @Description Add a new user-data entry in specified cloud-init data
+// @Accept json
+// @Produce json
+// @Param ci body CI true "User-ata entry to add to cloud-init data"
+// @Success 200 {string} string "name of the new entry"
+// @Failure 400 {string} string "bad request"
+// @Failure 500 {string} string "internal server error"
+// @Router /harbor [post]
+func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
+	var (
+		ci       citypes.CI
+		userdata citypes.UserData
+		body     []byte
+		err      error
+	)
+
+	// read the request body for user data
+	body, err = io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// unmarshal only to user data and not cloud-init data
+	if err = json.Unmarshal(body, &userdata); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// store the userdata in the cloud-init data
+	ci.CIData.UserData = userdata
+
+	// add the cloud-init data
+	err = h.store.Add(ci.Name, ci)
+	if err != nil {
+		if err == memstore.ExistingErr {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	render.JSON(w, r, ci.Name)
+}
+
 
 // GetEntry godoc
 // @Summary Get a cloud-init entry
@@ -249,84 +298,19 @@ func (h CiHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]string{"status": "success"})
 }
 
-func (h CiHandler) AddGroups(w http.ResponseWriter, r *http.Request) {
-	// type alias to simplify abstraction
-	var (
-		data citypes.GroupData
-		err  error
-	)
-
-	data, err = parseData(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// add a new group to meta-data if it doesn't already exist
-	err = h.store.AddGroups(data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-}
-
 func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
-		data  citypes.GroupData
-		bytes []byte
-		err   error
+		groups map[string]citypes.Group
+		bytes  []byte
+		err    error
 	)
-
-	// get group data from MemStore if it exists
-	data, err = h.store.GetGroups()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// marshal to YAML and print the group data to standard output
-	bytes, err = yaml.Marshal(data)
+	groups = h.store.GetGroups()
+	bytes, err = json.MarshalIndent(groups, "", "\t")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Write(bytes)
-
-}
-
-// UpdateGroupData expects a request containing POST data as a JSON. The data
-// received in the request should ONLY contain the data to be included for a
-// "meta-data.groups" and NOT "meta-data". See "AddGroup" in 'ciMemStore.go'
-// for an example.
-func (h CiHandler) UpdateGroups(w http.ResponseWriter, r *http.Request) {
-	// type alias to simplify abstraction
-	var (
-		data citypes.GroupData
-		err  error
-	)
-
-	data, err = parseData(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// update groups in meta-data
-	err = h.store.UpdateGroups(data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h CiHandler) RemoveGroups(w http.ResponseWriter, r *http.Request) {
-	// remove group data with specified name
-	var err = h.store.RemoveGroups()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 }
 
 func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {

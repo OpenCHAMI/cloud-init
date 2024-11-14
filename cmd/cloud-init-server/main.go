@@ -25,6 +25,7 @@ var (
 	tokenEndpoint = "http://opaal:3333/token" // jwt for smd access obtained from here
 	smdEndpoint   = "http://smd:27779"
 	jwksUrl       = "" // jwt keyserver URL for secure-route token validation
+	insecure      = false
 )
 
 func main() {
@@ -32,6 +33,7 @@ func main() {
 	flag.StringVar(&tokenEndpoint, "token-url", tokenEndpoint, "OIDC server URL (endpoint) to fetch new tokens from (for SMD access)")
 	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "http IP/url and port for running SMD")
 	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
+	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
 	flag.Parse()
 
 	// Set up JWT verification via the specified URL, if any
@@ -65,7 +67,7 @@ func main() {
 		middleware.Timeout(60*time.Second),
 		openchami_logger.OpenCHAMILogger(logger),
 	)
-	sm := smdclient.NewSMDClient(smdEndpoint, tokenEndpoint)
+	sm := smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, insecure)
 
 	// Unsecured datastore and router
 	store := memstore.NewMemStore()
@@ -106,10 +108,7 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 	router.Delete("/{id}", handler.DeleteEntry)
 
 	// groups API endpoints
-	router.Post("/groups", handler.AddGroups)
 	router.Get("/groups", handler.GetGroups)
-	router.Put("/groups", handler.UpdateGroups)
-	router.Delete("/groups", handler.RemoveGroups)
 	router.Post("/groups/{id}", handler.AddGroupData)
 	router.Get("/groups/{id}", handler.GetGroupData)
 	router.Put("/groups/{id}", handler.UpdateGroupData)
