@@ -144,22 +144,36 @@ func (m MemStore) List() (map[string]citypes.CI, error) {
 }
 
 func (m MemStore) Update(name string, ci citypes.CI) error {
-
-	if _, ok := m.list[name]; ok {
-		curr := m.list[name]
+	var (
+		existing citypes.CI
+		ok       bool
+	)
+	// check if we already have existing data
+	existing, ok = m.list[name]
+	if ok {
+		// update user data if we have existing data and new data is supplied
 		if ci.CIData.UserData != nil {
-			curr.CIData.UserData = ci.CIData.UserData
+			existing.CIData.UserData = ci.CIData.UserData
 		}
+
+		// NOTE: I think we technically would not want to allow this given the
+		// how the new API works.
+		//
+		// update meta data if we have existing data and new data is supplied
 		if ci.CIData.MetaData != nil {
-			curr.CIData.MetaData = ci.CIData.MetaData
+			existing.CIData.MetaData = ci.CIData.MetaData
 		}
+
+		// update vendor data if we have existing data and new data is supplied
 		if ci.CIData.VendorData != nil {
-			curr.CIData.VendorData = ci.CIData.VendorData
+			existing.CIData.VendorData = ci.CIData.VendorData
 		}
-		m.list[name] = curr
-		return nil
+		m.list[name] = existing
+	} else {
+		// add all of the new data if existing not found
+		m.list[name] = ci
 	}
-	return NotFoundErr
+	return nil
 }
 
 func (m MemStore) Remove(name string) error {
@@ -239,9 +253,6 @@ func (m MemStore) GetGroupData(groupName string) (citypes.GroupData, error) {
 
 // UpdateGroupData is similar to AddGroupData but only works if the group exists
 func (m MemStore) UpdateGroupData(groupName string, groupData citypes.GroupData) error {
-	var (
-	// node citypes.CI
-	)
 
 	// do nothing if no data found
 	if len(groupData) <= 0 {
