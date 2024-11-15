@@ -64,67 +64,83 @@ func (m MemStore) Add(name string, ci citypes.CI) error {
 
 // Get retrieves data stored in MemStore and returns it or an error
 func (m MemStore) Get(id string, sm *smdclient.SMDClient) (citypes.CI, error) {
-	var (
-		groupLabels []string
-		err         error
-	)
+        var (
+                groupLabels []string
+                err         error
+        )
 
-	// fetch group name/labels from SMD
-	groupLabels, err = sm.GroupMembership(id)
-	fmt.Printf("groups: %v\n", groupLabels)
+        // fetch group name/labels from SMD
+        groupLabels, err = sm.GroupMembership(id)
+        fmt.Printf("groups: %v\n", groupLabels)
 
-	// check that we actually got something back with no errors
-	if err != nil {
-		return citypes.CI{}, err
-	} else if len(groupLabels) == 0 {
-		return citypes.CI{}, errors.New("no groups found from SMD")
-	} else {
-		// make sure we already have cloud-init data and create it if it doesn't exist
-		ci, ok := m.list[id]
-		if !ok {
-			ci = citypes.CI{
-				Name: id,
-				CIData: citypes.CIData{
-					MetaData: map[string]any{"groups": map[string]citypes.Group{}},
-				},
-			}
-		}
+        ci_merge := new(citypes.CI)
 
-		// add matching group data stored with groups API to metadata
-		for _, groupLabel := range groupLabels {
-			// check if the group is stored with label from SMD
-			group, ok := m.groups[groupLabel]
-			if ok {
-				// check if there's already metadata
-				if ci.CIData.MetaData != nil {
-					// check if we already have a "groups" section
-					if groups, ok := ci.CIData.MetaData["groups"].(map[string]citypes.Group); ok {
-						// found "groups" so add the new group + it's data
-						groups[groupLabel] = group
-					} else {
-						// did not find "groups", so add it with current group data
-						ci.CIData.MetaData["groups"] = map[string]citypes.Group{
-							groupLabel: group,
-						}
-					}
-				} else {
-					// no metadata found, so create it with current group data here
-					ci.CIData.MetaData = map[string]any{
-						"groups": map[string]citypes.Group{
-							groupLabel: group,
-						},
-					}
-				}
-			} else {
-				// we didn't find the group in the memstore with the label, so
-				// go on to the next one
-				fmt.Printf("failed to get '%s' from groups", groupLabel)
-				continue
-			}
-		}
-		m.list[id] = ci
-	}
-	return m.list[id], nil
+        // check that we actually got something back with no errors
+        if err != nil {
+                return citypes.CI{}, err
+        } else if len(groupLabels) == 0 {
+                return citypes.CI{}, errors.New("no groups found from SMD")
+        } else {
+                for _, groupLabel := range groupLabels {
+                        ci_group := m.list[groupLabel]
+                        if ci_merge.CIData.UserData == nil {
+                                ci_merge.CIData.UserData = make(map[string]interface{})
+                        }
+                        for ciMod,_ := range ci_group.CIData.UserData {
+                                if ci_merge.CIData.UserData[ciMod] == nil {
+                                        ci_merge.CIData.UserData[ciMod] = make([]interface{},1)
+                                }
+                                merge_data := ci_merge.CIData.UserData[ciMod].([]interface{})
+                                group_data := ci_group.CIData.UserData[ciMod].([]interface{})
+                                new_data := mergeInterfaces(merge_data, group_data)
+                                ci_merge.CIData.UserData[ciMod] = new_data
+                        }
+                        md_group, ok := m.groups[groupLabel]
+                        if ok {
+                                // check if there's already metadata
+                                if ci_merge.CIData.MetaData != nil {
+                                        // check if we already have a "groups" section
+                                        if groups, ok := ci_merge.CIData.MetaData["groups"].(map[string]citypes.Group); ok {
+                                                // found "groups" so add the new group + it's data
+                                                groups[groupLabel] = md_group
+                                        } else {
+                                                // did not find "groups", so add it with current group data
+                                                ci_merge.CIData.MetaData["groups"] = map[string]citypes.Group{
+                                                        groupLabel: md_group,
+                                                }
+                                        }
+                                } else {
+                                        // no metadata found, so create it with current group data here
+                                        ci_merge.CIData.MetaData = map[string]any{
+                                                "groups": map[string]citypes.Group{
+                                                        groupLabel: md_group,
+                                                },
+                                        }
+                                }
+
+                        } else {
+                                // we didn't find the group in the memstore with the label, so
+                                // go on to the next one
+                                fmt.Printf("failed to get '%s' from groups", groupLabel)
+                                continue
+                        }
+                }
+        }
+        return *ci_merge, nil
+}
+
+func mergeInterfaces(slices ...[]interface{}) []interface{} {
+    result := []interface{}{}
+
+    for _, slice := range slices {
+        for _, value := range slice {
+	    if result != nil {
+	        result = append(result, value)
+	    }
+        }
+    }
+
+    return result
 }
 
 // Merge combines cloud-init data from MemStore with new citypes.CI
