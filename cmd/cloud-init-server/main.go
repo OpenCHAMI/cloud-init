@@ -25,6 +25,7 @@ var (
 	tokenEndpoint = "http://opaal:3333/token" // jwt for smd access obtained from here
 	smdEndpoint   = "http://smd:27779"
 	jwksUrl       = "" // jwt keyserver URL for secure-route token validation
+	accessToken   = ""
 	insecure      = false
 )
 
@@ -33,6 +34,7 @@ func main() {
 	flag.StringVar(&tokenEndpoint, "token-url", tokenEndpoint, "OIDC server URL (endpoint) to fetch new tokens from (for SMD access)")
 	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "http IP/url and port for running SMD")
 	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
+	flag.StringVar(&accessToken, "access-token", accessToken, "encoded JWT access token")
 	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
 	flag.Parse()
 
@@ -67,7 +69,9 @@ func main() {
 		middleware.Timeout(60*time.Second),
 		openchami_logger.OpenCHAMILogger(logger),
 	)
-	sm := smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, insecure)
+
+	// Set up the SMD client with flags
+	sm := smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, accessToken, insecure)
 
 	// Unsecured datastore and router
 	store := memstore.NewMemStore()

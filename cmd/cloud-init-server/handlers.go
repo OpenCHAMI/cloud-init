@@ -88,7 +88,6 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, ci.Name)
 }
 
-
 // AddUserEntry godoc
 // @Summary Add a new user-data entry in specified cloud-init data
 // @Description Add a new user-data entry in specified cloud-init data
@@ -136,7 +135,6 @@ func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, ci.Name)
 }
 
-
 // GetEntry godoc
 // @Summary Get a cloud-init entry
 // @Description Get a cloud-init entry
@@ -146,14 +144,77 @@ func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {string} string "not found"
 // @Router /harbor/{id} [get]
 func (h CiHandler) GetEntry(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	var (
+		id          = chi.URLParam(r, "id")
+		groupLabels []string
+		groups      = h.store.GetGroups()
+		store       map[string]citypes.CI
+		ok          bool
+		ci          citypes.CI
+		err         error
+	)
 
-	ci, err := h.store.Get(id, h.sm)
+	// TODO: Fetch data from SMD here
+	groupLabels, err = h.sm.GroupMembership(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-	} else {
-		render.JSON(w, r, ci)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+
+	// TODO: Get data stored in memstore
+	ci, err = h.store.Get(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else if len(groupLabels) <= 0 {
+		print("group labels: %v", groupLabels)
+		http.Error(w, fmt.Sprintf("no groups found from SMD for %s", id), http.StatusInternalServerError)
+	} else {
+		//make sure we already have cloud-init data and create it if it doesn't exist
+		store, _ = h.store.List()
+		ci, ok = store[id]
+		if !ok {
+			ci = citypes.CI{
+				Name: id,
+				CIData: citypes.CIData{
+					MetaData: map[string]any{"groups": map[string]citypes.Group{}},
+				},
+			}
+		}
+
+		// add matching group data stored with groups API to metadata
+		for _, groupLabel := range groupLabels {
+			// check if the group is stored with label from SMD
+			group, ok := groups[groupLabel]
+			if ok {
+				// check if there's already metadata
+				if ci.CIData.MetaData != nil {
+					// check if we already have a "groups" section
+					if groups, ok := ci.CIData.MetaData["groups"].(map[string]citypes.Group); ok {
+						// found "groups" so add the new group + it's data
+						groups[groupLabel] = group
+					} else {
+						// did not find "groups", so add it with current group data
+						ci.CIData.MetaData["groups"] = map[string]citypes.Group{
+							groupLabel: group,
+						}
+					}
+				} else {
+					// no metadata found, so create it with current group data here
+					ci.CIData.MetaData = map[string]any{
+						"groups": map[string]citypes.Group{
+							groupLabel: group,
+						},
+					}
+				}
+			} else {
+				// we didn't find the group in the memstore with the label, so
+				// go on to the next one
+				fmt.Printf("failed to get '%s' from groups", groupLabel)
+				continue
+			}
+		}
+	}
+
+	render.JSON(w, r, ci)
 }
 
 func (h CiHandler) GetDataByMAC(dataKind ciDataKind) func(w http.ResponseWriter, r *http.Request) {
@@ -197,7 +258,8 @@ func (h CiHandler) GetDataByIP(dataKind ciDataKind) func(w http.ResponseWriter, 
 }
 
 func (h CiHandler) getData(id string, dataKind ciDataKind, w http.ResponseWriter) {
-	ci, err := h.store.Get(id, h.sm)
+	_, err := h.sm.GroupMembership(id)
+	ci, err := h.store.Get(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	}
