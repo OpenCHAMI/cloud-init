@@ -33,7 +33,7 @@ type SMDClient struct {
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
 // and uses the provided JWT server for authentication
-func NewSMDClient(baseurl string, jwtURL string, insecure bool) *SMDClient {
+func NewSMDClient(baseurl string, jwtURL string, accessToken string, insecure bool) *SMDClient {
 	c := &http.Client{Timeout: 2 * time.Second}
 	if insecure {
 		c.Transport = &http.Transport{
@@ -46,7 +46,7 @@ func NewSMDClient(baseurl string, jwtURL string, insecure bool) *SMDClient {
 		smdClient:     c,
 		smdBaseURL:    baseurl,
 		tokenEndpoint: jwtURL,
-		accessToken:   "",
+		accessToken:   accessToken,
 	}
 }
 
