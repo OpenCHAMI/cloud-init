@@ -12,20 +12,41 @@ import (
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	zlog "github.com/rs/zerolog/log"
 
 	openchami_authenticator "github.com/openchami/chi-middleware/auth"
 	openchami_logger "github.com/openchami/chi-middleware/log"
 )
 
 var (
-	ciEndpoint    = ":27777"
-	tokenEndpoint = "http://opaal:3333/token" // jwt for smd access obtained from here
-	smdEndpoint   = "http://smd:27779"
-	jwksUrl       = "" // jwt keyserver URL for secure-route token validation
-	insecure      = false
+	ciEndpoint        = ":27777"
+	tokenEndpoint     = "http://opaal:3333/token" // jwt for smd access obtained from here
+	smdEndpoint       = "http://smd:27779"
+	jwksUrl           = "" // jwt keyserver URL for secure-route token validation
+	insecure          = false
+	prometheusEnabled = false
+)
+
+// Prometheus Metrics
+var (
+	httpRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_request_duration_seconds",
+			Help:    "Duration of HTTP requests in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"path", "method"},
+	)
+	httpRequestCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Total number of HTTP requests",
+		},
+		[]string{"path", "method", "status"},
+	)
 )
 
 func main() {
@@ -34,6 +55,7 @@ func main() {
 	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "http IP/url and port for running SMD")
 	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
 	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
+	flag.BoolVar(&prometheusEnabled, "prometheus", prometheusEnabled, "Enable Prometheus metrics")
 	flag.Parse()
 
 	// Set up JWT verification via the specified URL, if any
@@ -54,11 +76,25 @@ func main() {
 
 	// Setup logger
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	logger := zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	logger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	// Set up prometheus exporter
+	if prometheusEnabled {
+		// Register Prometheus metrics
+		prometheus.MustRegister(httpRequestDuration, httpRequestCount)
+		// log the Prometheus exporter start
+		log.Info().Msg("Prometheus exporter started :2112")
+		// Start the Prometheus
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			log.Fatal().Err(http.ListenAndServe(":2112", nil)).Msg("Prometheus exporter failed")
+		}()
+	}
 
 	// Primary router and shared SMD client
 	router := chi.NewRouter()
 	router.Use(
+		prometheusMiddleware,
 		middleware.RequestID,
 		middleware.RealIP,
 		middleware.Logger,
@@ -113,4 +149,20 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 	router.Get("/groups/{id}", handler.GetGroupData)
 	router.Put("/groups/{id}", handler.UpdateGroupData)
 	router.Delete("/groups/{id}", handler.RemoveGroupData)
+}
+
+func prometheusMiddleware(next http.Handler) http.Handler {
+	if !prometheusEnabled {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		timer := prometheus.NewTimer(httpRequestDuration.WithLabelValues(r.URL.Path, r.Method))
+		defer timer.ObserveDuration()
+
+		rw := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		next.ServeHTTP(rw, r)
+
+		status := fmt.Sprintf("%d", rw.Status())
+		httpRequestCount.WithLabelValues(r.URL.Path, r.Method, status).Inc()
+	})
 }
