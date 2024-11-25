@@ -17,3 +17,9 @@ type (
 	Group     map[string]GroupData
 	GroupData map[string]any
 )
+
+type WriteFiles struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+	Group   string `json:"group,omitempty"`
+}

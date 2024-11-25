@@ -3,16 +3,19 @@ package memstore
 import (
 	"errors"
 	"fmt"
+	"log"
 
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
 	"github.com/samber/lo"
 )
 
 var (
-	EmptyRequest = errors.New("No data found in request body.")
-	NotFoundErr  = errors.New("Not found.")
-	ExistingErr  = errors.New("citypes.GroupData exists for this entry. Update instead.")
+	ErrEmptyRequestBody = errors.New("no data found in request body")
+	ErrResourceNotFound = errors.New("resource not found")
+	ErrGroupDataExists  = errors.New("citypes.GroupData exists for this entry")
+	ErrUserDataExists   = errors.New("user data exists for this entry")
+	ErrVendorDataExists = errors.New("vendor data exists for this entry")
+	ErrMetaDataExists   = errors.New("metadata exists for this entry")
 )
 
 type MemStore struct {
@@ -38,7 +41,7 @@ func (m MemStore) Add(name string, ci citypes.CI) error {
 		if curr.CIData.UserData == nil {
 			curr.CIData.UserData = ci.CIData.UserData
 		} else {
-			return ExistingErr
+			return ErrUserDataExists
 		}
 	}
 
@@ -46,7 +49,7 @@ func (m MemStore) Add(name string, ci citypes.CI) error {
 		if curr.CIData.MetaData == nil {
 			curr.CIData.MetaData = ci.CIData.MetaData
 		} else {
-			return ExistingErr
+			return ErrMetaDataExists
 		}
 	}
 
@@ -54,7 +57,7 @@ func (m MemStore) Add(name string, ci citypes.CI) error {
 		if curr.CIData.VendorData == nil {
 			curr.CIData.VendorData = ci.CIData.VendorData
 		} else {
-			return ExistingErr
+			return ErrVendorDataExists
 		}
 	}
 
@@ -63,21 +66,11 @@ func (m MemStore) Add(name string, ci citypes.CI) error {
 }
 
 // Get retrieves data stored in MemStore and returns it or an error
-func (m MemStore) Get(id string, sm *smdclient.SMDClient) (citypes.CI, error) {
-	var (
-		groupLabels []string
-		// ci_merged  citypes.CI
-		err error
-	)
+func (m *MemStore) Get(id string, groupLabels []string) (citypes.CI, error) {
 
-	// fetch group name/labels from SMD
-	groupLabels, err = sm.GroupMembership(id)
 	fmt.Printf("groups: %v\n", groupLabels)
 
-	// check that we actually got something back with no errors
-	if err != nil {
-		return citypes.CI{}, err
-	} else if len(groupLabels) == 0 {
+	if len(groupLabels) == 0 {
 		return citypes.CI{}, errors.New("no groups found from SMD")
 	} else {
 		// make sure we already have cloud-init data and create it if it doesn't exist
@@ -86,6 +79,7 @@ func (m MemStore) Get(id string, sm *smdclient.SMDClient) (citypes.CI, error) {
 			ci = citypes.CI{
 				Name: id,
 				CIData: citypes.CIData{
+					UserData: map[string]any{},
 					MetaData: map[string]any{"groups": map[string]citypes.Group{}},
 				},
 			}
@@ -96,35 +90,52 @@ func (m MemStore) Get(id string, sm *smdclient.SMDClient) (citypes.CI, error) {
 			// check if the group is stored with label from SMD
 			group, ok := m.groups[groupLabel]
 			if ok {
-				// check if there's already metadata
-				if ci.CIData.MetaData != nil {
-					// check if we already have a "groups" section
-					if groups, ok := ci.CIData.MetaData["groups"].(map[string]citypes.Group); ok {
-						// found "groups" so add the new group + it's data
-						groups[groupLabel] = group
-					} else {
-						// did not find "groups", so add it with current group data
-						ci.CIData.MetaData["groups"] = map[string]citypes.Group{
-							groupLabel: group,
+				// check if we already have a "groups" section in metadata
+				if groups, ok := ci.CIData.MetaData["groups"].(map[string]citypes.GroupData); ok {
+					// found "groups" so add the new group + it's data
+					groups[groupLabel] = group["data"]
+				} else {
+					// did not find "groups", so add it with current group data
+					ci.CIData.MetaData["groups"] = map[string]citypes.GroupData{
+						groupLabel: group["data"],
+					}
+				}
+
+				// In user data, we cannot store things as groups.  We store the write_files and runcmd lists directly.
+				// check if we already have a "write_files" section in user data
+				if writeFiles, ok := ci.CIData.UserData["write_files"].([]citypes.WriteFiles); ok {
+					// found the "write_files" section, so add the new group's write_files
+					if actions, ok := group["actions"]; ok {
+
+						if groupWriteFiles, ok := actions["write_files"].([]citypes.WriteFiles); ok {
+							for _, wf := range groupWriteFiles {
+								wf.Group = groupLabel
+								writeFiles = append(writeFiles, wf)
+							}
+
+							ci.CIData.UserData["write_files"] = writeFiles
 						}
 					}
 				} else {
-					// no metadata found, so create it with current group data here
-					ci.CIData.MetaData = map[string]any{
-						"groups": map[string]citypes.Group{
-							groupLabel: group,
-						},
+					// did not find "write_files", so add it with current group's write_files
+					if actions, ok := group["actions"]; ok {
+
+						if groupWriteFiles, ok := actions["write_files"].([]citypes.WriteFiles); ok {
+
+							ci.CIData.UserData["write_files"] = groupWriteFiles
+						}
 					}
 				}
 			} else {
 				// we didn't find the group in the memstore with the label, so
 				// go on to the next one
-				fmt.Printf("failed to get '%s' from groups", groupLabel)
+				log.Printf("failed to get '%s' from groups", groupLabel)
 				continue
 			}
 		}
 		m.list[id] = ci
 	}
+	fmt.Printf("ci: %v\n", m.list[id])
 	return m.list[id], nil
 }
 
@@ -159,7 +170,7 @@ func (m MemStore) Update(name string, ci citypes.CI) error {
 		m.list[name] = curr
 		return nil
 	}
-	return NotFoundErr
+	return ErrResourceNotFound
 }
 
 func (m MemStore) Remove(name string) error {
@@ -173,27 +184,21 @@ func (m MemStore) GetGroups() map[string]citypes.Group {
 
 /*
 AddGroupData adds a new group with it's associated data specified by the user.
-The group data is included in the metadata with making a request for cloud-init
-data.
+The key/value information "data" is included in the metadata.  The "actions" are stored in the user data.
 
 Example:
 
 AddGroup("x3000", data)
 
 	{
-		"meta-data": {
-			"groups": { // POST request should only include this data
-				"x3000": {
-					"data": {
-						"syslog_aggregator": "192.168.0.1"
-					}
-				},
-				"canary-123": {
-					"data": {
-						"hello": "world"
-					}
-				}
-			}
+		"data": {
+			"syslog_aggregator": "192.168.0.1"
+		},
+		"actions": {
+			"write_files": [
+				{ "path": "/etc/hello", "content": "hello world" },
+				{ "path": "/etc/hello2", "content": "hello world" }
+			]
 		}
 	}
 */
@@ -206,17 +211,24 @@ func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData)
 	// do nothing if no data found from the request
 	if len(newGroupData) <= 0 {
 		fmt.Printf("no data")
-		return EmptyRequest
+		return ErrEmptyRequestBody
 	}
 
 	// get CI data and check if groups IDENTIFIER exists (creates if not)
 	_, ok := m.groups[groupName]
 	if ok {
 		// found group so return error
-		return ExistingErr
+		return ErrGroupDataExists
 	} else {
 		// does not exist, so create and update
-		m.groups[groupName] = citypes.Group{"data": newGroupData}
+		m.groups[groupName] = citypes.Group{}
+
+		if data, ok := newGroupData["data"].(citypes.GroupData); ok {
+			m.groups[groupName]["data"] = data
+		}
+		if actions, ok := newGroupData["actions"].(citypes.GroupData); ok {
+			m.groups[groupName]["actions"] = actions
+		}
 	}
 	return nil
 }
@@ -232,7 +244,7 @@ func (m MemStore) GetGroupData(groupName string) (citypes.GroupData, error) {
 	if ok {
 		return group["data"], nil
 	} else {
-		return nil, NotFoundErr
+		return nil, ErrResourceNotFound
 	}
 
 }
@@ -245,7 +257,7 @@ func (m MemStore) UpdateGroupData(groupName string, groupData citypes.GroupData)
 
 	// do nothing if no data found
 	if len(groupData) <= 0 {
-		return EmptyRequest
+		return ErrEmptyRequestBody
 	}
 
 	group, ok := m.groups[groupName]
@@ -253,7 +265,7 @@ func (m MemStore) UpdateGroupData(groupName string, groupData citypes.GroupData)
 		group["data"] = groupData
 		m.groups[groupName] = group
 	} else {
-		return NotFoundErr
+		return ErrResourceNotFound
 	}
 	return nil
 }
@@ -261,16 +273,4 @@ func (m MemStore) UpdateGroupData(groupName string, groupData citypes.GroupData)
 func (m MemStore) RemoveGroupData(name string) error {
 	delete(m.groups, name)
 	return nil
-}
-
-func getGroupsFromMetadata(ci citypes.CI) citypes.GroupData {
-	_, ok := ci.CIData.MetaData["groups"]
-	if ok {
-		return ci.CIData.MetaData["groups"].(citypes.GroupData)
-	}
-	return nil
-}
-
-func setGroupsInMetadata(ci citypes.CI, data citypes.GroupData) {
-	ci.CIData.MetaData["groups"] = data
 }
