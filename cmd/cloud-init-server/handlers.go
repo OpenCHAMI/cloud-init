@@ -77,7 +77,7 @@ func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
 
 	err = h.store.Add(ci.Name, ci)
 	if err != nil {
-		if err == memstore.ExistingErr {
+		if err == memstore.ErrGroupDataExists {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -124,7 +124,7 @@ func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
 	// add the cloud-init data
 	err = h.store.Add(ci.Name, ci)
 	if err != nil {
-		if err == memstore.ExistingErr {
+		if err == memstore.ErrGroupDataExists {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -143,14 +143,29 @@ func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} CI
 // @Failure 404 {string} string "not found"
 // @Router /harbor/{id} [get]
-func (h CiHandler) GetEntry(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+func GetEntry(store ciStore, sm *smdclient.SMDClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		groupLabels, err := sm.GroupMembership(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError) // TODO: Make the error more helpful
+			return
+		}
+		component, err := sm.ComponentInformation(id) // This needs to be an xname
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
 
-	ci, err := h.store.Get(id, h.sm)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-	} else {
-		render.JSON(w, r, ci)
+		ci, err := store.Get(id, groupLabels)
+		ci.CIData.MetaData["xname"] = component.ID
+		ci.CIData.MetaData["NID"] = component.NID
+		ci.CIData.MetaData["cloud_name"] = "OpenCHAMI"
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			render.JSON(w, r, ci)
+		}
 	}
 }
 
@@ -165,8 +180,13 @@ func (h CiHandler) GetDataByMAC(dataKind ciDataKind) func(w http.ResponseWriter,
 		} else {
 			log.Printf("xname %s with mac %s found\n", name, id)
 		}
+		groupLabels, err := sm.GroupMembership(name)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError) // TODO: Make the error more helpful
+			return
+		}
 		// Actually respond with the data
-		h.getData(name, dataKind, w)
+		h.getData(name, groupLabels, dataKind, w)
 	}
 }
 
@@ -189,13 +209,19 @@ func (h CiHandler) GetDataByIP(dataKind ciDataKind) func(w http.ResponseWriter, 
 		} else {
 			log.Printf("xname %s with ip %s found\n", name, ip)
 		}
+		groupLabels, err := sm.GroupMembership(name)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError) // TODO: Make the error more helpful
+			return
+		}
 		// Actually respond with the data
-		h.getData(name, dataKind, w)
+		h.getData(name, groupLabels, dataKind, w)
 	}
 }
 
-func (h CiHandler) getData(id string, dataKind ciDataKind, w http.ResponseWriter) {
-	ci, err := h.store.Get(id, h.sm)
+func (h CiHandler) getData(id string, groupLabels []string, dataKind ciDataKind, w http.ResponseWriter) {
+
+	ci, err := h.store.Get(id, groupLabels)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	}
@@ -235,7 +261,7 @@ func (h CiHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 
 	err = h.store.Update(id, ci)
 	if err != nil {
-		if err == memstore.NotFoundErr {
+		if err == memstore.ErrResourceNotFound {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -269,7 +295,7 @@ func (h CiHandler) UpdateUserEntry(w http.ResponseWriter, r *http.Request) {
 	ci.CIData.UserData = userdata
 	err = h.store.Update(id, ci)
 	if err != nil {
-		if err == memstore.NotFoundErr {
+		if err == memstore.ErrResourceNotFound {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -285,7 +311,7 @@ func (h CiHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 
 	err := h.store.Remove(id)
 	if err != nil {
-		if err == memstore.NotFoundErr {
+		if err == memstore.ErrResourceNotFound {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -318,7 +344,7 @@ func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {
 		err  error
 	)
 
-	data, err = parseData(w, r)
+	data, err = parseData(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -353,6 +379,7 @@ func (h CiHandler) GetGroupData(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write(bytes)
 }
+
 func (h CiHandler) UpdateGroupData(w http.ResponseWriter, r *http.Request) {
 	var (
 		id   string = chi.URLParam(r, "id")
@@ -360,7 +387,7 @@ func (h CiHandler) UpdateGroupData(w http.ResponseWriter, r *http.Request) {
 		err  error
 	)
 
-	data, err = parseData(w, r)
+	data, err = parseData(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -386,12 +413,7 @@ func (h CiHandler) RemoveGroupData(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func writeInternalError(w http.ResponseWriter, err string) {
-	http.Error(w, err, http.StatusInternalServerError)
-	// log.Error().Err(err)
-}
-
-func parseData(w http.ResponseWriter, r *http.Request) (citypes.GroupData, error) {
+func parseData(r *http.Request) (citypes.GroupData, error) {
 	var (
 		body []byte
 		err  error

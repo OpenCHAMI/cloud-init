@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/OpenCHAMI/smd/v2/pkg/sm"
 )
 
@@ -132,4 +133,14 @@ func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 		return nil, err
 	}
 	return ml.GroupLabels, nil
+}
+
+func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
+	var node base.Component
+	ep := "/hsm/v2/State/Components/" + id
+	err := s.getSMD(ep, &node)
+	if err != nil {
+		return node, err
+	}
+	return node, nil
 }
