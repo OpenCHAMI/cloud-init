@@ -72,69 +72,71 @@ func (m *MemStore) Get(id string, groupLabels []string) (citypes.CI, error) {
 
 	if len(groupLabels) == 0 {
 		return citypes.CI{}, errors.New("no groups found from SMD")
-	} else {
-		// make sure we already have cloud-init data and create it if it doesn't exist
-		ci, ok := m.list[id]
-		if !ok {
-			ci = citypes.CI{
-				Name: id,
-				CIData: citypes.CIData{
-					UserData: map[string]any{},
-					MetaData: map[string]any{"groups": map[string]citypes.Group{}},
-				},
-			}
-		}
+	}
+	// If there's cloud-init data associated with the ID, we should return it.
+	ci, ok := m.list[id]
+	if ok {
+		return ci, nil
+	}
 
-		// add matching group data stored with groups API to metadata
-		for _, groupLabel := range groupLabels {
-			// check if the group is stored with label from SMD
-			group, ok := m.groups[groupLabel]
-			if ok {
-				// check if we already have a "groups" section in metadata
-				if groups, ok := ci.CIData.MetaData["groups"].(map[string]citypes.GroupData); ok {
-					// found "groups" so add the new group + it's data
-					groups[groupLabel] = group["data"]
-				} else {
-					// did not find "groups", so add it with current group data
-					ci.CIData.MetaData["groups"] = map[string]citypes.GroupData{
-						groupLabel: group["data"],
-					}
+	// At this point, we can be sure that we are generating UserData and MetaData based on the groups
+	ci = citypes.CI{
+		Name: id,
+		CIData: citypes.CIData{
+			UserData: map[string]any{},
+			MetaData: map[string]any{"groups": map[string]citypes.Group{}},
+		},
+	}
+
+	// add matching group data stored with groups API to metadata
+	for _, groupLabel := range groupLabels {
+		// check if the group is stored with label from SMD
+		group, ok := m.groups[groupLabel]
+		if ok {
+			// check if we already have a "groups" section in metadata
+			if groups, ok := ci.CIData.MetaData["groups"].(map[string]citypes.GroupData); ok {
+				// found "groups" so add the new group + it's data
+				groups[groupLabel] = group["data"]
+			} else {
+				// did not find "groups", so add it with current group data
+				ci.CIData.MetaData["groups"] = map[string]citypes.GroupData{
+					groupLabel: group["data"],
 				}
+			}
 
-				// In user data, we cannot store things as groups.  We store the write_files and runcmd lists directly.
-				// check if we already have a "write_files" section in user data
-				if writeFiles, ok := ci.CIData.UserData["write_files"].([]citypes.WriteFiles); ok {
-					// found the "write_files" section, so add the new group's write_files
-					if actions, ok := group["actions"]; ok {
+			// In user data, we cannot store things as groups.  We store the write_files and runcmd lists directly.
+			// check if we already have a "write_files" section in user data
+			if writeFiles, ok := ci.CIData.UserData["write_files"].([]citypes.WriteFiles); ok {
+				// found the "write_files" section, so add the new group's write_files
+				if actions, ok := group["actions"]; ok {
 
-						if groupWriteFiles, ok := actions["write_files"].([]citypes.WriteFiles); ok {
-							for _, wf := range groupWriteFiles {
-								wf.Group = groupLabel
-								writeFiles = append(writeFiles, wf)
-							}
-
-							ci.CIData.UserData["write_files"] = writeFiles
+					if groupWriteFiles, ok := actions["write_files"].([]citypes.WriteFiles); ok {
+						for _, wf := range groupWriteFiles {
+							wf.Group = groupLabel
+							writeFiles = append(writeFiles, wf)
 						}
-					}
-				} else {
-					// did not find "write_files", so add it with current group's write_files
-					if actions, ok := group["actions"]; ok {
 
-						if groupWriteFiles, ok := actions["write_files"].([]citypes.WriteFiles); ok {
-
-							ci.CIData.UserData["write_files"] = groupWriteFiles
-						}
+						ci.CIData.UserData["write_files"] = writeFiles
 					}
 				}
 			} else {
-				// we didn't find the group in the memstore with the label, so
-				// go on to the next one
-				log.Printf("failed to get '%s' from groups", groupLabel)
-				continue
+				// did not find "write_files", so add it with current group's write_files
+				if actions, ok := group["actions"]; ok {
+
+					if groupWriteFiles, ok := actions["write_files"].([]citypes.WriteFiles); ok {
+
+						ci.CIData.UserData["write_files"] = groupWriteFiles
+					}
+				}
 			}
+		} else {
+			// we didn't find the group in the memstore with the label, so
+			// go on to the next one
+			log.Printf("failed to get '%s' from groups", groupLabel)
+			continue
 		}
-		m.list[id] = ci
 	}
+
 	fmt.Printf("ci: %v\n", m.list[id])
 	return m.list[id], nil
 }

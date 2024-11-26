@@ -25,7 +25,6 @@ var (
 	smdEndpoint   = "http://smd:27779"
 	jwksUrl       = "" // jwt keyserver URL for secure-route token validation
 	insecure      = false
-	sm            *smdclient.SMDClientInterface
 	store         ciStore
 )
 
