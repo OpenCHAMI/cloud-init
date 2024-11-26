@@ -65,7 +65,7 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 	var resp *http.Response
 	// Manage fetching a new JWT if we initially fail
 	freshToken := false
-	for true {
+	for {
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return err
