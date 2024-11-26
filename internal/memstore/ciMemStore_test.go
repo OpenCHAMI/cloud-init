@@ -29,7 +29,7 @@ func TestMemStore_Get(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "test-id", ci.Name)
 	assert.NotNil(t, ci.CIData.MetaData)
-	assert.NotContains(t, ci.CIData.MetaData["groups"].(map[string]citypes.GroupData), "group2")
+	assert.NotContains(t, ci.CIData.MetaData["groups"].(map[string]citypes.Group), "group2")
 
 	// Test case: Multiple groups exist in store
 	store.groups["computes"] = citypes.Group{"data": citypes.GroupData{
