@@ -83,7 +83,7 @@ func TestGetDataByMAC(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			handler.GetDataByMAC(tt.dataKind)(w, req)
-
+			t.Logf("Response: %v", w.Body.String())
 			resp := w.Result()
 			assert.Equal(t, tt.statusCode, resp.StatusCode)
 		})
