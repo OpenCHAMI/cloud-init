@@ -15,6 +15,14 @@ import (
 	"github.com/OpenCHAMI/smd/v2/pkg/sm"
 )
 
+// Create an SMDClient Interface which can be more easily tested and mocked
+type SMDClientInterface interface {
+	IDfromMAC(mac string) (string, error)
+	IDfromIP(ipaddr string) (string, error)
+	GroupMembership(id string) ([]string, error)
+	ComponentInformation(id string) (base.Component, error)
+}
+
 // Add client usage examples
 // unit testing
 // golang lint
