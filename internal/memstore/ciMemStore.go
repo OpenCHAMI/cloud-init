@@ -137,8 +137,8 @@ func (m *MemStore) Get(id string, groupLabels []string) (citypes.CI, error) {
 		}
 	}
 
-	fmt.Printf("ci: %v\n", m.list[id])
-	return m.list[id], nil
+	fmt.Printf("ci: %v\n", ci)
+	return ci, nil
 }
 
 // Merge combines cloud-init data from MemStore with new citypes.CI
