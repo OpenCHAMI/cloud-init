@@ -18,10 +18,10 @@ import (
 
 type CiHandler struct {
 	store ciStore
-	sm    *smdclient.SMDClient
+	sm    smdclient.SMDClientInterface
 }
 
-func NewCiHandler(s ciStore, c *smdclient.SMDClient) *CiHandler {
+func NewCiHandler(s ciStore, c smdclient.SMDClientInterface) *CiHandler {
 	return &CiHandler{
 		store: s,
 		sm:    c,
@@ -143,7 +143,7 @@ func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} CI
 // @Failure 404 {string} string "not found"
 // @Router /harbor/{id} [get]
-func GetEntry(store ciStore, sm *smdclient.SMDClient) http.HandlerFunc {
+func GetEntry(store ciStore, sm smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		groupLabels, err := sm.GroupMembership(id)
@@ -180,7 +180,7 @@ func (h CiHandler) GetDataByMAC(dataKind ciDataKind) func(w http.ResponseWriter,
 		} else {
 			log.Printf("xname %s with mac %s found\n", name, id)
 		}
-		groupLabels, err := sm.GroupMembership(name)
+		groupLabels, err := h.sm.GroupMembership(name)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError) // TODO: Make the error more helpful
 			return
@@ -209,7 +209,7 @@ func (h CiHandler) GetDataByIP(dataKind ciDataKind) func(w http.ResponseWriter, 
 		} else {
 			log.Printf("xname %s with ip %s found\n", name, ip)
 		}
-		groupLabels, err := sm.GroupMembership(name)
+		groupLabels, err := h.sm.GroupMembership(name)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError) // TODO: Make the error more helpful
 			return

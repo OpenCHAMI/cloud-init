@@ -25,7 +25,7 @@ var (
 	smdEndpoint   = "http://smd:27779"
 	jwksUrl       = "" // jwt keyserver URL for secure-route token validation
 	insecure      = false
-	sm            *smdclient.SMDClient
+	sm            *smdclient.SMDClientInterface
 	store         ciStore
 )
 
@@ -101,7 +101,7 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 	router.Get("/user-data", handler.GetDataByIP(UserData))
 	router.Get("/meta-data", handler.GetDataByIP(MetaData))
 	router.Get("/vendor-data", handler.GetDataByIP(VendorData))
-	router.Get("/{id}", GetEntry(store, sm))
+	router.Get("/{id}", GetEntry(store, *sm))
 	router.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
 	router.Put("/{id}/user-data", handler.UpdateUserEntry)
 	router.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
