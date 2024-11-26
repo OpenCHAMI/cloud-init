@@ -67,7 +67,17 @@ func main() {
 		middleware.Timeout(60*time.Second),
 		openchami_logger.OpenCHAMILogger(logger),
 	)
-	sm := smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, insecure)
+
+	var sm smdclient.SMDClientInterface
+	// if the CLOUD-INIT_SMD_SIMULATOR environment variable is set, use the simulator
+	if os.Getenv("CLOUD_INIT_SMD_SIMULATOR") == "true" {
+		fmt.Printf("\n\n**********\n\n\tCLOUD_INIT_SMD_SIMULATOR is set to true in your environment.\n\n\tUsing the FakeSMDClient to simulate SMD\n\n**********\n\n\n")
+		fakeSm := smdclient.NewFakeSMDClient(500)
+		fakeSm.Summary()
+		sm = fakeSm
+	} else {
+		sm = smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, insecure)
+	}
 
 	// Unsecured datastore and router
 	store := memstore.NewMemStore()
