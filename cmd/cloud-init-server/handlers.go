@@ -158,14 +158,15 @@ func GetEntry(store ciStore, sm smdclient.SMDClientInterface) http.HandlerFunc {
 		}
 
 		ci, err := store.Get(id, groupLabels)
-		ci.CIData.MetaData["xname"] = component.ID
-		ci.CIData.MetaData["NID"] = component.NID
-		ci.CIData.MetaData["cloud_name"] = "OpenCHAMI"
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 		} else {
+			ci.CIData.MetaData["xname"] = component.ID
+			ci.CIData.MetaData["NID"] = component.NID
+			ci.CIData.MetaData["cloud_name"] = "OpenCHAMI"
 			render.JSON(w, r, ci)
 		}
+
 	}
 }
 
