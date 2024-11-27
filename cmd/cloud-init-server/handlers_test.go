@@ -135,7 +135,7 @@ func TestAddGroupData(t *testing.T) {
 		{
 			name:       "empty user-data",
 			groupName:  "rsyslog",
-			body:       `{"meta-data": {"groups": {"computes": [{"key":"value"}]}}}`,
+			body:       `{"metadata": {"groups": {"computes": [{"key":"value"}]}}}`,
 			statusCode: http.StatusOK,
 		},
 		{
