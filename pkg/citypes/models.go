@@ -6,16 +6,14 @@ type CI struct {
 }
 
 type CIData struct {
-	UserData   map[string]interface{} `json:"userdata"`
-	MetaData   map[string]interface{} `json:"metadata"`
-	VendorData map[string]interface{} `json:"vendordata"`
+	UserData   map[string]any `json:"user-data"`
+	MetaData   map[string]any `json:"meta-data"`
+	VendorData map[string]any `json:"vendor-data"`
 }
 
 type (
 	// only defined for readibility
-	UserData  = map[string]any
-	Group     map[string]GroupData
-	GroupData map[string]any
+	UserData = map[string]any
 )
 
 type WriteFiles struct {
@@ -23,3 +21,11 @@ type WriteFiles struct {
 	Content string `json:"content"`
 	Group   string `json:"group,omitempty"`
 }
+
+type GroupData struct {
+	Name    string         `json:"name,omitempty"`
+	Data    []MetaDataKV   `json:"meta-data,omitempty"`
+	Actions map[string]any `json:"user-data,omitempty"`
+}
+
+type MetaDataKV map[string]string // Metadata for the group may only contain key value pairs

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
@@ -83,6 +84,77 @@ func TestGetDataByMAC(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			handler.GetDataByMAC(tt.dataKind)(w, req)
+			t.Logf("Response: %v", w.Body.String())
+			resp := w.Result()
+			assert.Equal(t, tt.statusCode, resp.StatusCode)
+		})
+	}
+}
+func (m *mockStore) AddGroupData(groupName string, data citypes.GroupData) error {
+	if groupName == "existing-group" {
+		return errors.New("group already exists")
+	}
+	return nil
+}
+
+func TestAddGroupData(t *testing.T) {
+	store := &mockStore{}
+	sm := &mockSMDClient{}
+	handler := NewCiHandler(store, sm)
+
+	tests := []struct {
+		name       string
+		groupName  string
+		body       string
+		statusCode int
+	}{
+		{
+			name:       "Valid Group Data",
+			groupName:  "new-group",
+			body:       `{"key": "value"}`,
+			statusCode: http.StatusOK,
+		},
+		{
+			name:       "Existing Group",
+			groupName:  "existing-group",
+			body:       `{"key": "value"}`,
+			statusCode: http.StatusInternalServerError,
+		},
+		{
+			name:       "Invalid JSON",
+			groupName:  "new-group",
+			body:       `{"key": "value"`,
+			statusCode: http.StatusInternalServerError,
+		},
+		{
+			name:       "Add rsyslog example",
+			groupName:  "rsyslog",
+			body:       `{"metadata": [{"key":"value"}], "userdata": {"write_files": [{ "path": "/etc/rsyslog.conf", "content": "rsyslog config" }]}}`,
+			statusCode: http.StatusOK,
+		},
+		{
+			name:       "empty user-data",
+			groupName:  "rsyslog",
+			body:       `{"meta-data": {"groups": {"computes": [{"key":"value"}]}}}`,
+			statusCode: http.StatusOK,
+		},
+		{
+			name:       "empty meta-data",
+			groupName:  "rsyslog",
+			body:       `{"user-data": {"write_files": [{ "path": "/etc/rsyslog.conf", "content": "rsyslog config", "group": "rsyslog" }]}}`,
+			statusCode: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("POST", "/harbor/{id}", strings.NewReader(tt.body))
+			routeCtx := chi.NewRouteContext()
+			routeCtx.URLParams.Add("id", tt.groupName)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+			w := httptest.NewRecorder()
+
+			handler.AddGroupData(w, req)
 			t.Logf("Response: %v", w.Body.String())
 			resp := w.Result()
 			assert.Equal(t, tt.statusCode, resp.StatusCode)

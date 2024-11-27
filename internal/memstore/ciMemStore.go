@@ -20,13 +20,13 @@ var (
 
 type MemStore struct {
 	list   map[string]citypes.CI
-	groups map[string]citypes.Group
+	groups map[string]citypes.GroupData
 }
 
 func NewMemStore() *MemStore {
 	var (
 		list   = make(map[string]citypes.CI)
-		groups = make(map[string]citypes.Group)
+		groups = make(map[string]citypes.GroupData)
 	)
 	return &MemStore{list, groups}
 }
@@ -84,56 +84,43 @@ func (m *MemStore) Get(id string, groupLabels []string) (citypes.CI, error) {
 		Name: id,
 		CIData: citypes.CIData{
 			UserData: map[string]any{},
-			MetaData: map[string]any{"groups": map[string]citypes.Group{}},
+			MetaData: map[string]any{"groups": make(map[string][]citypes.MetaDataKV)}, // groups is a map of group name to list of key/value pairs
 		},
 	}
 
 	// add matching group data stored with groups API to metadata
 	for _, groupLabel := range groupLabels {
-		// check if the group is stored with label from SMD
-		group, ok := m.groups[groupLabel]
-		if ok {
-			// check if we already have a "groups" section in metadata
-			if groups, ok := ci.CIData.MetaData["groups"].(map[string]citypes.GroupData); ok {
-				// found "groups" so add the new group + it's data
-				groups[groupLabel] = group["data"]
-			} else {
-				// did not find "groups", so add it with current group data
-				ci.CIData.MetaData["groups"] = map[string]citypes.GroupData{
-					groupLabel: group["data"],
-				}
-			}
-
-			// In user data, we cannot store things as groups.  We store the write_files and runcmd lists directly.
-			// check if we already have a "write_files" section in user data
-			if writeFiles, ok := ci.CIData.UserData["write_files"].([]citypes.WriteFiles); ok {
-				// found the "write_files" section, so add the new group's write_files
-				if actions, ok := group["actions"]; ok {
-
-					if groupWriteFiles, ok := actions["write_files"].([]citypes.WriteFiles); ok {
-						for _, wf := range groupWriteFiles {
-							wf.Group = groupLabel
-							writeFiles = append(writeFiles, wf)
-						}
-
-						ci.CIData.UserData["write_files"] = writeFiles
-					}
-				}
-			} else {
-				// did not find "write_files", so add it with current group's write_files
-				if actions, ok := group["actions"]; ok {
-
-					if groupWriteFiles, ok := actions["write_files"].([]citypes.WriteFiles); ok {
-
-						ci.CIData.UserData["write_files"] = groupWriteFiles
-					}
-				}
-			}
-		} else {
+		// check if the group is stored locally with the label obtained from SMD
+		groupData, ok := m.groups[groupLabel]
+		if !ok {
 			// we didn't find the group in the memstore with the label, so
 			// go on to the next one
 			log.Printf("failed to get '%s' from groups", groupLabel)
-			continue
+		} else {
+			// found the group, so add it to the metadata
+			groups := ci.CIData.MetaData["groups"].(map[string][]citypes.MetaDataKV)
+			groups[groupLabel] = groupData.Data
+			ci.CIData.MetaData["groups"] = groups
+		}
+
+		// In user data, we cannot store things as groups.  We store the write_files and runcmd lists directly.
+		// check if we already have a "write_files" section in user data
+		if writeFiles, ok := ci.CIData.UserData["write_files"].([]citypes.WriteFiles); ok {
+			// found the "write_files" section, so add the new group's write_files
+			if groupData.Actions != nil {
+				for _, wf := range groupData.Actions["write_files"].([]citypes.WriteFiles) {
+					wf.Group = groupLabel
+					writeFiles = append(writeFiles, wf)
+				}
+
+				ci.CIData.UserData["write_files"] = writeFiles
+			}
+		} else {
+			// did not find "write_files", so add it with current group's write_files
+			if groupData.Actions != nil {
+
+				ci.CIData.UserData["write_files"] = groupData.Actions["write_files"]
+			}
 		}
 	}
 
@@ -180,7 +167,7 @@ func (m MemStore) Remove(name string) error {
 	return nil
 }
 
-func (m MemStore) GetGroups() map[string]citypes.Group {
+func (m MemStore) GetGroups() map[string]citypes.GroupData {
 	return m.groups
 }
 
@@ -205,16 +192,6 @@ AddGroup("x3000", data)
 	}
 */
 func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData) error {
-	var (
-	// node      citypes.CI
-	// groupData citypes.GroupData
-	)
-
-	// do nothing if no data found from the request
-	if len(newGroupData) <= 0 {
-		fmt.Printf("no data")
-		return ErrEmptyRequestBody
-	}
 
 	// get CI data and check if groups IDENTIFIER exists (creates if not)
 	_, ok := m.groups[groupName]
@@ -223,49 +200,30 @@ func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData)
 		return ErrGroupDataExists
 	} else {
 		// does not exist, so create and update
-		m.groups[groupName] = citypes.Group{}
+		m.groups[groupName] = newGroupData
 
-		if data, ok := newGroupData["data"].(citypes.GroupData); ok {
-			m.groups[groupName]["data"] = data
-		}
-		if actions, ok := newGroupData["actions"].(citypes.GroupData); ok {
-			m.groups[groupName]["actions"] = actions
-		}
 	}
 	return nil
 }
 
 // GetGroupData returns the value of a specific group
 func (m MemStore) GetGroupData(groupName string) (citypes.GroupData, error) {
-	var (
-	// node      citypes.CI
-	// groupData citypes.GroupData
-	)
 
 	group, ok := m.groups[groupName]
 	if ok {
-		return group["data"], nil
+		return group, nil
 	} else {
-		return nil, ErrResourceNotFound
+		return citypes.GroupData{}, ErrResourceNotFound
 	}
 
 }
 
 // UpdateGroupData is similar to AddGroupData but only works if the group exists
 func (m MemStore) UpdateGroupData(groupName string, groupData citypes.GroupData) error {
-	var (
-	// node citypes.CI
-	)
 
-	// do nothing if no data found
-	if len(groupData) <= 0 {
-		return ErrEmptyRequestBody
-	}
-
-	group, ok := m.groups[groupName]
+	_, ok := m.groups[groupName]
 	if ok {
-		group["data"] = groupData
-		m.groups[groupName] = group
+		m.groups[groupName] = groupData
 	} else {
 		return ErrResourceNotFound
 	}

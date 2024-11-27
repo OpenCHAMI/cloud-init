@@ -13,7 +13,7 @@ type ciStore interface {
 	Remove(name string) error
 
 	// groups API
-	GetGroups() map[string]citypes.Group
+	GetGroups() map[string]citypes.GroupData
 	AddGroupData(groupName string, groupData citypes.GroupData) error
 	GetGroupData(groupName string) (citypes.GroupData, error)
 	UpdateGroupData(groupName string, groupData citypes.GroupData) error
