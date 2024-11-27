@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -146,21 +146,24 @@ func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
 func GetEntry(store ciStore, sm smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
-		groupLabels, err := sm.GroupMembership(id)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError) // TODO: Make the error more helpful
-			return
-		}
+		log.Info().Msg(fmt.Sprintf("Getting groups for ID %s", id))
+		groupLabels, _ := sm.GroupMembership(id) // TODO: Deal with errors that occur in the real SMD client
+		log.Info().Msg(fmt.Sprintf("Got groups for ID %s: %v", id, groupLabels))
+
+		log.Info().Msg(fmt.Sprintf("Getting component information for ID %s", id))
 		component, err := sm.ComponentInformation(id) // This needs to be an xname
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
+		log.Info().Msg(fmt.Sprintf("Got component information for ID %s: %v", id, component))
 
+		log.Info().Msg(fmt.Sprintf("Getting cloud-init data for ID %s", id))
 		ci, err := store.Get(id, groupLabels)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 		} else {
+			log.Info().Msg(fmt.Sprintf("Got cloud-init data for ID %s: %v", id, ci))
 			ci.CIData.MetaData["xname"] = component.ID
 			ci.CIData.MetaData["NID"] = component.NID
 			ci.CIData.MetaData["cloud_name"] = "OpenCHAMI"
