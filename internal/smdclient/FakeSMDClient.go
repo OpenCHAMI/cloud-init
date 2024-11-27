@@ -78,17 +78,22 @@ func (f *FakeSMDClient) IDfromIP(ipaddr string) (string, error) {
 }
 
 func (f *FakeSMDClient) GroupMembership(id string) ([]string, error) {
-	if g, ok := f.groups[id]; ok {
-		return g, nil
+	myGroups := make([]string, 0)
+	for group, components := range f.groups {
+		for _, c := range components {
+			if c == id {
+				myGroups = append(myGroups, group)
+			}
+		}
 	}
-	return nil, errors.New("not found")
+	return myGroups, nil
 }
 
 func (f *FakeSMDClient) ComponentInformation(id string) (base.Component, error) {
 	if c, ok := f.components[id]; ok {
 		return c, nil
 	}
-	return base.Component{}, errors.New("not found")
+	return base.Component{}, errors.New("componente not found in fake SMD client")
 }
 
 func (f *FakeSMDClient) Summary() {
@@ -219,7 +224,7 @@ func generateFakeComponents(numComponents int, cidr string) (map[string]base.Com
 			NetType: "Ethernet",
 			NID:     json.Number(fmt.Sprintf("%d", i)),
 		}
-		components[mac] = component
+		components[xname] = component
 
 		ip = incrementIP(ip)
 		if !ipNet.Contains(ip) {

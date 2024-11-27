@@ -13,7 +13,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
-	zlog "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/pkgerrors"
 
 	openchami_authenticator "github.com/openchami/chi-middleware/auth"
 	openchami_logger "github.com/openchami/chi-middleware/log"
@@ -54,7 +55,8 @@ func main() {
 
 	// Setup logger
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	logger := zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	// Primary router and shared SMD client
 	router := chi.NewRouter()
@@ -65,7 +67,7 @@ func main() {
 		middleware.Recoverer,
 		middleware.StripSlashes,
 		middleware.Timeout(60*time.Second),
-		openchami_logger.OpenCHAMILogger(logger),
+		openchami_logger.OpenCHAMILogger(log.Logger),
 	)
 
 	var sm smdclient.SMDClientInterface
@@ -100,7 +102,7 @@ func main() {
 	}
 
 	// Serve all routes
-	zlog.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
+	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
 
 }
 
@@ -110,7 +112,7 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 	router.Get("/user-data", handler.GetDataByIP(UserData))
 	router.Get("/meta-data", handler.GetDataByIP(MetaData))
 	router.Get("/vendor-data", handler.GetDataByIP(VendorData))
-	router.Get("/{id}", GetEntry(store, handler.sm))
+	router.Get("/{id}", GetEntry(handler.store, handler.sm))
 	router.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
 	router.Put("/{id}/user-data", handler.UpdateUserEntry)
 	router.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
