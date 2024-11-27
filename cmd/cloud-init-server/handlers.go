@@ -325,7 +325,7 @@ func (h CiHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 
 func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
-		groups map[string]citypes.Group
+		groups map[string]citypes.GroupData
 		bytes  []byte
 		err    error
 	)
@@ -340,9 +340,9 @@ func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 
 func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {
 	var (
-		id   string = chi.URLParam(r, "id")
-		data citypes.GroupData
-		err  error
+		groupName string = chi.URLParam(r, "id")
+		data      citypes.GroupData
+		err       error
 	)
 
 	data, err = parseData(r)
@@ -351,7 +351,7 @@ func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.store.AddGroupData(id, data)
+	err = h.store.AddGroupData(groupName, data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -424,12 +424,12 @@ func parseData(r *http.Request) (citypes.GroupData, error) {
 	// read the POST body for JSON data
 	body, err = io.ReadAll(r.Body)
 	if err != nil {
-		return nil, err
+		return data, err
 	}
 	// unmarshal data to add to group data
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		return nil, err
+		return data, err
 	}
 	return data, nil
 }
