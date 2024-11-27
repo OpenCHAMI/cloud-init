@@ -46,18 +46,30 @@ func TestMemStore_Get(t *testing.T) {
 				{"os_version": "rocky9"},
 				{"cluster_name": "hill"},
 				{"admin": "groves"},
-			}}
+			},
+			Actions: map[string]any{
+				"write_files": []citypes.WriteFiles{
+					{Content: "OK COMPUTER", Path: "/etc/hello_computes"},
+				}},
+		}
 		store.groups["row1"] = citypes.GroupData{
 			Data: []citypes.MetaDataKV{
 				{"rack": "rack1"},
 				{"syslog_aggregator": "syslog1"},
-			}}
+			},
+			Actions: map[string]any{
+				"write_files": []citypes.WriteFiles{
+					{Content: "OK COMPUTER", Path: "/etc/hello_row"},
+				}},
+		}
 		ci, err := store.Get("test-id", []string{"computes", "row1"})
 		assert.NoError(t, err)
 		assert.Equal(t, "test-id", ci.Name)
 		assert.NotNil(t, ci.CIData.MetaData)
 		assert.Contains(t, ci.CIData.MetaData["groups"].(map[string][]citypes.MetaDataKV), "row1")
 		assert.Contains(t, ci.CIData.MetaData["groups"].(map[string][]citypes.MetaDataKV), "computes")
+		assert.Contains(t, ci.CIData.UserData, "write_files")
+		assert.Contains(t, ci.CIData.UserData["write_files"].([]citypes.WriteFiles), citypes.WriteFiles{Content: "OK COMPUTER", Path: "/etc/hello_computes"})
 		ciJSON, err := json.Marshal(ci)
 		if err != nil {
 			t.Logf("Cloud-init payload: %+v", ci)
