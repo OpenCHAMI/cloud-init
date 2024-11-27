@@ -233,7 +233,7 @@ func (h CiHandler) getData(id string, groupLabels []string, dataKind ciDataKind,
 	var data *map[string]interface{}
 	switch dataKind {
 	case UserData:
-		w.Write([]byte("## template:jinja\n#cloud-config\n"))
+		w.Write([]byte("## template :jinja\n#cloud-config\n"))
 		data = &ci.CIData.UserData
 	case MetaData:
 		data = &ci.CIData.MetaData
