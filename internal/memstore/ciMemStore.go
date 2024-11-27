@@ -3,7 +3,8 @@ package memstore
 import (
 	"errors"
 	"fmt"
-	"log"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
 	"github.com/samber/lo"
@@ -88,42 +89,55 @@ func (m *MemStore) Get(id string, groupLabels []string) (citypes.CI, error) {
 		},
 	}
 
+	log.Info().Msgf("groups: %v", groupLabels)
+
 	// add matching group data stored with groups API to metadata
 	for _, groupLabel := range groupLabels {
+		log.Debug().Msgf("groupLabel: %s", groupLabel)
 		// check if the group is stored locally with the label obtained from SMD
 		groupData, ok := m.groups[groupLabel]
 		if !ok {
 			// we didn't find the group in the memstore with the label, so
 			// go on to the next one
-			log.Printf("failed to get '%s' from groups", groupLabel)
+			log.Debug().Msgf("failed to get '%s' from groups", groupLabel)
 		} else {
 			// found the group, so add it to the metadata
+			log.Debug().Msgf("found group '%s' in groups", groupLabel)
+			log.Debug().Msgf("groupData.Name: %v", groupData.Name)
+			log.Debug().Msgf("groupData.Data: %v", groupData.Data)
+			log.Debug().Msgf("groupData.Actions: %v", groupData.Actions)
 			groups := ci.CIData.MetaData["groups"].(map[string][]citypes.MetaDataKV)
 			groups[groupLabel] = groupData.Data
+			log.Debug().Msgf("Adding groups to MetaData: %v", groups)
 			ci.CIData.MetaData["groups"] = groups
 		}
 
-		// In user data, we cannot store things as groups.  We store the write_files and runcmd lists directly.
-		// check if we already have a "write_files" section in user data
-		if writeFiles, ok := ci.CIData.UserData["write_files"].([]citypes.WriteFiles); ok {
-			// found the "write_files" section, so add the new group's write_files
-			if groupData.Actions != nil {
-				for _, wf := range groupData.Actions["write_files"].([]citypes.WriteFiles) {
-					wf.Group = groupLabel
-					writeFiles = append(writeFiles, wf)
-				}
+		// In user data, we cannot store things as groups.  We store the write_files lists directly.
+		// First establish that the write_files section exists in the groupData from our storage
+		if _, ok := groupData.Actions["write_files"]; ok {
+			log.Debug().Msgf("write_files found in group '%s'", groupLabel)
+			log.Debug().Msgf("groupData.Actions[\"write_files\"]: %v", groupData.Actions["write_files"])
 
-				ci.CIData.UserData["write_files"] = writeFiles
+			// Then ensure that the write_files section exists in the user data
+			if _, ok := ci.CIData.UserData["write_files"].([]citypes.WriteFiles); !ok {
+				// write_files does not exist, so add it with current group's write_files
+				ci.CIData.UserData["write_files"] = []citypes.WriteFiles{}
 			}
-		} else {
-			// did not find "write_files", so add it with current group's write_files
-			if groupData.Actions != nil {
 
-				ci.CIData.UserData["write_files"] = groupData.Actions["write_files"]
+			// Now iterate through the entries and add them to the UserData
+			for _, wf := range groupData.Actions["write_files"].([]interface{}) {
+				writeFilesEntry := citypes.WriteFiles{
+					Path:    wf.(map[string]interface{})["path"].(string),
+					Content: wf.(map[string]interface{})["content"].(string),
+					Group:   groupLabel,
+				}
+				log.Debug().Msgf("writeFilesEntry: %v", writeFilesEntry)
+				writeFilesEntry.Group = groupLabel
+				ci.CIData.UserData["write_files"] = append(ci.CIData.UserData["write_files"].([]citypes.WriteFiles), writeFilesEntry)
 			}
 		}
-	}
 
+	}
 	fmt.Printf("ci: %v\n", ci)
 	return ci, nil
 }

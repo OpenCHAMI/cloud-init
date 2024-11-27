@@ -1,0 +1,10 @@
+{
+  "user-data": {
+      "write_files": [
+          {
+        "content": "Hello io Nodes",
+        "path": "/etc/hello"
+          }
+      ]
+  }
+}
