@@ -27,6 +27,7 @@ var (
 	jwksUrl       = "" // jwt keyserver URL for secure-route token validation
 	insecure      = false
 	accessToken   = ""
+	certPath      = ""
 	store         ciStore
 )
 
@@ -36,6 +37,7 @@ func main() {
 	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "http IP/url and port for running SMD")
 	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
 	flag.StringVar(&accessToken, "access-token", accessToken, "encoded JWT access token")
+	flag.StringVar(&certPath, "cacert", certPath, "Path to CA cert. (defaults to system CAs)")
 	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
 	flag.Parse()
 
@@ -80,7 +82,7 @@ func main() {
 		fakeSm.Summary()
 		sm = fakeSm
 	} else {
-		sm = smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, accessToken, insecure)
+		sm = smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, accessToken, certPath, insecure)
 	}
 
 	// Unsecured datastore and router

@@ -2,10 +2,11 @@ package smdclient
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	base "github.com/Cray-HPE/hms-base"
 	"github.com/OpenCHAMI/smd/v2/pkg/sm"
+	"github.com/rs/zerolog/log"
 )
 
 // Create an SMDClient Interface which can be more easily tested and mocked
@@ -42,7 +44,7 @@ type SMDClient struct {
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
 // and uses the provided JWT server for authentication
-func NewSMDClient(baseurl string, jwtURL string, accessToken string, insecure bool) *SMDClient {
+func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath string, insecure bool) *SMDClient {
 	c := &http.Client{Timeout: 2 * time.Second}
 	if insecure {
 		c.Transport = &http.Transport{
@@ -50,6 +52,33 @@ func NewSMDClient(baseurl string, jwtURL string, accessToken string, insecure bo
 				InsecureSkipVerify: true,
 			},
 		}
+	} else {
+		cacert, err := os.ReadFile(certPath)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to read cert from path %s", certPath)
+			return nil
+		}
+		certPool := x509.NewCertPool()
+		certPool.AppendCertsFromPEM(cacert)
+
+		// add cert pool to client if valid
+		if certPool != nil {
+			// make sure that we can access the internal client
+			c.Transport = &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs:            certPool,
+					InsecureSkipVerify: true,
+				},
+				DisableKeepAlives: true,
+				Dial: (&net.Dialer{
+					Timeout:   120 * time.Second,
+					KeepAlive: 120 * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout:   120 * time.Second,
+				ResponseHeaderTimeout: 120 * time.Second,
+			}
+		}
+
 	}
 	return &SMDClient{
 		smdClient:     c,
@@ -78,13 +107,13 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 		if resp.StatusCode == http.StatusUnauthorized {
 			// Request failed; handle appropriately (based on whether or not
 			// this was a fresh JWT)
-			log.Println("Cached JWT was rejected by SMD")
+			log.Info().Msg("Cached JWT was rejected by SMD")
 			if !freshToken {
-				log.Println("Fetching new JWT and retrying...")
+				log.Info().Msg("Fetching new JWT and retrying...")
 				s.RefreshToken()
 				freshToken = true
 			} else {
-				log.Fatalln("SMD authentication failed, even with a fresh" +
+				log.Info().Msg("SMD authentication failed, even with a fresh" +
 					" JWT. Something has gone terribly wrong; exiting to" +
 					" avoid invalid request spam.")
 				os.Exit(2)
