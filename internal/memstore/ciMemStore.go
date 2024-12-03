@@ -85,7 +85,7 @@ func (m *MemStore) Get(id string, groupLabels []string) (citypes.CI, error) {
 		Name: id,
 		CIData: citypes.CIData{
 			UserData: map[string]any{},
-			MetaData: map[string]any{"groups": make(map[string][]citypes.MetaDataKV)}, // groups is a map of group name to list of key/value pairs
+			MetaData: map[string]any{"groups": make(map[string]citypes.MetaDataKV)}, // groups is a map of group name to list of key/value pairs
 		},
 	}
 
@@ -106,7 +106,7 @@ func (m *MemStore) Get(id string, groupLabels []string) (citypes.CI, error) {
 			log.Debug().Msgf("groupData.Name: %v", groupData.Name)
 			log.Debug().Msgf("groupData.Data: %v", groupData.Data)
 			log.Debug().Msgf("groupData.Actions: %v", groupData.Actions)
-			groups := ci.CIData.MetaData["groups"].(map[string][]citypes.MetaDataKV)
+			groups := ci.CIData.MetaData["groups"].(map[string]citypes.MetaDataKV)
 			groups[groupLabel] = groupData.Data
 			log.Debug().Msgf("Adding groups to MetaData: %v", groups)
 			ci.CIData.MetaData["groups"] = groups

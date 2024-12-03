@@ -24,7 +24,7 @@ type WriteFiles struct {
 
 type GroupData struct {
 	Name    string         `json:"name,omitempty"`
-	Data    []MetaDataKV   `json:"meta-data,omitempty"`
+	Data    MetaDataKV     `json:"meta-data,omitempty"`
 	Actions map[string]any `json:"user-data,omitempty"`
 }
 
