@@ -19,8 +19,8 @@ func TestMemStore_Get(t *testing.T) {
 	t.Run("Group exists in store", func(t *testing.T) {
 		group1Data := citypes.GroupData{
 			Name: "group1",
-			Data: []citypes.MetaDataKV{
-				{"key": "value"},
+			Data: citypes.MetaDataKV{
+				"key": "value",
 			},
 		}
 		store.groups = make(map[string]citypes.GroupData)
@@ -42,10 +42,10 @@ func TestMemStore_Get(t *testing.T) {
 
 	t.Run("Multiple groups exist in store", func(t *testing.T) {
 		store.groups["computes"] = citypes.GroupData{
-			Data: []citypes.MetaDataKV{
-				{"os_version": "rocky9"},
-				{"cluster_name": "hill"},
-				{"admin": "groves"},
+			Data: citypes.MetaDataKV{
+				"os_version":   "rocky9",
+				"cluster_name": "hill",
+				"admin":        "groves",
 			},
 			Actions: map[string]any{
 				"write_files": []citypes.WriteFiles{
@@ -53,9 +53,9 @@ func TestMemStore_Get(t *testing.T) {
 				}},
 		}
 		store.groups["row1"] = citypes.GroupData{
-			Data: []citypes.MetaDataKV{
-				{"rack": "rack1"},
-				{"syslog_aggregator": "syslog1"},
+			Data: citypes.MetaDataKV{
+				"rack":              "rack1",
+				"syslog_aggregator": "syslog1",
 			},
 			Actions: map[string]any{
 				"write_files": []citypes.WriteFiles{
@@ -84,10 +84,10 @@ func TestMemStoreAddGroupData(t *testing.T) {
 
 	// Test case: Add group data to cloud-init data
 	err := store.AddGroupData("computes", citypes.GroupData{
-		Data: []citypes.MetaDataKV{
-			{"os_version": "rocky9"},
-			{"cluster_name": "hill"},
-			{"admin": "groves"},
+		Data: citypes.MetaDataKV{
+			"os_version":   "rocky9",
+			"cluster_name": "hill",
+			"admin":        "groves",
 		},
 		Actions: map[string]any{
 			"write_files": []citypes.WriteFiles{
@@ -96,9 +96,9 @@ func TestMemStoreAddGroupData(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	store.AddGroupData("row1", citypes.GroupData{
-		Data: []citypes.MetaDataKV{
-			{"rack": "rack1"},
-			{"syslog_aggregator": "syslog1"},
+		Data: citypes.MetaDataKV{
+			"rack":              "rack1",
+			"syslog_aggregator": "syslog1",
 		},
 		Actions: map[string]any{
 			"write_files": []citypes.WriteFiles{
