@@ -21,7 +21,7 @@ var (
 
 type MemStore struct {
 	list   map[string]citypes.CI
-	groups map[string]citypes.GroupData
+	Groups map[string]citypes.GroupData `json:"groups,omitempty"`
 }
 
 func NewMemStore() *MemStore {
@@ -95,7 +95,7 @@ func (m *MemStore) Get(id string, groupLabels []string) (citypes.CI, error) {
 	for _, groupLabel := range groupLabels {
 		log.Debug().Msgf("groupLabel: %s", groupLabel)
 		// check if the group is stored locally with the label obtained from SMD
-		groupData, ok := m.groups[groupLabel]
+		groupData, ok := m.Groups[groupLabel]
 		if !ok {
 			// we didn't find the group in the memstore with the label, so
 			// go on to the next one
@@ -182,7 +182,7 @@ func (m MemStore) Remove(name string) error {
 }
 
 func (m MemStore) GetGroups() map[string]citypes.GroupData {
-	return m.groups
+	return m.Groups
 }
 
 /*
@@ -208,13 +208,13 @@ AddGroup("x3000", data)
 func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData) error {
 
 	// get CI data and check if groups IDENTIFIER exists (creates if not)
-	_, ok := m.groups[groupName]
+	_, ok := m.Groups[groupName]
 	if ok {
 		// found group so return error
 		return ErrGroupDataExists
 	} else {
 		// does not exist, so create and update
-		m.groups[groupName] = newGroupData
+		m.Groups[groupName] = newGroupData
 
 	}
 	return nil
@@ -223,7 +223,7 @@ func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData)
 // GetGroupData returns the value of a specific group
 func (m MemStore) GetGroupData(groupName string) (citypes.GroupData, error) {
 
-	group, ok := m.groups[groupName]
+	group, ok := m.Groups[groupName]
 	if ok {
 		return group, nil
 	} else {
@@ -235,9 +235,9 @@ func (m MemStore) GetGroupData(groupName string) (citypes.GroupData, error) {
 // UpdateGroupData is similar to AddGroupData but only works if the group exists
 func (m MemStore) UpdateGroupData(groupName string, groupData citypes.GroupData) error {
 
-	_, ok := m.groups[groupName]
+	_, ok := m.Groups[groupName]
 	if ok {
-		m.groups[groupName] = groupData
+		m.Groups[groupName] = groupData
 	} else {
 		return ErrResourceNotFound
 	}
@@ -245,6 +245,6 @@ func (m MemStore) UpdateGroupData(groupName string, groupData citypes.GroupData)
 }
 
 func (m MemStore) RemoveGroupData(name string) error {
-	delete(m.groups, name)
+	delete(m.Groups, name)
 	return nil
 }

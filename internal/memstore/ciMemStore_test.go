@@ -23,8 +23,8 @@ func TestMemStore_Get(t *testing.T) {
 				"key": "value",
 			},
 		}
-		store.groups = make(map[string]citypes.GroupData)
-		store.groups["group1"] = group1Data
+		store.Groups = make(map[string]citypes.GroupData)
+		store.Groups["group1"] = group1Data
 		ci, err := store.Get("test-id", []string{"group1"})
 		assert.NoError(t, err)
 		assert.Equal(t, "test-id", ci.Name)
@@ -41,7 +41,7 @@ func TestMemStore_Get(t *testing.T) {
 	})
 
 	t.Run("Multiple groups exist in store", func(t *testing.T) {
-		store.groups["computes"] = citypes.GroupData{
+		store.Groups["computes"] = citypes.GroupData{
 			Data: citypes.MetaDataKV{
 				"os_version":   "rocky9",
 				"cluster_name": "hill",
@@ -52,7 +52,7 @@ func TestMemStore_Get(t *testing.T) {
 					{Content: "OK COMPUTER", Path: "/etc/hello_computes"},
 				}},
 		}
-		store.groups["row1"] = citypes.GroupData{
+		store.Groups["row1"] = citypes.GroupData{
 			Data: citypes.MetaDataKV{
 				"rack":              "rack1",
 				"syslog_aggregator": "syslog1",
