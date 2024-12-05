@@ -29,6 +29,7 @@ var (
 	accessToken   = ""
 	certPath      = ""
 	store         ciStore
+	clusterName   string
 )
 
 func main() {
@@ -37,6 +38,7 @@ func main() {
 	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "http IP/url and port for running SMD")
 	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
 	flag.StringVar(&accessToken, "access-token", accessToken, "encoded JWT access token")
+	flag.StringVar(&clusterName, "cluster-name", clusterName, "Name of the cluster")
 	flag.StringVar(&certPath, "cacert", certPath, "Path to CA cert. (defaults to system CAs)")
 	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
 	flag.Parse()
@@ -87,7 +89,7 @@ func main() {
 
 	// Unsecured datastore and router
 	store := memstore.NewMemStore()
-	ciHandler := NewCiHandler(store, sm)
+	ciHandler := NewCiHandler(store, sm, clusterName)
 	router_unsec := chi.NewRouter()
 	initCiRouter(router_unsec, ciHandler)
 	router.Mount("/cloud-init", router_unsec)
@@ -95,7 +97,7 @@ func main() {
 	if secureRouteEnable {
 		// Secured datastore and router
 		store_sec := memstore.NewMemStore()
-		ciHandler_sec := NewCiHandler(store_sec, sm)
+		ciHandler_sec := NewCiHandler(store_sec, sm, clusterName)
 		router_sec := chi.NewRouter()
 		router_sec.Use(
 			jwtauth.Verifier(keyset),
@@ -116,6 +118,7 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 	router.Get("/user-data", handler.GetDataByIP(UserData))
 	router.Get("/meta-data", handler.GetDataByIP(MetaData))
 	router.Get("/vendor-data", handler.GetDataByIP(VendorData))
+	router.Get("/instance-data", InstanceDataHandler(handler.sm, handler.clusterName))
 	router.Get("/{id}", GetEntry(handler.store, handler.sm))
 	router.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
 	router.Put("/{id}/user-data", handler.UpdateUserEntry)

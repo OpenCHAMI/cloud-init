@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	base "github.com/Cray-HPE/hms-base"
@@ -21,8 +22,10 @@ import (
 type SMDClientInterface interface {
 	IDfromMAC(mac string) (string, error)
 	IDfromIP(ipaddr string) (string, error)
+	IPfromID(id string) (string, error)
 	GroupMembership(id string) ([]string, error)
 	ComponentInformation(id string) (base.Component, error)
+	PopulateNodes()
 }
 
 // Add client usage examples
@@ -36,10 +39,24 @@ var (
 
 // SMDClient is a client for SMD
 type SMDClient struct {
-	smdClient     *http.Client
-	smdBaseURL    string
-	tokenEndpoint string
-	accessToken   string
+	smdClient         *http.Client
+	smdBaseURL        string
+	tokenEndpoint     string
+	accessToken       string
+	nodes             map[string]NodeMapping
+	nodesMutex        *sync.Mutex
+	nodes_last_update time.Time
+}
+
+type NodeInterface struct {
+	MAC  string `json:"mac"`
+	IP   string `json:"ip"`
+	Desc string `json:"description"`
+}
+
+type NodeMapping struct {
+	Xname      string          `json:"xname"`
+	Interfaces []NodeInterface `json:"interfaces"`
 }
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
@@ -80,12 +97,17 @@ func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath st
 		}
 
 	}
-	return &SMDClient{
-		smdClient:     c,
-		smdBaseURL:    baseurl,
-		tokenEndpoint: jwtURL,
-		accessToken:   accessToken,
+	client := &SMDClient{
+		smdClient:         c,
+		smdBaseURL:        baseurl,
+		tokenEndpoint:     jwtURL,
+		accessToken:       accessToken,
+		nodesMutex:        &sync.Mutex{},
+		nodes_last_update: time.Now(),
+		nodes:             make(map[string]NodeMapping),
 	}
+	client.PopulateNodes()
+	return client
 }
 
 // getSMD is a helper function to initialize the SMDClient
@@ -131,34 +153,104 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 	return nil
 }
 
-// IDfromMAC returns the ID of the xname that has the MAC address
-func (s *SMDClient) IDfromMAC(mac string) (string, error) {
+// PopulateNodes fetches the Ethernet interface data from the SMD server and populates the nodes map
+// with the corresponding node information, including MAC addresses, IP addresses, and descriptions.
+func (s *SMDClient) PopulateNodes() {
 	var ethIfaceArray []sm.CompEthInterfaceV2
 	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
-	s.getSMD(ep, &ethIfaceArray)
+	if err := s.getSMD(ep, &ethIfaceArray); err != nil {
+		log.Error().Err(err).Msg("Failed to get SMD data")
+		return
+	}
 
 	for _, ep := range ethIfaceArray {
-		if strings.EqualFold(mac, ep.MACAddr) {
-			return ep.CompID, nil
+		s.nodesMutex.Lock()
+		if existingNode, exists := s.nodes[ep.CompID]; exists {
+			found := false
+			for index, existingInterface := range existingNode.Interfaces {
+				if strings.EqualFold(existingInterface.MAC, ep.MACAddr) {
+					// found the interface.  Update the IP and Description
+					found = true
+					// Update the IP and Description
+					if len(ep.IPAddrs) > 0 {
+						existingInterface.IP = ep.IPAddrs[0].IPAddr
+					}
+					existingInterface.Desc = ep.Desc
+					existingNode.Interfaces[index] = existingInterface
+				}
+			}
+			if !found {
+				// This is a new interface.  Add it to the map
+				newInterface := NodeInterface{
+					MAC:  ep.MACAddr,
+					IP:   ep.IPAddrs[0].IPAddr,
+					Desc: ep.Desc,
+				}
+				existingNode.Interfaces = append(existingNode.Interfaces, newInterface)
+				s.nodes[ep.CompID] = existingNode
+			}
+		} else { // This is a new node
+			newNode := NodeMapping{
+				Xname: ep.CompID,
+			}
+			newInterface := NodeInterface{
+				MAC:  ep.MACAddr,
+				Desc: ep.Desc,
+			}
+			log.Debug().Msgf("Adding new node %s with MAC %s and IPs: %v", ep.CompID, ep.MACAddr, ep.IPAddrs)
+			if len(ep.IPAddrs) > 0 {
+				newInterface.IP = ep.IPAddrs[0].IPAddr
+			}
+			newNode.Interfaces = append(newNode.Interfaces, newInterface)
+			s.nodes[ep.CompID] = newNode
+		}
+		s.nodesMutex.Unlock()
+	}
+}
+
+// IDfromMAC returns the ID of the xname that has the MAC address
+func (s *SMDClient) IDfromMAC(mac string) (string, error) {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
+
+	for _, node := range s.nodes {
+		for _, iface := range node.Interfaces {
+			if strings.EqualFold(mac, iface.MAC) {
+				return node.Xname, nil
+			}
 		}
 	}
-	return "", errors.New("MAC " + mac + " not found for an xname in EthernetInterfaces")
+	return "", errors.New("MAC " + mac + " not found for an xname in nodes")
 }
 
 // IDfromIP returns the ID of the xname that has the IP address
 func (s *SMDClient) IDfromIP(ipaddr string) (string, error) {
-	var ethIfaceArray []sm.CompEthInterfaceV2
-	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
-	s.getSMD(ep, &ethIfaceArray)
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
 
-	for _, ep := range ethIfaceArray {
-		for _, v := range ep.IPAddrs {
-			if strings.EqualFold(ipaddr, v.IPAddr) {
-				return ep.CompID, nil
+	for _, node := range s.nodes {
+		for _, iface := range node.Interfaces {
+			if strings.EqualFold(ipaddr, iface.IP) {
+				return node.Xname, nil
 			}
 		}
 	}
-	return "", errors.New("IP address " + ipaddr + " not found for an xname in EthernetInterfaces")
+	return "", errors.New("IP address " + ipaddr + " not found for an xname in nodes")
+}
+
+// IPfromID returns the IP address of the xname with the given ID
+func (s *SMDClient) IPfromID(id string) (string, error) {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
+	if node, found := s.nodes[id]; found {
+		if node.Interfaces != nil {
+			if len(node.Interfaces) > 0 {
+				return node.Interfaces[0].IP, nil
+			}
+			return "", errors.New("no interfaces found for ID " + id)
+		}
+	}
+	return "", errors.New("ID " + id + " not found in nodes")
 }
 
 // GroupMembership returns the group labels for the xname with the given ID
