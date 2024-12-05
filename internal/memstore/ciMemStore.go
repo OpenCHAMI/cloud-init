@@ -248,3 +248,7 @@ func (m MemStore) RemoveGroupData(name string) error {
 	delete(m.groups, name)
 	return nil
 }
+
+func (m MemStore) GetClusterData(id string) (citypes.ClusterData, error) {
+	return citypes.ClusterData{}, nil
+}

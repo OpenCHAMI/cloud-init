@@ -77,6 +77,15 @@ func (f *FakeSMDClient) IDfromIP(ipaddr string) (string, error) {
 	return "", errors.New("not found")
 }
 
+func (f *FakeSMDClient) IPfromID(id string) (string, error) {
+	for _, c := range f.rosetta_mapping {
+		if c.ComponentID == id {
+			return c.BootIPAddress, nil
+		}
+	}
+	return "", errors.New("not found")
+}
+
 func (f *FakeSMDClient) GroupMembership(id string) ([]string, error) {
 	myGroups := make([]string, 0)
 	for group, components := range f.groups {
@@ -239,4 +248,8 @@ func generateFakeComponents(numComponents int, cidr string) (map[string]base.Com
 	}
 
 	return components, rosettaMapping, nil
+}
+
+func (f *FakeSMDClient) PopulateNodes() {
+	// no-op
 }
