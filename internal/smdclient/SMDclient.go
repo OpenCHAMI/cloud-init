@@ -143,8 +143,14 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 		}
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	log.Info().Msgf("body: %s", string(body))
+	if err != nil {
+		log.Error().Err(err).Msg("failed to read response body")
+		return err
+	}
 	if err := json.Unmarshal(body, smd); err != nil {
+		log.Error().Err(err).Str("body", string(body)).Msg("failed to unmarshal SMD response")
 		return ErrUnmarshal
 	}
 	return nil
@@ -154,7 +160,7 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 // with the corresponding node information, including MAC addresses, IP addresses, and descriptions.
 func (s *SMDClient) PopulateNodes() {
 	var ethIfaceArray []sm.CompEthInterfaceV2
-	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
+	ep := "/Inventory/EthernetInterfaces/"
 	if err := s.getSMD(ep, &ethIfaceArray); err != nil {
 		log.Error().Err(err).Msg("Failed to get SMD data")
 		return
@@ -263,7 +269,7 @@ func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 
 func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
 	var node base.Component
-	ep := "/hsm/v2/State/Components/" + id
+	ep := "/State/Components/" + id
 	err := s.getSMD(ep, &node)
 	if err != nil {
 		return node, err

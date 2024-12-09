@@ -43,16 +43,29 @@ instance-data:
 
 func InstanceDataHandler(smd smdclient.SMDClientInterface, clusterName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// id should be the ip address that the request originated from.  Check the headers to see if the request has been forwarded and the remote IP is preserved
+		// ip should be the ip address that the request originated from.  Check the headers to see if the request has been forwarded and the remote IP is preserved
 		// Check for the first ip in the X-Forwarded-For header if it exists
-		var id string
+		var ip string
 		if r.Header.Get("X-Forwarded-For") != "" {
 			// If it exists, use that
-			id = strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]
+			ip = strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]
 		} else {
-			id = r.RemoteAddr
+			portIndex := strings.LastIndex(r.RemoteAddr, ":")
+			if portIndex > 0 {
+				ip = r.RemoteAddr[:portIndex]
+			} else {
+				ip = r.RemoteAddr
+			}
 		}
 		// Get the component information from the SMD client
+		id, err := smd.IDfromIP(ip)
+		if err != nil {
+			fmt.Print(err)
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		} else {
+			fmt.Printf("xname %s with ip %s found\n", id, ip)
+		}
 		smdComponent, err := smd.ComponentInformation(id)
 		if err != nil {
 			// If the component information is not available, return a 404
