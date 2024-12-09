@@ -159,7 +159,7 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 // with the corresponding node information, including MAC addresses, IP addresses, and descriptions.
 func (s *SMDClient) PopulateNodes() {
 	var ethIfaceArray []sm.CompEthInterfaceV2
-	ep := "/Inventory/EthernetInterfaces/"
+	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
 	if err := s.getSMD(ep, &ethIfaceArray); err != nil {
 		log.Error().Err(err).Msg("Failed to get SMD data")
 		return
@@ -268,7 +268,7 @@ func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 
 func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
 	var node base.Component
-	ep := "/State/Components/" + id
+	ep := "/hsm/v2/State/Components/" + id
 	err := s.getSMD(ep, &node)
 	if err != nil {
 		return node, err
