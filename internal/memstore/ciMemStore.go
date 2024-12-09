@@ -124,6 +124,13 @@ func (m *MemStore) Get(id string, groupLabels []string) (citypes.CI, error) {
 				ci.CIData.UserData["write_files"] = []citypes.WriteFiles{}
 			}
 
+			// Make sure that the the write files are in the correct format
+			switch groupData.Actions["write_files"].(type) {
+			default:
+				log.Fatal().Msg("Unexpected type for write file. Check your submitted data.")
+			case []interface{}:
+			}
+
 			// Now iterate through the entries and add them to the UserData
 			for _, wf := range groupData.Actions["write_files"].([]interface{}) {
 				writeFilesEntry := citypes.WriteFiles{
