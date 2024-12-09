@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -61,42 +62,38 @@ type NodeMapping struct {
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
 // and uses the provided JWT server for authentication
-func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath string, insecure bool) *SMDClient {
-	c := &http.Client{Timeout: 2 * time.Second}
-	if insecure {
-		c.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		}
-	} else {
+func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath string, insecure bool) (*SMDClient, error) {
+	var (
+		c        *http.Client = &http.Client{Timeout: 2 * time.Second}
+		certPool *x509.CertPool
+	)
+
+	// try and load the cert if path is provied first
+	if certPath != "" {
 		cacert, err := os.ReadFile(certPath)
 		if err != nil {
-			log.Error().Err(err).Msgf("failed to read cert from path %s", certPath)
-			return nil
+			return nil, fmt.Errorf("failed to read cert from path %s: %v", certPath, err)
 		}
 		certPool := x509.NewCertPool()
 		certPool.AppendCertsFromPEM(cacert)
 
-		// add cert pool to client if valid
-		if certPool != nil {
-			// make sure that we can access the internal client
-			c.Transport = &http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs:            certPool,
-					InsecureSkipVerify: true,
-				},
-				DisableKeepAlives: true,
-				Dial: (&net.Dialer{
-					Timeout:   120 * time.Second,
-					KeepAlive: 120 * time.Second,
-				}).Dial,
-				TLSHandshakeTimeout:   120 * time.Second,
-				ResponseHeaderTimeout: 120 * time.Second,
-			}
-		}
-
 	}
+
+	// set up the HTTP client's config
+	c.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs:            certPool,
+			InsecureSkipVerify: insecure,
+		},
+		DisableKeepAlives: true,
+		Dial: (&net.Dialer{
+			Timeout:   120 * time.Second,
+			KeepAlive: 120 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout:   120 * time.Second,
+		ResponseHeaderTimeout: 120 * time.Second,
+	}
+
 	client := &SMDClient{
 		smdClient:         c,
 		smdBaseURL:        baseurl,
@@ -107,7 +104,7 @@ func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath st
 		nodes:             make(map[string]NodeMapping),
 	}
 	client.PopulateNodes()
-	return client
+	return client, nil
 }
 
 // getSMD is a helper function to initialize the SMDClient

@@ -84,7 +84,12 @@ func main() {
 		fakeSm.Summary()
 		sm = fakeSm
 	} else {
-		sm = smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, accessToken, certPath, insecure)
+		var err error
+		sm, err = smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, accessToken, certPath, insecure)
+		if err != nil {
+			// Could not create SMD client, so exit with error saying why
+			log.Fatal().Err(err)
+		}
 	}
 
 	// Unsecured datastore and router
