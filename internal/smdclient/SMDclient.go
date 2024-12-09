@@ -144,7 +144,6 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	log.Info().Msgf("body: %s", string(body))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to read response body")
 		return err

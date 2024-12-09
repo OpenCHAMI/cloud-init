@@ -9,6 +9,7 @@ import (
 
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/rs/zerolog/log"
 )
 
 // The instance-data endpoint should return information about the instance.
@@ -60,11 +61,11 @@ func InstanceDataHandler(smd smdclient.SMDClientInterface, clusterName string) h
 		// Get the component information from the SMD client
 		id, err := smd.IDfromIP(ip)
 		if err != nil {
-			fmt.Print(err)
+			log.Print(err)
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			return
 		} else {
-			fmt.Printf("xname %s with ip %s found\n", id, ip)
+			log.Printf("xname %s with ip %s found\n", id, ip)
 		}
 		smdComponent, err := smd.ComponentInformation(id)
 		if err != nil {
