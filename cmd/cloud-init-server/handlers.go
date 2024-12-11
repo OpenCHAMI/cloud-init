@@ -17,14 +17,16 @@ import (
 )
 
 type CiHandler struct {
-	store ciStore
-	sm    smdclient.SMDClientInterface
+	store       ciStore
+	sm          smdclient.SMDClientInterface
+	clusterName string
 }
 
-func NewCiHandler(s ciStore, c smdclient.SMDClientInterface) *CiHandler {
+func NewCiHandler(s ciStore, c smdclient.SMDClientInterface, clusterName string) *CiHandler {
 	return &CiHandler{
-		store: s,
-		sm:    c,
+		store:       s,
+		sm:          c,
+		clusterName: clusterName,
 	}
 }
 
