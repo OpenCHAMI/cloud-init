@@ -90,6 +90,7 @@ func TestGetDataByMAC(t *testing.T) {
 		})
 	}
 }
+
 func (m *mockStore) AddGroupData(groupName string, data citypes.GroupData) error {
 	if groupName == "existing-group" {
 		return errors.New("group already exists")

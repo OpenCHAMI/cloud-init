@@ -6,12 +6,6 @@ import (
 
 // ciStore is an interface for storing cloud-init entries
 type ciStore interface {
-	Add(name string, ci citypes.CI) error
-	Get(name string, groupLabels []string) (citypes.CI, error)
-	List() (map[string]citypes.CI, error)
-	Update(name string, ci citypes.CI) error
-	Remove(name string) error
-
 	// groups API
 	GetGroups() map[string]citypes.GroupData
 	AddGroupData(groupName string, groupData citypes.GroupData) error

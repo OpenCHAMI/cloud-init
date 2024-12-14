@@ -8,10 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rs/zerolog/log"
+
 	base "github.com/Cray-HPE/hms-base"
 )
 
 type FakeSMDClient struct {
+	clusterName     string
 	components      map[string]base.Component
 	groups          map[string][]string // map of group id to list of components
 	rosetta_mapping []SMDRosettaStone
@@ -25,8 +28,29 @@ type SMDRosettaStone struct {
 	Hostname      string
 }
 
-func NewFakeSMDClient(count int) *FakeSMDClient {
+func (f *FakeSMDClient) AddNodeToInventory(node base.Component, bootMAC string, bootIP string) (error, bool) {
+	// if the node already exists, return an error
+	if _, ok := f.components[node.ID]; ok {
+		return errors.New("node already exists"), false
+	}
+	// if the ip/mac is already in use, return an error
+	for _, c := range f.rosetta_mapping {
+		if c.BootMAC == bootMAC || c.BootIPAddress == bootIP {
+			return errors.New("ip/mac already in use"), false
+		}
+	}
+	f.components[node.ID] = node
+	f.rosetta_mapping = append(f.rosetta_mapping, SMDRosettaStone{
+		ComponentID:   node.ID,
+		BootMAC:       bootMAC,
+		BootIPAddress: bootIP,
+	})
+	return nil, true
+}
+
+func NewFakeSMDClient(clusterName string, count int) *FakeSMDClient {
 	client := &FakeSMDClient{}
+	client.clusterName = clusterName
 	component_map, rosetta, err := generateFakeComponents(count, "10.20.30.0/20")
 	if err != nil {
 		panic(err)
@@ -59,6 +83,10 @@ func NewFakeSMDClient(count int) *FakeSMDClient {
 	return client
 }
 
+func (f *FakeSMDClient) ClusterName() string {
+	return f.clusterName
+}
+
 func (f *FakeSMDClient) IDfromMAC(mac string) (string, error) {
 	for _, c := range f.rosetta_mapping {
 		if c.BootMAC == mac {
@@ -86,6 +114,15 @@ func (f *FakeSMDClient) IPfromID(id string) (string, error) {
 	return "", errors.New("not found")
 }
 
+func (f *FakeSMDClient) MACfromID(id string) (string, error) {
+	for _, c := range f.rosetta_mapping {
+		if c.ComponentID == id {
+			return c.BootMAC, nil
+		}
+	}
+	return "", errors.New("not found")
+}
+
 func (f *FakeSMDClient) GroupMembership(id string) ([]string, error) {
 	myGroups := make([]string, 0)
 	for group, components := range f.groups {
@@ -99,10 +136,15 @@ func (f *FakeSMDClient) GroupMembership(id string) ([]string, error) {
 }
 
 func (f *FakeSMDClient) ComponentInformation(id string) (base.Component, error) {
+	log.Debug().Msgf("FakeSMDClient: ComponentInformation(%s)", id)
+	log.Debug().Msgf("FakeSMDClient: %d components from %s to %s", len(f.components), f.rosetta_mapping[0].ComponentID, f.rosetta_mapping[len(f.rosetta_mapping)-1].ComponentID)
 	if c, ok := f.components[id]; ok {
+		log.Debug().Msgf("FakeSMDClient: ComponentInformation(%s) found", id)
+		groups, _ := f.GroupMembership(id)
+		log.Debug().Msgf("FakeSMDClient: Groups for %s found: %v", id, groups)
 		return c, nil
 	}
-	return base.Component{}, errors.New("componente not found in fake SMD client")
+	return base.Component{}, errors.New("component not found in fake SMD client")
 }
 
 func (f *FakeSMDClient) Summary() {

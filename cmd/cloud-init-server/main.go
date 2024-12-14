@@ -80,12 +80,12 @@ func main() {
 	// if the CLOUD-INIT_SMD_SIMULATOR environment variable is set, use the simulator
 	if os.Getenv("CLOUD_INIT_SMD_SIMULATOR") == "true" {
 		fmt.Printf("\n\n**********\n\n\tCLOUD_INIT_SMD_SIMULATOR is set to true in your environment.\n\n\tUsing the FakeSMDClient to simulate SMD\n\n**********\n\n\n")
-		fakeSm := smdclient.NewFakeSMDClient(500)
+		fakeSm := smdclient.NewFakeSMDClient(clusterName, 500)
 		fakeSm.Summary()
 		sm = fakeSm
 	} else {
 		var err error
-		sm, err = smdclient.NewSMDClient(smdEndpoint, tokenEndpoint, accessToken, certPath, insecure)
+		sm, err = smdclient.NewSMDClient(clusterName, smdEndpoint, tokenEndpoint, accessToken, certPath, insecure)
 		if err != nil {
 			// Could not create SMD client, so exit with error saying why
 			log.Fatal().Err(err)
@@ -93,7 +93,7 @@ func main() {
 	}
 
 	// Unsecured datastore and router
-	store := memstore.NewMemStore()
+	store = memstore.NewMemStore()
 	ciHandler := NewCiHandler(store, sm, clusterName)
 	router_unsec := chi.NewRouter()
 	initCiRouter(router_unsec, ciHandler)
@@ -119,22 +119,27 @@ func main() {
 
 func initCiRouter(router chi.Router, handler *CiHandler) {
 	// Add cloud-init endpoints to router
-	router.Get("/", handler.ListEntries)
-	router.Get("/user-data", handler.GetDataByIP(UserData))
-	router.Get("/meta-data", handler.GetDataByIP(MetaData))
-	router.Get("/vendor-data", handler.GetDataByIP(VendorData))
-	router.Get("/instance-data", InstanceDataHandler(handler.sm, handler.clusterName))
-	router.Get("/{id}", GetEntry(handler.store, handler.sm))
-	router.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
-	router.Put("/{id}/user-data", handler.UpdateUserEntry)
-	router.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
-	router.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
-	router.Delete("/{id}", handler.DeleteEntry)
+	router.Get("/user-data", UserDataHandler)
+	router.Get("/meta-data", MetaDataHandler(handler.sm, handler.store, clusterName))
+	router.Get("/vendor-data", VendorDataHandler)
+	router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+	router.Get("/instance-data", InstanceDataHandler(handler.sm, handler.store, clusterName))
 
-	// groups API endpoints
-	router.Get("/groups", handler.GetGroups)
-	router.Post("/groups/{id}", handler.AddGroupData)
-	router.Get("/groups/{id}", handler.GetGroupData)
-	router.Put("/groups/{id}", handler.UpdateGroupData)
-	router.Delete("/groups/{id}", handler.RemoveGroupData)
+	// admin API subrouter
+	router.Route("/admin", func(r chi.Router) {
+
+		// groups API endpoints
+		r.Get("/groups", handler.GetGroups)
+		r.Post("/groups", handler.AddGroupHandler)
+		r.Get("/groups/{id}", handler.GetGroupHandler)
+		r.Put("/groups/{name}", handler.UpdateGroupHandler)
+		r.Delete("/groups/{id}", handler.RemoveGroupHandler)
+
+		// impersonation API endpoints
+		r.Get("/user-data/{id}", UserDataHandler)
+		r.Get("/meta-data/{id}", MetaDataHandler(handler.sm, handler.store, clusterName))
+		r.Get("/vendor-data/{id}", VendorDataHandler)
+		r.Get("/instance-data/{id}", InstanceDataHandler(handler.sm, handler.store, clusterName))
+		r.Get("/{group}.yaml/{id}", GroupUserDataHandler(handler.sm, handler.store))
+	})
 }
