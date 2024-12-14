@@ -24,9 +24,11 @@ type SMDClientInterface interface {
 	IDfromMAC(mac string) (string, error)
 	IDfromIP(ipaddr string) (string, error)
 	IPfromID(id string) (string, error)
+	MACfromID(id string) (string, error)
 	GroupMembership(id string) ([]string, error)
 	ComponentInformation(id string) (base.Component, error)
 	PopulateNodes()
+	ClusterName() string
 }
 
 // Add client usage examples
@@ -40,6 +42,7 @@ var (
 
 // SMDClient is a client for SMD
 type SMDClient struct {
+	clusterName       string
 	smdClient         *http.Client
 	smdBaseURL        string
 	tokenEndpoint     string
@@ -62,7 +65,7 @@ type NodeMapping struct {
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
 // and uses the provided JWT server for authentication
-func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath string, insecure bool) (*SMDClient, error) {
+func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, insecure bool) (*SMDClient, error) {
 	var (
 		c        *http.Client = &http.Client{Timeout: 2 * time.Second}
 		certPool *x509.CertPool
@@ -95,6 +98,7 @@ func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath st
 	}
 
 	client := &SMDClient{
+		clusterName:       clusterName,
 		smdClient:         c,
 		smdBaseURL:        baseurl,
 		tokenEndpoint:     jwtURL,
@@ -105,6 +109,11 @@ func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath st
 	}
 	client.PopulateNodes()
 	return client, nil
+}
+
+// ClusterName returns the name of the cluster
+func (s *SMDClient) ClusterName() string {
+	return s.clusterName
 }
 
 // getSMD is a helper function to initialize the SMDClient
@@ -248,6 +257,20 @@ func (s *SMDClient) IPfromID(id string) (string, error) {
 		if node.Interfaces != nil {
 			if len(node.Interfaces) > 0 {
 				return node.Interfaces[0].IP, nil
+			}
+			return "", errors.New("no interfaces found for ID " + id)
+		}
+	}
+	return "", errors.New("ID " + id + " not found in nodes")
+}
+
+func (s *SMDClient) MACfromID(id string) (string, error) {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
+	if node, found := s.nodes[id]; found {
+		if node.Interfaces != nil {
+			if len(node.Interfaces) > 0 {
+				return node.Interfaces[0].MAC, nil
 			}
 			return "", errors.New("no interfaces found for ID " + id)
 		}
