@@ -11,6 +11,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	base "github.com/Cray-HPE/hms-base"
+
+	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
 )
 
 type FakeSMDClient struct {
@@ -28,24 +30,25 @@ type SMDRosettaStone struct {
 	Hostname      string
 }
 
-func (f *FakeSMDClient) AddNodeToInventory(node base.Component, bootMAC string, bootIP string) (error, bool) {
+func (f *FakeSMDClient) AddNodeToInventory(node citypes.OpenCHAMIComponent) error {
+	log.Debug().Msgf("FakeSMDClient: AddNodeToInventory(%s)", node.ID)
 	// if the node already exists, return an error
 	if _, ok := f.components[node.ID]; ok {
-		return errors.New("node already exists"), false
+		return errors.New("node already exists")
 	}
 	// if the ip/mac is already in use, return an error
 	for _, c := range f.rosetta_mapping {
-		if c.BootMAC == bootMAC || c.BootIPAddress == bootIP {
-			return errors.New("ip/mac already in use"), false
+		if c.BootMAC == node.MAC || c.BootIPAddress == node.IP {
+			return errors.New("ip/mac already in use")
 		}
 	}
-	f.components[node.ID] = node
+	f.components[node.ID] = node.Component
 	f.rosetta_mapping = append(f.rosetta_mapping, SMDRosettaStone{
 		ComponentID:   node.ID,
-		BootMAC:       bootMAC,
-		BootIPAddress: bootIP,
+		BootMAC:       node.MAC,
+		BootIPAddress: node.IP,
 	})
-	return nil, true
+	return nil
 }
 
 func NewFakeSMDClient(clusterName string, count int) *FakeSMDClient {
@@ -294,4 +297,16 @@ func generateFakeComponents(numComponents int, cidr string) (map[string]base.Com
 
 func (f *FakeSMDClient) PopulateNodes() {
 	// no-op
+}
+
+func (f *FakeSMDClient) ListNodes() []citypes.OpenCHAMIComponent {
+	nodes := make([]citypes.OpenCHAMIComponent, 0)
+	for _, c := range f.rosetta_mapping {
+		nodes = append(nodes, citypes.OpenCHAMIComponent{
+			MAC:       c.BootMAC,
+			IP:        c.BootIPAddress,
+			Component: f.components[c.ComponentID],
+		})
+	}
+	return nodes
 }

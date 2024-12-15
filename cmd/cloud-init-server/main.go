@@ -21,15 +21,16 @@ import (
 )
 
 var (
-	ciEndpoint    = ":27777"
-	tokenEndpoint = "http://opaal:3333/token" // jwt for smd access obtained from here
-	smdEndpoint   = "http://smd:27779"
-	jwksUrl       = "" // jwt keyserver URL for secure-route token validation
-	insecure      = false
-	accessToken   = ""
-	certPath      = ""
-	store         ciStore
-	clusterName   string
+	ciEndpoint     = ":27777"
+	tokenEndpoint  = "http://opaal:3333/token" // jwt for smd access obtained from here
+	smdEndpoint    = "http://smd:27779"
+	jwksUrl        = "" // jwt keyserver URL for secure-route token validation
+	insecure       = false
+	accessToken    = ""
+	certPath       = ""
+	store          ciStore
+	clusterName    string
+	fakeSMDEnabled = false
 )
 
 func main() {
@@ -80,6 +81,7 @@ func main() {
 	// if the CLOUD-INIT_SMD_SIMULATOR environment variable is set, use the simulator
 	if os.Getenv("CLOUD_INIT_SMD_SIMULATOR") == "true" {
 		fmt.Printf("\n\n**********\n\n\tCLOUD_INIT_SMD_SIMULATOR is set to true in your environment.\n\n\tUsing the FakeSMDClient to simulate SMD\n\n**********\n\n\n")
+		fakeSMDEnabled = true
 		fakeSm := smdclient.NewFakeSMDClient(clusterName, 500)
 		fakeSm.Summary()
 		sm = fakeSm
@@ -141,5 +143,11 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 		r.Get("/vendor-data/{id}", VendorDataHandler)
 		r.Get("/instance-data/{id}", InstanceDataHandler(handler.sm, handler.store, clusterName))
 		r.Get("/{group}.yaml/{id}", GroupUserDataHandler(handler.sm, handler.store))
+
+		if fakeSMDEnabled {
+			r.Post("/fake-sm/nodes", smdclient.AddNodeToInventoryHandler(handler.sm.(*smdclient.FakeSMDClient)))
+			r.Get("/fake-sm/nodes", smdclient.ListNodesHandler(handler.sm.(*smdclient.FakeSMDClient)))
+		}
+
 	})
 }
