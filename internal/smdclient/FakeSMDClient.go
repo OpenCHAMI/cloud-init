@@ -28,6 +28,26 @@ type SMDRosettaStone struct {
 	Hostname      string
 }
 
+func (f *FakeSMDClient) AddNodeToInventory(node base.Component, bootMAC string, bootIP string) (error, bool) {
+	// if the node already exists, return an error
+	if _, ok := f.components[node.ID]; ok {
+		return errors.New("node already exists"), false
+	}
+	// if the ip/mac is already in use, return an error
+	for _, c := range f.rosetta_mapping {
+		if c.BootMAC == bootMAC || c.BootIPAddress == bootIP {
+			return errors.New("ip/mac already in use"), false
+		}
+	}
+	f.components[node.ID] = node
+	f.rosetta_mapping = append(f.rosetta_mapping, SMDRosettaStone{
+		ComponentID:   node.ID,
+		BootMAC:       bootMAC,
+		BootIPAddress: bootIP,
+	})
+	return nil, true
+}
+
 func NewFakeSMDClient(clusterName string, count int) *FakeSMDClient {
 	client := &FakeSMDClient{}
 	client.clusterName = clusterName
