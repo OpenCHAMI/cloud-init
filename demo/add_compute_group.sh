@@ -23,7 +23,6 @@ JSON_PAYLOAD=$(cat <<EOF
   "description": "Compute nodes",
   "file": {
     "content": "$(echo "$CLOUD_CONFIG_CONTENT" | base64 -w 0)",
-    "filename": "cloud-config.yaml",
     "encoding": "base64"
   }
 }

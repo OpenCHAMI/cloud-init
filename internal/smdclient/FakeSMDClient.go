@@ -11,6 +11,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	base "github.com/Cray-HPE/hms-base"
+
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 )
 
 type FakeSMDClient struct {
@@ -26,26 +28,6 @@ type SMDRosettaStone struct {
 	BootIPAddress string
 	NID           string
 	Hostname      string
-}
-
-func (f *FakeSMDClient) AddNodeToInventory(node base.Component, bootMAC string, bootIP string) (error, bool) {
-	// if the node already exists, return an error
-	if _, ok := f.components[node.ID]; ok {
-		return errors.New("node already exists"), false
-	}
-	// if the ip/mac is already in use, return an error
-	for _, c := range f.rosetta_mapping {
-		if c.BootMAC == bootMAC || c.BootIPAddress == bootIP {
-			return errors.New("ip/mac already in use"), false
-		}
-	}
-	f.components[node.ID] = node
-	f.rosetta_mapping = append(f.rosetta_mapping, SMDRosettaStone{
-		ComponentID:   node.ID,
-		BootMAC:       bootMAC,
-		BootIPAddress: bootIP,
-	})
-	return nil, true
 }
 
 func NewFakeSMDClient(clusterName string, count int) *FakeSMDClient {
@@ -294,4 +276,79 @@ func generateFakeComponents(numComponents int, cidr string) (map[string]base.Com
 
 func (f *FakeSMDClient) PopulateNodes() {
 	// no-op
+}
+
+// ***** Simulated SMD Client functions.  Not part of the SMDClientInterface *****
+
+// AddNodeToInventory adds a node to the inventory.  This is not part of the SMDClient Interface and only useful as part of the simulator
+func (f *FakeSMDClient) AddNodeToInventory(node cistore.OpenCHAMIComponent) error {
+	log.Debug().Msgf("FakeSMDClient: AddNodeToInventory(%s)", node.ID)
+	// if the node already exists, return an error
+	if _, ok := f.components[node.ID]; ok {
+		return errors.New("node already exists")
+	}
+	// if the ip/mac is already in use, return an error
+	for _, c := range f.rosetta_mapping {
+		if c.BootMAC == node.MAC || c.BootIPAddress == node.IP {
+			return errors.New("ip/mac already in use")
+		}
+	}
+	f.components[node.ID] = node.Component
+	f.rosetta_mapping = append(f.rosetta_mapping, SMDRosettaStone{
+		ComponentID:   node.ID,
+		BootMAC:       node.MAC,
+		BootIPAddress: node.IP,
+	})
+	return nil
+}
+
+// AddNodeToGroups adds a node to the specified groups.  This is not part of the SMDClient Interface and only useful as part of the simulator
+func (f *FakeSMDClient) AddNodeToGroups(id string, groups []string) error {
+	log.Debug().Msgf("FakeSMDClient: AddNodeToGroups(%s, %v)", id, groups)
+	for _, group := range groups {
+		if _, ok := f.groups[group]; !ok {
+			f.groups[group] = make([]string, 0)
+		}
+		f.groups[group] = append(f.groups[group], id)
+	}
+	return nil
+}
+
+func (f *FakeSMDClient) ListNodes() []cistore.OpenCHAMIComponent {
+	nodes := make([]cistore.OpenCHAMIComponent, 0)
+	for _, c := range f.rosetta_mapping {
+		nodes = append(nodes, cistore.OpenCHAMIComponent{
+			MAC:       c.BootMAC,
+			IP:        c.BootIPAddress,
+			Component: f.components[c.ComponentID],
+		})
+	}
+	return nodes
+}
+
+func (f *FakeSMDClient) UpdateNode(node cistore.OpenCHAMIComponent) error {
+	log.Debug().Msgf("FakeSMDClient: UpdateNode(%s)", node.ID)
+	// if the node does not exist, return an error
+	if _, ok := f.components[node.ID]; !ok {
+		return errors.New("node does not exist")
+	}
+	// if the ip/mac is already in use, return an error
+	for _, c := range f.rosetta_mapping {
+		if c.BootMAC == node.MAC || c.BootIPAddress == node.IP {
+			return errors.New("ip/mac already in use")
+		}
+	}
+	f.components[node.ID] = node.Component
+	for i, c := range f.rosetta_mapping {
+		if c.ComponentID == node.ID {
+			if node.MAC != "" {
+				f.rosetta_mapping[i].BootMAC = node.MAC
+			}
+			if node.IP != "" {
+				f.rosetta_mapping[i].BootIPAddress = node.IP
+			}
+			break
+		}
+	}
+	return nil
 }

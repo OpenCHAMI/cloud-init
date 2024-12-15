@@ -52,6 +52,30 @@ func (m *IDMapper) AddMapping(xname, instanceID, nodeID string) error {
 	return nil
 }
 
+func (m *IDMapper) UpdateMapping(xname, instanceID, nodeID string) error {
+	if _, exists := m.xnameToID[xname]; !exists {
+		return errors.New("xname does not exist")
+	}
+	if _, exists := m.instanceIDToID[instanceID]; !exists {
+		return errors.New("instanceID does not exist")
+	}
+	if _, exists := m.nodeIDToID[nodeID]; !exists {
+		return errors.New("nodeID does not exist")
+	}
+
+	mapping := IDMapping{
+		XName:      xname,
+		InstanceID: instanceID,
+		NodeID:     nodeID,
+	}
+
+	m.xnameToID[xname] = mapping
+	m.instanceIDToID[instanceID] = mapping
+	m.nodeIDToID[nodeID] = mapping
+
+	return nil
+}
+
 // GetByXName retrieves the ID mapping by xname
 func (m *IDMapper) GetByXName(xname string) (IDMapping, error) {
 	if mapping, exists := m.xnameToID[xname]; exists {

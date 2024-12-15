@@ -1,20 +1,17 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
-	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v2"
 )
 
 func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
-		groups map[string]citypes.GroupData
+		groups map[string]cistore.GroupData
 		bytes  []byte
 		err    error
 	)
@@ -24,12 +21,46 @@ func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(bytes)
+	if _, err := w.Write(bytes); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
+/*
+AddGroupHandler adds a new group with it's associated data specified by the user.
+
+*/
+// AddGroupHandler handles the HTTP request for adding a new group.
+// It parses the request data into a GroupData struct, validates it,
+// and then attempts to store it using the handler's store. If successful,
+// it sets the Location header to the new group's URL and responds with
+// HTTP status 201 Created. If there is an error during parsing or storing,
+// it responds with the appropriate HTTP error status.
+//
+// Curl Example:
+//
+// curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+//      -H "Content-Type: application/json" \
+//      -d '{
+//           "name": "x3000",
+//           "description": "Cabinet x3000",
+//           "data": {
+//             "syslog_aggregator": "192.168.0.1"
+//            },
+//           "file": {
+//             "content": "#cloud-config\nrsyslog:\n  remotes: {x3000: \"192.168.0.5\"}\nservice_reload_command: auto\n",
+//             "encoding": "plain"
+//           }
+//         }'
+// It parses the request data into a GroupData struct and attempts to add it to the store.
+// Encoding options are "plain" or "base64".
+// If parsing fails, it responds with a 422 Unprocessable Entity status.
+// If adding the group data to the store fails, it responds with a 409 Conflict status.
+// On success, it sets the Location header to the new group's URL and responds with a 201 Created status.
 func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		data citypes.GroupData
+		data cistore.GroupData
 		err  error
 	)
 
@@ -52,7 +83,7 @@ func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		id    string = chi.URLParam(r, "id")
-		data  citypes.GroupData
+		data  cistore.GroupData
 		bytes []byte
 		err   error
 	)
@@ -74,7 +105,7 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		groupName string = chi.URLParam(r, "name")
-		data      citypes.GroupData
+		data      cistore.GroupData
 		err       error
 	)
 
@@ -104,61 +135,4 @@ func (h CiHandler) RemoveGroupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-}
-
-func GroupUserDataHandler(smd smdclient.SMDClientInterface, store ciStore) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			id    string = chi.URLParam(r, "id")
-			group string = chi.URLParam(r, "group")
-			data  citypes.GroupData
-			bytes []byte
-			err   error
-		)
-		if id == "" {
-
-			ip := getActualRequestIP(r)
-			id, err = smd.IDfromIP(ip)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-		groups, err := smd.GroupMembership(id)
-		if err != nil {
-			log.Debug().Msg(err.Error())
-			// If the group information is not available, return an empty list
-			groups = []string{}
-		}
-		if !contains(groups, group) {
-			http.Error(w, "Group not found", http.StatusNotFound)
-			return
-		}
-
-		data, err = store.GetGroupData(group)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		log.Debug().Msgf("GroupUserDataHandler: %v", data)
-		if data.File.Encoding == "base64" {
-			bytes, err = base64.StdEncoding.DecodeString(string(data.File.Content))
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		} else {
-			bytes = []byte(data.File.Content)
-		}
-		w.Write(bytes)
-	}
-}
-
-func contains(list []string, item string) bool {
-	for _, g := range list {
-		if g == item {
-			return true
-		}
-	}
-	return false
 }

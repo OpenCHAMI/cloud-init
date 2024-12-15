@@ -167,6 +167,8 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 // PopulateNodes fetches the Ethernet interface data from the SMD server and populates the nodes map
 // with the corresponding node information, including MAC addresses, IP addresses, and descriptions.
 func (s *SMDClient) PopulateNodes() {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
 	var ethIfaceArray []sm.CompEthInterfaceV2
 	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
 	if err := s.getSMD(ep, &ethIfaceArray); err != nil {
@@ -175,7 +177,6 @@ func (s *SMDClient) PopulateNodes() {
 	}
 
 	for _, ep := range ethIfaceArray {
-		s.nodesMutex.Lock()
 		if existingNode, exists := s.nodes[ep.CompID]; exists {
 			found := false
 			for index, existingInterface := range existingNode.Interfaces {
@@ -215,7 +216,6 @@ func (s *SMDClient) PopulateNodes() {
 			newNode.Interfaces = append(newNode.Interfaces, newInterface)
 			s.nodes[ep.CompID] = newNode
 		}
-		s.nodesMutex.Unlock()
 	}
 }
 
@@ -280,6 +280,9 @@ func (s *SMDClient) MACfromID(id string) (string, error) {
 
 // GroupMembership returns the group labels for the xname with the given ID
 func (s *SMDClient) GroupMembership(id string) ([]string, error) {
+	if id == "" {
+		log.Err(errors.New("ID is empty")).Msg("ID is empty")
+	}
 	ml := new(sm.Membership)
 	ep := "/hsm/v2/memberships/" + id
 	err := s.getSMD(ep, ml)
