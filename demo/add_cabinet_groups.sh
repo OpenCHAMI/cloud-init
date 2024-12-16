@@ -5,7 +5,7 @@ curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
      -d '{
           "name": "x3000",
           "description": "Cabinet x3000",
-          "data": {
+          "meta-data": {
             "syslog_aggregator": "192.168.0.1"
           },
           "file": {
@@ -19,7 +19,7 @@ curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
     -d '{
         "name": "x3001",
         "description": "Cabinet x3001",
-        "data": {
+        "meta-data": {
           "syslog_aggregator": "192.168.0.1"
           },
         "file": {

@@ -27,24 +27,6 @@ func (m MemStore) GetGroups() map[string]citypes.GroupData {
 	return m.Groups
 }
 
-/*
-AddGroupData adds a new group with it's associated data specified by the user.
-The key/value information "data" is included in the metadata.  The "actions" are stored in the user data.
-
-Example:
-
-AddGroup("x3000", data)
-
-		{
-			"name": "x3000",
-			"data": {
-				"syslog_aggregator": "192.168.0.1"
-			},
-			"file": {
-	           "contents": "#template: jinja\n#cloud-config\nrsyslog:\n  remotes: {rack5: 10.0.4.1, {{ meta-data.system_name }}: 192.168.1.1}\n  service_reload_command: auto\n",
-			}
-		}
-*/
 func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData) error {
 
 	// get CI data and check if groups IDENTIFIER exists (creates if not)

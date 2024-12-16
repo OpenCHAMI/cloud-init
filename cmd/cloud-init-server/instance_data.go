@@ -95,20 +95,12 @@ func InstanceDataHandler(smd smdclient.SMDClientInterface, store ciStore, cluste
 
 func generateInstanceData(component citypes.OpenCHAMIComponent, clusterName string, groups []string, s ciStore) citypes.InstanceData {
 	cluster_data := citypes.InstanceData{}
-	cluster_data.V1.CloudName = "OpenCHAMI"
-	cluster_data.V1.AvailabilityZone = "lanl-yellow"
-	cluster_data.V1.InstanceID = generateInstanceId()
-	cluster_data.V1.InstanceType = "t2.micro"
-	cluster_data.V1.LocalHostname = generateHostname(clusterName, component)
-	cluster_data.V1.Region = "us-west"
-	cluster_data.V1.Hostname = generateHostname(clusterName, component)
-	cluster_data.V1.LocalIPv4 = component.IP
-	cluster_data.V1.CloudProvider = "OpenCHAMI"
-	cluster_data.V1.PublicKeys = []string{"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD..."}
-	cluster_data.V1.VendorData.Version = "1.0"
-	cluster_data.V1.VendorData.Groups = make(map[string]citypes.Group)
+	if len(groups) > 0 {
+		cluster_data.V1.VendorData.Groups = make(map[string]citypes.Group)
+	}
 	for _, group := range groups {
 		gd, err := s.GetGroupData(group)
+		log.Debug().Msgf("Group data for %s: %v", group, gd)
 		cluster_data.V1.VendorData.Groups[group] = make(map[string]interface{})
 		cluster_data.V1.VendorData.Groups[group]["Description"] = "No description Found"
 		if err != nil {
@@ -122,6 +114,17 @@ func generateInstanceData(component citypes.OpenCHAMIComponent, clusterName stri
 			}
 		}
 	}
+	cluster_data.V1.CloudName = "OpenCHAMI"
+	cluster_data.V1.AvailabilityZone = "lanl-yellow"
+	cluster_data.V1.InstanceID = generateInstanceId()
+	cluster_data.V1.InstanceType = "t2.micro"
+	cluster_data.V1.LocalHostname = generateHostname(clusterName, component)
+	cluster_data.V1.Region = "us-west"
+	cluster_data.V1.Hostname = generateHostname(clusterName, component)
+	cluster_data.V1.LocalIPv4 = component.IP
+	cluster_data.V1.CloudProvider = "OpenCHAMI"
+	cluster_data.V1.PublicKeys = []string{"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD..."}
+	cluster_data.V1.VendorData.Version = "1.0"
 	return cluster_data
 }
 
