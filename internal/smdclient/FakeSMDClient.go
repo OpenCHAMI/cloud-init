@@ -30,27 +30,6 @@ type SMDRosettaStone struct {
 	Hostname      string
 }
 
-func (f *FakeSMDClient) AddNodeToInventory(node citypes.OpenCHAMIComponent) error {
-	log.Debug().Msgf("FakeSMDClient: AddNodeToInventory(%s)", node.ID)
-	// if the node already exists, return an error
-	if _, ok := f.components[node.ID]; ok {
-		return errors.New("node already exists")
-	}
-	// if the ip/mac is already in use, return an error
-	for _, c := range f.rosetta_mapping {
-		if c.BootMAC == node.MAC || c.BootIPAddress == node.IP {
-			return errors.New("ip/mac already in use")
-		}
-	}
-	f.components[node.ID] = node.Component
-	f.rosetta_mapping = append(f.rosetta_mapping, SMDRosettaStone{
-		ComponentID:   node.ID,
-		BootMAC:       node.MAC,
-		BootIPAddress: node.IP,
-	})
-	return nil
-}
-
 func NewFakeSMDClient(clusterName string, count int) *FakeSMDClient {
 	client := &FakeSMDClient{}
 	client.clusterName = clusterName
@@ -297,6 +276,42 @@ func generateFakeComponents(numComponents int, cidr string) (map[string]base.Com
 
 func (f *FakeSMDClient) PopulateNodes() {
 	// no-op
+}
+
+// ***** Simulated SMD Client functions.  Not part of the SMDClientInterface *****
+
+// AddNodeToInventory adds a node to the inventory.  This is not part of the SMDClient Interface and only useful as part of the simulator
+func (f *FakeSMDClient) AddNodeToInventory(node citypes.OpenCHAMIComponent) error {
+	log.Debug().Msgf("FakeSMDClient: AddNodeToInventory(%s)", node.ID)
+	// if the node already exists, return an error
+	if _, ok := f.components[node.ID]; ok {
+		return errors.New("node already exists")
+	}
+	// if the ip/mac is already in use, return an error
+	for _, c := range f.rosetta_mapping {
+		if c.BootMAC == node.MAC || c.BootIPAddress == node.IP {
+			return errors.New("ip/mac already in use")
+		}
+	}
+	f.components[node.ID] = node.Component
+	f.rosetta_mapping = append(f.rosetta_mapping, SMDRosettaStone{
+		ComponentID:   node.ID,
+		BootMAC:       node.MAC,
+		BootIPAddress: node.IP,
+	})
+	return nil
+}
+
+// AddNodeToGroups adds a node to the specified groups.  This is not part of the SMDClient Interface and only useful as part of the simulator
+func (f *FakeSMDClient) AddNodeToGroups(id string, groups []string) error {
+	log.Debug().Msgf("FakeSMDClient: AddNodeToGroups(%s, %v)", id, groups)
+	for _, group := range groups {
+		if _, ok := f.groups[group]; !ok {
+			f.groups[group] = make([]string, 0)
+		}
+		f.groups[group] = append(f.groups[group], id)
+	}
+	return nil
 }
 
 func (f *FakeSMDClient) ListNodes() []citypes.OpenCHAMIComponent {

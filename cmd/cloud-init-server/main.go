@@ -21,16 +21,17 @@ import (
 )
 
 var (
-	ciEndpoint     = ":27777"
-	tokenEndpoint  = "http://opaal:3333/token" // jwt for smd access obtained from here
-	smdEndpoint    = "http://smd:27779"
-	jwksUrl        = "" // jwt keyserver URL for secure-route token validation
-	insecure       = false
-	accessToken    = ""
-	certPath       = ""
-	store          ciStore
-	clusterName    string
-	fakeSMDEnabled = false
+	ciEndpoint           = ":27777"
+	tokenEndpoint        = "http://opaal:3333/token" // jwt for smd access obtained from here
+	smdEndpoint          = "http://smd:27779"
+	jwksUrl              = "" // jwt keyserver URL for secure-route token validation
+	insecure             = false
+	accessToken          = ""
+	certPath             = ""
+	store                ciStore
+	clusterName          string
+	fakeSMDEnabled       = false
+	impersonationEnabled = false
 )
 
 func main() {
@@ -42,6 +43,7 @@ func main() {
 	flag.StringVar(&clusterName, "cluster-name", clusterName, "Name of the cluster")
 	flag.StringVar(&certPath, "cacert", certPath, "Path to CA cert. (defaults to system CAs)")
 	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
+	flag.BoolVar(&impersonationEnabled, "impersonation", impersonationEnabled, "Enable impersonation feature")
 	flag.Parse()
 
 	// Set up JWT verification via the specified URL, if any
@@ -137,12 +139,14 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 		r.Put("/groups/{name}", handler.UpdateGroupHandler)
 		r.Delete("/groups/{id}", handler.RemoveGroupHandler)
 
-		// impersonation API endpoints
-		r.Get("/user-data/{id}", UserDataHandler)
-		r.Get("/meta-data/{id}", MetaDataHandler(handler.sm, handler.store, clusterName))
-		r.Get("/vendor-data/{id}", VendorDataHandler)
-		r.Get("/instance-data/{id}", InstanceDataHandler(handler.sm, handler.store, clusterName))
-		r.Get("/{group}.yaml/{id}", GroupUserDataHandler(handler.sm, handler.store))
+		if impersonationEnabled {
+			// impersonation API endpoints
+			r.Get("/impersonation/{id}/user-data", UserDataHandler)
+			r.Get("/impersonation/{id}/meta-data", MetaDataHandler(handler.sm, handler.store, clusterName))
+			r.Get("/impersonation/{id}/vendor-data", VendorDataHandler)
+			r.Get("/impersonation/{id}/instance-data", InstanceDataHandler(handler.sm, handler.store, clusterName))
+			r.Get("/impersonation/{id}/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+		}
 
 		if fakeSMDEnabled {
 			r.Post("/fake-sm/nodes", smdclient.AddNodeToInventoryHandler(handler.sm.(*smdclient.FakeSMDClient)))

@@ -8,17 +8,28 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type OpenCHAMINodeWithGroups struct {
+	citypes.OpenCHAMIComponent
+	Groups []string `json:"groups,omitempty"`
+}
+
 func AddNodeToInventoryHandler(f *FakeSMDClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var addNode citypes.OpenCHAMIComponent
+		var addNode OpenCHAMINodeWithGroups
 		err := json.NewDecoder(r.Body).Decode(&addNode)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		err = f.AddNodeToInventory(addNode)
+		err = f.AddNodeToInventory(addNode.OpenCHAMIComponent)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to add node to inventory")
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		err = f.AddNodeToGroups(addNode.ID, addNode.Groups)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to add node to groups")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

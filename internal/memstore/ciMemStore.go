@@ -1,19 +1,15 @@
 package memstore
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/rs/zerolog/log"
 )
 
 var (
-	ErrEmptyRequestBody = errors.New("no data found in request body")
-	ErrResourceNotFound = errors.New("resource not found")
-	ErrGroupDataExists  = errors.New("citypes.GroupData exists for this entry")
-	ErrUserDataExists   = errors.New("user data exists for this entry")
-	ErrVendorDataExists = errors.New("vendor data exists for this entry")
-	ErrMetaDataExists   = errors.New("metadata exists for this entry")
+	ErrEmptyRequestBody = fmt.Errorf("no data found in request body")
+	ErrResourceNotFound = fmt.Errorf("resource not found")
 )
 
 type MemStore struct {
@@ -54,8 +50,9 @@ func (m MemStore) AddGroupData(groupName string, newGroupData citypes.GroupData)
 	// get CI data and check if groups IDENTIFIER exists (creates if not)
 	_, ok := m.Groups[groupName]
 	if ok {
-		// found group so return error
-		return ErrGroupDataExists
+		// found group so return error without changing anything
+		log.Error().Msgf("group '%s' not added as it already exists", groupName)
+		return fmt.Errorf("group '%s' not added as it already exists", groupName)
 	} else {
 		// does not exist, so create and update
 		m.Groups[groupName] = newGroupData

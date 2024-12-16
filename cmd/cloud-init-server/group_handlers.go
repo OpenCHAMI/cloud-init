@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 
@@ -24,9 +23,43 @@ func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(bytes)
+	if _, err := w.Write(bytes); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
+/*
+AddGroupHandler adds a new group with it's associated data specified by the user.
+
+*/
+// AddGroupHandler handles the HTTP request for adding a new group.
+// It parses the request data into a GroupData struct, validates it,
+// and then attempts to store it using the handler's store. If successful,
+// it sets the Location header to the new group's URL and responds with
+// HTTP status 201 Created. If there is an error during parsing or storing,
+// it responds with the appropriate HTTP error status.
+//
+// Curl Example:
+//
+// curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+//      -H "Content-Type: application/json" \
+//      -d '{
+//           "name": "x3000",
+//           "description": "Cabinet x3000",
+//           "data": {
+//             "syslog_aggregator": "192.168.0.1"
+//            },
+//           "file": {
+//             "content": "#cloud-config\nrsyslog:\n  remotes: {x3000: \"192.168.0.5\"}\nservice_reload_command: auto\n",
+//             "encoding": "plain"
+//           }
+//         }'
+// It parses the request data into a GroupData struct and attempts to add it to the store.
+// Encoding options are "plain" or "base64".
+// If parsing fails, it responds with a 422 Unprocessable Entity status.
+// If adding the group data to the store fails, it responds with a 409 Conflict status.
+// On success, it sets the Location header to the new group's URL and responds with a 201 Created status.
 func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		data citypes.GroupData
@@ -108,50 +141,52 @@ func (h CiHandler) RemoveGroupHandler(w http.ResponseWriter, r *http.Request) {
 
 func GroupUserDataHandler(smd smdclient.SMDClientInterface, store ciStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			id    string = chi.URLParam(r, "id")
-			group string = chi.URLParam(r, "group")
-			data  citypes.GroupData
-			bytes []byte
-			err   error
-		)
-		if id == "" {
-
-			ip := getActualRequestIP(r)
-			id, err = smd.IDfromIP(ip)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-		groups, err := smd.GroupMembership(id)
-		if err != nil {
-			log.Debug().Msg(err.Error())
-			// If the group information is not available, return an empty list
-			groups = []string{}
-		}
-		if !contains(groups, group) {
-			http.Error(w, "Group not found", http.StatusNotFound)
-			return
-		}
-
-		data, err = store.GetGroupData(group)
+		id, group, err := getIDAndGroup(r, smd)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		log.Debug().Msgf("GroupUserDataHandler: %v", data)
-		if data.File.Encoding == "base64" {
-			bytes, err = base64.StdEncoding.DecodeString(string(data.File.Content))
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		} else {
-			bytes = []byte(data.File.Content)
+
+		if !isUserInGroup(id, group, smd) {
+			http.Error(w, "Group not found", http.StatusNotFound)
+			return
 		}
-		w.Write(bytes)
+
+		data, err := store.GetGroupData(group)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Write(data.File.Content)
 	}
+}
+
+func getIDAndGroup(r *http.Request, smd smdclient.SMDClientInterface) (string, string, error) {
+	id := chi.URLParam(r, "id")
+	group := chi.URLParam(r, "group")
+
+	if id == "" {
+		ip := getActualRequestIP(r)
+		var err error
+		id, err = smd.IDfromIP(ip)
+		if err != nil {
+			return "", "", err
+		}
+	}
+
+	return id, group, nil
+}
+
+func isUserInGroup(id, group string, smd smdclient.SMDClientInterface) bool {
+	groups, err := smd.GroupMembership(id)
+	if err != nil {
+		log.Debug().Msgf(err.Error())
+		// If the group information is not available, return an empty list
+		groups = []string{}
+	}
+
+	return contains(groups, group)
 }
 
 func contains(list []string, item string) bool {
