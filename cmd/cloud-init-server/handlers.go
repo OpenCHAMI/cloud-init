@@ -24,16 +24,6 @@ func NewCiHandler(s ciStore, c smdclient.SMDClientInterface, clusterName string)
 	}
 }
 
-// Enumeration for cloud-init data categories
-type ciDataKind uint
-
-// Takes advantage of implicit repetition and iota's auto-incrementing
-const (
-	UserData ciDataKind = iota
-	MetaData
-	VendorData
-)
-
 func parseData(r *http.Request) (citypes.GroupData, error) {
 	var (
 		body []byte

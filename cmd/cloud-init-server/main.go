@@ -125,9 +125,8 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 	// Add cloud-init endpoints to router
 	router.Get("/user-data", UserDataHandler)
 	router.Get("/meta-data", MetaDataHandler(handler.sm, handler.store, clusterName))
-	router.Get("/vendor-data", VendorDataHandler)
+	router.Get("/vendor-data", VendorDataHandler(handler.sm))
 	router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
-	router.Get("/instance-data", InstanceDataHandler(handler.sm, handler.store, clusterName))
 
 	// admin API subrouter
 	router.Route("/admin", func(r chi.Router) {
@@ -143,8 +142,7 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 			// impersonation API endpoints
 			r.Get("/impersonation/{id}/user-data", UserDataHandler)
 			r.Get("/impersonation/{id}/meta-data", MetaDataHandler(handler.sm, handler.store, clusterName))
-			r.Get("/impersonation/{id}/vendor-data", VendorDataHandler)
-			r.Get("/impersonation/{id}/instance-data", InstanceDataHandler(handler.sm, handler.store, clusterName))
+			r.Get("/impersonation/{id}/vendor-data", VendorDataHandler(handler.sm))
 			r.Get("/impersonation/{id}/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 		}
 

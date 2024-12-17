@@ -2,6 +2,30 @@
 
 Updates to the cloud-init service are designed to push the complexity of merging configurations into the cloud-init client rather than the cloud-init server.  The codepaths for reducing surprises in merge behavior are much better tested in the client which is open source and deployed on countless instances around the world.  Staying compliant with the [nocloud-net datasource](https://cloudinit.readthedocs.io/en/latest/reference/datasources/nocloud.html) client requires a short review of how it handles the order of requests and the order of processing.
 
+## Running the service
+
+There are a few additional flags and environment variables to be aware of with cloud-init.
+
+### Cluster Name
+
+Each instance of cloud-init is linked to a single SMD and operates for a single cluster.  Ideally, the cluster name should be available through the inventory system.  Until that is true, it will need to be specified on the commandline with the `-cluster-name` flag.
+
+### Fake SMD
+```
+CLOUD_INIT_SMD_SIMULATOR=true dist/cloud-init_darwin_arm64_v8.0/cloud-init-server -cluster-name venado -insecure -impersonation=true
+```
+
+For development purposes, you can run the cloud-init server without an SMD instance to connect to by setting `CLOUD_INIT_SMD_SIMULATOR` to `true` in your environment.  This will create a set of nodes spread across a few cabinets and add them to various groups for testing.  This also adds a set of endpoints under `cloud-init/admin/fake-sm/` which allow additional testing nodes to be created as needed.
+
+### Impersonation
+
+Since the HTTP handlers within cloud-init use the ip address of the requesting node to determine what to send, we have a set of impersonation routes that are not enabled by default.  They sit under the `admin` subrouter and can be enabled at runtime with `-impersonation=true` on the commandline.
+
+* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/meta-data`
+* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/user-data`
+* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/vendor-data`
+* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/compute.yaml`
+
 ## Nocloud-net Datasource
 
 The nocloud-net datasource is configured in the kernel commandline by adding a few parameters. `cloud-init=enabled ds=nocloud-net;s=http://192.0.0.1/cloud-init`.  This instructs the cloud-init client to query for configuration data after the network is established.  The order of the requests is fixed and if any of the configurations fail to load, further requests are not attempted.
@@ -95,7 +119,6 @@ JSON_PAYLOAD=$(cat <<EOF
   "description": "Compute nodes",
   "file": {
     "content": "$(echo "$CLOUD_CONFIG_CONTENT" | base64 -w 0)",
-    "filename": "cloud-config.yaml",
     "encoding": "base64"
   }
 }
@@ -110,11 +133,6 @@ curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
 
 ## Impersonation Routes
 
-Since the HTTP handlers within cloud-init use the ip address of the requesting node to determine what to send, we have a set of impersonation routes that are not enabled by default.  They sit under the `admin` subrouter and can be enabled at runtime with `-impersonation=true` on the commandline.
 
-* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/meta-data`
-* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/user-data`
-* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/vendor-data`
-* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/compute.yaml`
 
 

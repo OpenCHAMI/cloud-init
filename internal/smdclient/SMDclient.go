@@ -176,6 +176,7 @@ func (s *SMDClient) PopulateNodes() {
 
 	for _, ep := range ethIfaceArray {
 		s.nodesMutex.Lock()
+		defer s.nodesMutex.Unlock()
 		if existingNode, exists := s.nodes[ep.CompID]; exists {
 			found := false
 			for index, existingInterface := range existingNode.Interfaces {
@@ -280,6 +281,9 @@ func (s *SMDClient) MACfromID(id string) (string, error) {
 
 // GroupMembership returns the group labels for the xname with the given ID
 func (s *SMDClient) GroupMembership(id string) ([]string, error) {
+	if id == "" {
+		log.Err(errors.New("ID is empty")).Msg("ID is empty")
+	}
 	ml := new(sm.Membership)
 	ep := "/hsm/v2/memberships/" + id
 	err := s.getSMD(ep, ml)

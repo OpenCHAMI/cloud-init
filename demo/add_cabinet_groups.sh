@@ -23,7 +23,7 @@ curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
           "syslog_aggregator": "192.168.0.1"
           },
         "file": {
-            "content": "#template: jinja\n#cloud-config\nrsyslog:\n  remotes: {x3001: {{ vendor_data.groups[\"x3002\"].syslog_aggregator }}}\n  service_reload_command: auto\n",
+            "content": "## template: jinja\n#cloud-config\nrsyslog:\n  remotes: {x3001: {{ vendor_data.groups[\"x3002\"].syslog_aggregator }}}\n  service_reload_command: auto\n",
             "encoding": "plain"
         }
     }'
@@ -36,7 +36,7 @@ curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
         "name": "x3002",
         "description": "Cabinet x3002",
         "file": {
-            "content": "#template: jinja\n#cloud-config\nrsyslog:\n  remotes: {x3002: {{ vendor_data.groups[\"x3002\"].syslog_aggregator }}}\n  service_reload_command: auto\n",
+            "content": "## template: jinja\n#cloud-config\nrsyslog:\n  remotes: {x3002: {{ vendor_data.groups[\"x3002\"].syslog_aggregator }}}\n  service_reload_command: auto\n",
             "encoding": "plain"
         }
     }'

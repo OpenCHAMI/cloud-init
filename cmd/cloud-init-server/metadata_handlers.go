@@ -30,12 +30,14 @@ func getActualRequestIP(r *http.Request) string {
 
 func MetaDataHandler(smd smdclient.SMDClientInterface, store ciStore, clusterName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var id string = chi.URLParam(r, "id")
+		var urlId string = chi.URLParam(r, "id")
+		var id string
+		var err error
 		// If this request includes an id, it can be interrpreted as an impersonation request
-		if id == "" {
+		if urlId == "" {
 			ip := getActualRequestIP(r)
 			// Get the component information from the SMD client
-			id, err := smd.IDfromIP(ip)
+			id, err = smd.IDfromIP(ip)
 			if err != nil {
 				log.Print(err)
 				w.WriteHeader(http.StatusUnprocessableEntity)
@@ -44,6 +46,7 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store ciStore, clusterNam
 				log.Printf("xname %s with ip %s found\n", id, ip)
 			}
 		}
+		log.Debug().Msgf("Getting metadata for id: %s", id)
 		smdComponent, err := smd.ComponentInformation(id)
 		if err != nil {
 			log.Debug().Msgf("Failed to get component information for %s: %s", id, err)
@@ -73,7 +76,7 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store ciStore, clusterNam
 		}
 		instanceID := generateInstanceId()
 		hostname := generateHostname(smd.ClusterName(), component)
-		metadata := citypes.MetaData{
+		metadata := MetaData{
 			InstanceID:    instanceID,
 			Hostname:      hostname + "." + smd.ClusterName(),
 			LocalHostname: hostname,

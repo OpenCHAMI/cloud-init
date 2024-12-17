@@ -12,4 +12,7 @@ type ciStore interface {
 	GetGroupData(groupName string) (citypes.GroupData, error)
 	UpdateGroupData(groupName string, groupData citypes.GroupData) error
 	RemoveGroupData(groupName string) error
+	// Extended Instance Information API
+	GetInstanceInfo(nodeName string) (citypes.OpenCHAMIInstanceInfo, error)
+	SetInstanceInfo(nodeName string, instanceInfo citypes.OpenCHAMIInstanceInfo) error
 }
