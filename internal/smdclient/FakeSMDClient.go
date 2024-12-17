@@ -12,7 +12,7 @@ import (
 
 	base "github.com/Cray-HPE/hms-base"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 )
 
 type FakeSMDClient struct {
@@ -281,7 +281,7 @@ func (f *FakeSMDClient) PopulateNodes() {
 // ***** Simulated SMD Client functions.  Not part of the SMDClientInterface *****
 
 // AddNodeToInventory adds a node to the inventory.  This is not part of the SMDClient Interface and only useful as part of the simulator
-func (f *FakeSMDClient) AddNodeToInventory(node citypes.OpenCHAMIComponent) error {
+func (f *FakeSMDClient) AddNodeToInventory(node cistore.OpenCHAMIComponent) error {
 	log.Debug().Msgf("FakeSMDClient: AddNodeToInventory(%s)", node.ID)
 	// if the node already exists, return an error
 	if _, ok := f.components[node.ID]; ok {
@@ -314,10 +314,10 @@ func (f *FakeSMDClient) AddNodeToGroups(id string, groups []string) error {
 	return nil
 }
 
-func (f *FakeSMDClient) ListNodes() []citypes.OpenCHAMIComponent {
-	nodes := make([]citypes.OpenCHAMIComponent, 0)
+func (f *FakeSMDClient) ListNodes() []cistore.OpenCHAMIComponent {
+	nodes := make([]cistore.OpenCHAMIComponent, 0)
 	for _, c := range f.rosetta_mapping {
-		nodes = append(nodes, citypes.OpenCHAMIComponent{
+		nodes = append(nodes, cistore.OpenCHAMIComponent{
 			MAC:       c.BootMAC,
 			IP:        c.BootIPAddress,
 			Component: f.components[c.ComponentID],

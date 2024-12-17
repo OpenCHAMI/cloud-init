@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
@@ -13,7 +14,7 @@ func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(payload))
 }
 
-func GroupUserDataHandler(smd smdclient.SMDClientInterface, store ciStore) http.HandlerFunc {
+func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, group, err := getIDAndGroup(r, smd)
 		if err != nil {
@@ -55,7 +56,7 @@ func getIDAndGroup(r *http.Request, smd smdclient.SMDClientInterface) (string, s
 func isUserInGroup(id, group string, smd smdclient.SMDClientInterface) bool {
 	groups, err := smd.GroupMembership(id)
 	if err != nil {
-		log.Debug().Msgf(err.Error())
+		log.Debug().Msg(err.Error())
 		// If the group information is not available, return an empty list
 		groups = []string{}
 	}

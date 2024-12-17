@@ -1,10 +1,9 @@
 package main
 
 import (
-	"crypto/rand"
 	"fmt"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
 )
 
@@ -47,42 +46,73 @@ type VendorData struct {
 
 type Group map[string]interface{}
 
-func generateInstanceData(component citypes.OpenCHAMIComponent, clusterName string, groups []string, s ciStore) InstanceData {
-	cluster_data := InstanceData{}
+func generateMetaData(component cistore.OpenCHAMIComponent, groups []string, s cistore.Store) MetaData {
+	metadata := MetaData{}
+	extendedInstanceData, err := s.GetInstanceInfo(component.ID)
+	if err != nil {
+		log.Err(err).Msg("Error getting instance info")
+	}
+	// Add in cluster Defaults
+	clusterDefaults, err := s.GetClusterDefaults()
+	if err != nil {
+		log.Err(err).Msg("Error getting cluster defaults")
+	}
+
+	// Update extended information from within cloud-init
+	metadata.InstanceID = extendedInstanceData.InstanceID
+	if extendedInstanceData.LocalHostname == "" {
+		metadata.LocalHostname = generateHostname(clusterName, component)
+	} else {
+		metadata.LocalHostname = extendedInstanceData.LocalHostname
+	}
+	if extendedInstanceData.Hostname == "" {
+		metadata.Hostname = generateHostname(clusterName, component)
+	} else {
+		metadata.Hostname = extendedInstanceData.Hostname
+	}
+	log.Debug().Msgf("Setting ClusterName to %s", clusterDefaults.ClusterName)
+	metadata.ClusterName = clusterDefaults.ClusterName
+
+	instanceData := InstanceData{}
 	if len(groups) > 0 {
-		cluster_data.V1.VendorData.Groups = make(map[string]Group)
+		instanceData.V1.VendorData.Groups = make(map[string]Group)
 	}
 	for _, group := range groups {
 		gd, err := s.GetGroupData(group)
-		cluster_data.V1.VendorData.Groups[group] = make(map[string]interface{})
-		cluster_data.V1.VendorData.Groups[group]["Description"] = "No description Found"
+		instanceData.V1.VendorData.Groups[group] = make(map[string]interface{})
+		instanceData.V1.VendorData.Groups[group]["Description"] = "No description Found"
 		if err != nil {
 			log.Print(err)
 		} else {
 			if gd.Description != "" {
-				cluster_data.V1.VendorData.Groups[group]["Description"] = gd.Description
+				instanceData.V1.VendorData.Groups[group]["Description"] = gd.Description
 			}
 			for k, v := range gd.Data {
-				cluster_data.V1.VendorData.Groups[group][k] = v
+				instanceData.V1.VendorData.Groups[group][k] = v
 			}
 		}
 	}
-	cluster_data.V1.CloudName = "OpenCHAMI"
-	cluster_data.V1.AvailabilityZone = "lanl-yellow"
-	cluster_data.V1.InstanceID = generateInstanceId()
-	cluster_data.V1.InstanceType = "t2.micro"
-	cluster_data.V1.LocalHostname = generateHostname(clusterName, component)
-	cluster_data.V1.Region = "us-west"
-	cluster_data.V1.Hostname = generateHostname(clusterName, component)
-	cluster_data.V1.LocalIPv4 = component.IP
-	cluster_data.V1.CloudProvider = "OpenCHAMI"
-	cluster_data.V1.PublicKeys = []string{"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD..."}
-	cluster_data.V1.VendorData.CloudInitBaseURL = "http://cloud-init:27777/cloud-init"
-	cluster_data.V1.VendorData.Version = "1.0"
-	return cluster_data
+
+	instanceData.V1.LocalIPv4 = component.IP
+	instanceData.V1.VendorData.Version = "1.0"
+
+	// Add extended attributes
+	instanceData.V1.InstanceID = extendedInstanceData.InstanceID
+	instanceData.V1.InstanceType = extendedInstanceData.InstanceType
+	instanceData.V1.VendorData.CloudInitBaseURL = extendedInstanceData.CloudInitBaseURL
+
+	instanceData.V1.CloudProvider = clusterDefaults.CloudProvider
+	instanceData.V1.VendorData.ClusterName = clusterDefaults.ClusterName
+	instanceData.V1.Region = clusterDefaults.Region
+	instanceData.V1.AvailabilityZone = clusterDefaults.AvailabilityZone
+
+	// merge cluster defaults and instance specific keys
+	instanceData.V1.PublicKeys = append(clusterDefaults.PublicKeys, extendedInstanceData.PublicKeys...)
+	metadata.InstanceData = instanceData
+	return metadata
 }
 
-func generateHostname(clusterName string, comp citypes.OpenCHAMIComponent) string {
+func generateHostname(clusterName string, comp cistore.OpenCHAMIComponent) string {
 	// in the future, we might want to map the hostname to an xname or something else.
 	switch comp.Role {
 	case "compute":
@@ -98,16 +128,4 @@ func generateHostname(clusterName string, comp citypes.OpenCHAMIComponent) strin
 		nid, _ := comp.NID.Int64()
 		return fmt.Sprintf("%.2s%04d", clusterName, nid)
 	}
-}
-
-func generateInstanceId() string {
-	// in the future, we might want to map the instance-id to an xname or something else.
-	return generateUniqueID("i")
-
-}
-
-func generateUniqueID(prefix string) string {
-	b := make([]byte, 4)
-	rand.Read(b)
-	return fmt.Sprintf("%s-%x", prefix, b)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -28,10 +29,14 @@ var (
 	insecure             = false
 	accessToken          = ""
 	certPath             = ""
-	store                ciStore
+	store                cistore.Store
 	clusterName          string
+	region               string
+	availabilityZone     string
+	cloudProvider        string
 	fakeSMDEnabled       = false
 	impersonationEnabled = false
+	debug                = true
 )
 
 func main() {
@@ -41,10 +46,18 @@ func main() {
 	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
 	flag.StringVar(&accessToken, "access-token", accessToken, "encoded JWT access token")
 	flag.StringVar(&clusterName, "cluster-name", clusterName, "Name of the cluster")
+	flag.StringVar(&region, "region", region, "Region of the cluster")
+	flag.StringVar(&availabilityZone, "az", availabilityZone, "Availability zone of the cluster")
+	flag.StringVar(&cloudProvider, "cloud-provider", cloudProvider, "Cloud provider of the cluster")
 	flag.StringVar(&certPath, "cacert", certPath, "Path to CA cert. (defaults to system CAs)")
 	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
 	flag.BoolVar(&impersonationEnabled, "impersonation", impersonationEnabled, "Enable impersonation feature")
+	flag.BoolVar(&debug, "debug", debug, "Enable debug logging")
 	flag.Parse()
+
+	if debug {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
 
 	// Set up JWT verification via the specified URL, if any
 	var keyset *jwtauth.JWTAuth
@@ -96,23 +109,28 @@ func main() {
 		}
 	}
 
-	// Unsecured datastore and router
+	// datastore and router
 	store = memstore.NewMemStore()
+	store.SetClusterDefaults(cistore.ClusterDefaults{
+		ClusterName:      clusterName,
+		Region:           region,
+		AvailabilityZone: availabilityZone,
+		CloudProvider:    cloudProvider,
+	})
+
 	ciHandler := NewCiHandler(store, sm, clusterName)
 	router_unsec := chi.NewRouter()
 	initCiRouter(router_unsec, ciHandler)
 	router.Mount("/cloud-init", router_unsec)
 
 	if secureRouteEnable {
-		// Secured datastore and router
-		store_sec := memstore.NewMemStore()
-		ciHandler_sec := NewCiHandler(store_sec, sm, clusterName)
+		// Secured routes
 		router_sec := chi.NewRouter()
 		router_sec.Use(
 			jwtauth.Verifier(keyset),
 			openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
 		)
-		initCiRouter(router_sec, ciHandler_sec)
+		initCiRouter(router_sec, ciHandler)
 		router.Mount("/cloud-init-secure", router_sec)
 	}
 
@@ -130,6 +148,13 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 
 	// admin API subrouter
 	router.Route("/admin", func(r chi.Router) {
+
+		// Cluster Defaults
+		r.Get("/cluster-defaults", GetClusterDataHandler(handler.store))
+		r.Post("/cluster-defaults", SetClusterDataHandler(handler.store))
+		// r.Put("/cluster-defaults", SetClusterDataHandler(handler.store)) // Should we support PUT and POST or just one of them?
+
+		r.Put("/instance-info/{id}", InstanceInfoHandler(handler.sm, handler.store))
 
 		// groups API endpoints
 		r.Get("/groups", handler.GetGroups)

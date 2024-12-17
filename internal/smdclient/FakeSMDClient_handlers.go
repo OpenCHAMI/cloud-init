@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
 )
 
 type OpenCHAMINodeWithGroups struct {
-	citypes.OpenCHAMIComponent
+	cistore.OpenCHAMIComponent
 	Groups []string `json:"groups,omitempty"`
 }
 

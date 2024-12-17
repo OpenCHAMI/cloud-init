@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
-	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v2"
@@ -28,10 +28,10 @@ func getActualRequestIP(r *http.Request) string {
 	return strings.TrimSpace(ip)
 }
 
-func MetaDataHandler(smd smdclient.SMDClientInterface, store ciStore, clusterName string) http.HandlerFunc {
+func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store, clusterName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var urlId string = chi.URLParam(r, "id")
-		var id string
+		var id = urlId
 		var err error
 		// If this request includes an id, it can be interrpreted as an impersonation request
 		if urlId == "" {
@@ -69,20 +69,14 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store ciStore, clusterNam
 			// If the MAC information is not available, return an empty string
 			bootMAC = ""
 		}
-		component := citypes.OpenCHAMIComponent{
+		component := cistore.OpenCHAMIComponent{
 			Component: smdComponent,
 			IP:        bootIP,
 			MAC:       bootMAC,
 		}
-		instanceID := generateInstanceId()
-		hostname := generateHostname(smd.ClusterName(), component)
-		metadata := MetaData{
-			InstanceID:    instanceID,
-			Hostname:      hostname + "." + smd.ClusterName(),
-			LocalHostname: hostname,
-			ClusterName:   smd.ClusterName(),
-			InstanceData:  generateInstanceData(component, smd.ClusterName(), groups, store),
-		}
+
+		metadata := generateMetaData(component, groups, store)
+
 		w.Header().Set("Content-Type", "application/x-yaml")
 		w.WriteHeader(http.StatusOK)
 		yamlData, err := yaml.Marshal(metadata)

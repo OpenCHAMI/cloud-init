@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
 	yaml "gopkg.in/yaml.v2"
 )
 
 func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
-		groups map[string]citypes.GroupData
+		groups map[string]cistore.GroupData
 		bytes  []byte
 		err    error
 	)
@@ -60,7 +60,7 @@ AddGroupHandler adds a new group with it's associated data specified by the user
 // On success, it sets the Location header to the new group's URL and responds with a 201 Created status.
 func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		data citypes.GroupData
+		data cistore.GroupData
 		err  error
 	)
 
@@ -83,7 +83,7 @@ func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		id    string = chi.URLParam(r, "id")
-		data  citypes.GroupData
+		data  cistore.GroupData
 		bytes []byte
 		err   error
 	)
@@ -105,7 +105,7 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		groupName string = chi.URLParam(r, "name")
-		data      citypes.GroupData
+		data      cistore.GroupData
 		err       error
 	)
 

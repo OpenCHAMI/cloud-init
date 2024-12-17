@@ -45,17 +45,9 @@ In OpenCHAMI, we send a blank `user-data` today, preserving that for future inte
 #cloud-config
 ```
 
-For `vendor-data` we don't merge anything on the server side.  Instead we take advantage of the [include-file user-data format](https://cloudinit.readthedocs.io/en/latest/explanation/format.html#include-file) which allows us to create a separate yaml file on demand for each group a node is a part of.  Since the include-file supports jinja templating, our server can send the same response to all `/vendor-data` requests.
+For `vendor-data` we don't merge anything on the server side.  Instead we take advantage of the [include-file user-data format](https://cloudinit.readthedocs.io/en/latest/explanation/format.html#include-file) which allows us to create a separate yaml file on demand for each group a node is a part of.
 
-```yaml
-#template: jinja
-#include
-{% for group_name in vendor_data.groups.keys() %}
-https://{{ vendor_data.cloud_init_base_url }}/{{ group_name }}.yaml
-{% endfor %}
-```
-
-After client-side templates are applied using data from the `meta-data`, a node that is part of three groups: `all`, `compute`, and `login` will effectively process the following file.
+A node that is part of three groups: `all`, `compute`, and `login` will receive the following file.
 
 ```yaml
 #include
@@ -131,8 +123,66 @@ curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
      -d "$JSON_PAYLOAD"
 ```
 
-## Impersonation Routes
+## Generated `meta-data`
 
+The results of the `/meta-data` request are a yaml file that should provide all the configuration data needed for future stages of cloud-init to run.  Some items come from SMD.  Others are generated and stored within the cloud-init service.  For most fields, it is possible to override the provided values using the admin API.
 
+Here is an example:
+```yaml
+instance-id: i-4c58a0a1
+local-hostname: ve0041
+hostname: ve0041
+cluster-name: venado
+instance_data:
+  v1:
+    availability_zone: us-west-2a
+    instance_id: i-4c58a0a1
+    region: us-west-2
+    local_ipv4: 10.20.30.41
+    public_keys:
+    - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArV2...
+    - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArV3...
+    vendor_data:
+      version: "1.0"
+      cluster_name: venado
+      groups:
+        compute:
+          Description: Compute nodes
+        io:
+          Description: No description Found
+        x3000:
+          Description: No description Found
+```
+
+### Cluster Defaults
+
+Many of the items in the above yaml will not change from node to node within a cluster.  Things like `cluster-name`, `region`, and `availability-zone` are unlikely to be different within a cluster.  These can be set through commandline arguments when starting the cloud-init server or through the `/cloud-init/admin/cluser-defaults` endpoint.
+
+```bash
+curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
+    -H "Content-Type: application/json" \
+    -d '{
+        "cloud-provider": "openchami",
+        "region": "us-west-2",
+        "availability-zone": "us-west-2a",
+        "cluster-name": "venado",
+        "public-keys": [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArV2...",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArV3..."
+        ]
+    }'
+```
+
+### Instance Overrides
+
+There are some portions of the `meta-data` that can be overridden at a node level.  `/cloud-init/admin/instance-info/{id}`
+```bash
+curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
+    -H "Content-Type: application/json" \
+    -d '{
+        "local-hostname": "compute-1",
+        "instance-type": "t2.micro"
+    }'
+```
 
 

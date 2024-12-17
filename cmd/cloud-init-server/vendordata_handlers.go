@@ -18,7 +18,7 @@ import (
 func VendorDataHandler(smd smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var urlId string = chi.URLParam(r, "id")
-		var id string
+		var id = urlId
 		var err error
 		// If this request includes an id, it can be interrpreted as an impersonation request
 		if urlId == "" {
@@ -30,16 +30,15 @@ func VendorDataHandler(smd smdclient.SMDClientInterface) http.HandlerFunc {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				return
 			} else {
-				log.Printf("xname %s with ip %s found\n", id, ip)
+				log.Debug().Msgf("xname %s with ip %s found\n", id, ip)
 			}
 		}
 		groups, err := smd.GroupMembership(id)
 		if err != nil {
-			// If the group information is not available, return an empty list
-			groups = []string{}
+			log.Debug().Msgf("Error getting group membership: %s", err)
 		}
 
-		payload := "#includ\n"
+		payload := "#include\n"
 		for _, group_name := range groups {
 			payload += fmt.Sprintf("http://cloud-init:27777/cloud-init/%s.yaml\n", group_name)
 		}
