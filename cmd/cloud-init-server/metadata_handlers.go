@@ -28,7 +28,7 @@ func getActualRequestIP(r *http.Request) string {
 	return strings.TrimSpace(ip)
 }
 
-func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store, clusterName string) http.HandlerFunc {
+func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var urlId string = chi.URLParam(r, "id")
 		var id = urlId

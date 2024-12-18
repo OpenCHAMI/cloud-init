@@ -41,6 +41,7 @@ type ClusterDefaults struct {
 	AvailabilityZone string   `json:"availability-zone,omitempty" yaml:"availability-zone,omitempty"`
 	ClusterName      string   `json:"cluster-name,omitempty" yaml:"cluster-name,omitempty"`
 	PublicKeys       []string `json:"public-keys,omitempty" yaml:"public-keys,omitempty"`
+	BaseUrl          string   `json:"base-url,omitempty" yaml:"base-url,omitempty"`
 }
 
 type CloudConfigFile struct {
