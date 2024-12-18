@@ -29,7 +29,8 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 
 		data, err := store.GetGroupData(group)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Err(err).Msgf("No information stored for group %s. returning an empty #cloud-config", group)
+			w.Write([]byte("#cloud-config"))
 			return
 		}
 
