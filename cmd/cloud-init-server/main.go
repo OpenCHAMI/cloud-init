@@ -34,6 +34,7 @@ var (
 	region               string
 	availabilityZone     string
 	cloudProvider        string
+	baseUrl              string
 	fakeSMDEnabled       = false
 	impersonationEnabled = false
 	debug                = true
@@ -49,6 +50,7 @@ func main() {
 	flag.StringVar(&region, "region", region, "Region of the cluster")
 	flag.StringVar(&availabilityZone, "az", availabilityZone, "Availability zone of the cluster")
 	flag.StringVar(&cloudProvider, "cloud-provider", cloudProvider, "Cloud provider of the cluster")
+	flag.StringVar(&baseUrl, "base-url", baseUrl, "Base URL for cloud-init-server including protocol and port (http://localhost:27777)")
 	flag.StringVar(&certPath, "cacert", certPath, "Path to CA cert. (defaults to system CAs)")
 	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
 	flag.BoolVar(&impersonationEnabled, "impersonation", impersonationEnabled, "Enable impersonation feature")
@@ -116,6 +118,7 @@ func main() {
 		Region:           region,
 		AvailabilityZone: availabilityZone,
 		CloudProvider:    cloudProvider,
+		BaseUrl:          baseUrl,
 	})
 
 	ciHandler := NewCiHandler(store, sm, clusterName)
@@ -142,8 +145,8 @@ func main() {
 func initCiRouter(router chi.Router, handler *CiHandler) {
 	// Add cloud-init endpoints to router
 	router.Get("/user-data", UserDataHandler)
-	router.Get("/meta-data", MetaDataHandler(handler.sm, handler.store, clusterName))
-	router.Get("/vendor-data", VendorDataHandler(handler.sm))
+	router.Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
+	router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
 	router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 
 	// admin API subrouter
@@ -166,8 +169,8 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 		if impersonationEnabled {
 			// impersonation API endpoints
 			r.Get("/impersonation/{id}/user-data", UserDataHandler)
-			r.Get("/impersonation/{id}/meta-data", MetaDataHandler(handler.sm, handler.store, clusterName))
-			r.Get("/impersonation/{id}/vendor-data", VendorDataHandler(handler.sm))
+			r.Get("/impersonation/{id}/meta-data", MetaDataHandler(handler.sm, handler.store))
+			r.Get("/impersonation/{id}/vendor-data", VendorDataHandler(handler.sm, handler.store))
 			r.Get("/impersonation/{id}/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 		}
 

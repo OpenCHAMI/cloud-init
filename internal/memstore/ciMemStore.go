@@ -3,6 +3,7 @@ package memstore
 import (
 	"crypto/rand"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
@@ -66,9 +67,13 @@ func (m *MemStore) GetGroupData(groupName string) (cistore.GroupData, error) {
 }
 
 // UpdateGroupData is similar to AddGroupData but only works if the group exists
-func (m *MemStore) UpdateGroupData(groupName string, groupData cistore.GroupData) error {
+func (m *MemStore) UpdateGroupData(groupName string, groupData cistore.GroupData, create bool) error {
 	m.GroupsMutex.RLock()
 	defer m.GroupsMutex.RUnlock()
+	if create {
+		m.Groups[groupName] = groupData
+		return nil
+	}
 
 	_, ok := m.Groups[groupName]
 	if ok {
@@ -128,9 +133,34 @@ func (m *MemStore) GetClusterDefaults() (cistore.ClusterDefaults, error) {
 }
 
 func (m *MemStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) error {
-	m.ClusterDefaultsMutex.RLock()
-	defer m.ClusterDefaultsMutex.RUnlock()
-	m.ClusterDefaults = clusterDefaults
+	m.ClusterDefaultsMutex.Lock()
+	defer m.ClusterDefaultsMutex.Unlock()
+	cd := m.ClusterDefaults
+	if clusterDefaults.ClusterName != "" {
+		log.Debug().Msgf("Setting ClusterName to %s", clusterDefaults.ClusterName)
+		cd.ClusterName = clusterDefaults.ClusterName
+	}
+	if clusterDefaults.BaseUrl != "" {
+		log.Debug().Msgf("Setting BaseUrl to %s", clusterDefaults.BaseUrl)
+		cd.BaseUrl = strings.TrimRight(clusterDefaults.BaseUrl, "/")
+	}
+	if clusterDefaults.AvailabilityZone != "" {
+		log.Debug().Msgf("Setting Availability Zone to %s", clusterDefaults.AvailabilityZone)
+		cd.AvailabilityZone = clusterDefaults.AvailabilityZone
+	}
+	if clusterDefaults.Region != "" {
+		log.Debug().Msgf("Setting Region to %s", clusterDefaults.Region)
+		cd.Region = clusterDefaults.Region
+	}
+	if clusterDefaults.CloudProvider != "" {
+		log.Debug().Msgf("Setting Cloud Provider to %s", clusterDefaults.CloudProvider)
+		cd.CloudProvider = clusterDefaults.CloudProvider
+	}
+	if len(clusterDefaults.PublicKeys) > 0 {
+		log.Debug().Msgf("Setting Public Keys to %v", clusterDefaults.PublicKeys)
+		cd.PublicKeys = clusterDefaults.PublicKeys
+	}
+	m.ClusterDefaults = cd
 	return nil
 }
 

@@ -6,7 +6,7 @@ type Store interface {
 	GetGroups() map[string]GroupData
 	AddGroupData(groupName string, groupData GroupData) error
 	GetGroupData(groupName string) (GroupData, error)
-	UpdateGroupData(groupName string, groupData GroupData) error
+	UpdateGroupData(groupName string, groupData GroupData, create bool) error
 	RemoveGroupData(groupName string) error
 	// Extended Instance Information API
 	GetInstanceInfo(nodeName string) (OpenCHAMIInstanceInfo, error)

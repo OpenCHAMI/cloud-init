@@ -335,7 +335,9 @@ func (f *FakeSMDClient) UpdateNode(node cistore.OpenCHAMIComponent) error {
 	// if the ip/mac is already in use, return an error
 	for _, c := range f.rosetta_mapping {
 		if c.BootMAC == node.MAC || c.BootIPAddress == node.IP {
-			return errors.New("ip/mac already in use")
+			if c.ComponentID != node.ID {
+				return errors.New("ip/mac already in use")
+			}
 		}
 	}
 	f.components[node.ID] = node.Component
