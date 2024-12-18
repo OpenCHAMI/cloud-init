@@ -167,6 +167,8 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 // PopulateNodes fetches the Ethernet interface data from the SMD server and populates the nodes map
 // with the corresponding node information, including MAC addresses, IP addresses, and descriptions.
 func (s *SMDClient) PopulateNodes() {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
 	var ethIfaceArray []sm.CompEthInterfaceV2
 	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
 	if err := s.getSMD(ep, &ethIfaceArray); err != nil {
@@ -175,8 +177,6 @@ func (s *SMDClient) PopulateNodes() {
 	}
 
 	for _, ep := range ethIfaceArray {
-		s.nodesMutex.Lock()
-		defer s.nodesMutex.Unlock()
 		if existingNode, exists := s.nodes[ep.CompID]; exists {
 			found := false
 			for index, existingInterface := range existingNode.Interfaces {
