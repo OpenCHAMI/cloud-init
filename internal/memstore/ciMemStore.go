@@ -3,6 +3,7 @@ package memstore
 import (
 	"crypto/rand"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
@@ -137,7 +138,7 @@ func (m *MemStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) e
 	}
 	if clusterDefaults.BaseUrl != "" {
 		log.Debug().Msgf("Setting BaseUrl to %s", clusterDefaults.BaseUrl)
-		cd.BaseUrl = clusterDefaults.BaseUrl
+		cd.BaseUrl = strings.TrimRight(clusterDefaults.BaseUrl, "/")
 	}
 	if clusterDefaults.AvailabilityZone != "" {
 		log.Debug().Msgf("Setting Availability Zone to %s", clusterDefaults.AvailabilityZone)
