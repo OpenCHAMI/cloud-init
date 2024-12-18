@@ -174,6 +174,7 @@ func initCiRouter(router chi.Router, handler *CiHandler) {
 		if fakeSMDEnabled {
 			r.Post("/fake-sm/nodes", smdclient.AddNodeToInventoryHandler(handler.sm.(*smdclient.FakeSMDClient)))
 			r.Get("/fake-sm/nodes", smdclient.ListNodesHandler(handler.sm.(*smdclient.FakeSMDClient)))
+			r.Put("/fake-sm/nodes/{id}", smdclient.UpdateNodeHandler(handler.sm.(*smdclient.FakeSMDClient)))
 		}
 
 	})

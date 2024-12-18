@@ -325,3 +325,30 @@ func (f *FakeSMDClient) ListNodes() []cistore.OpenCHAMIComponent {
 	}
 	return nodes
 }
+
+func (f *FakeSMDClient) UpdateNode(node cistore.OpenCHAMIComponent) error {
+	log.Debug().Msgf("FakeSMDClient: UpdateNode(%s)", node.ID)
+	// if the node does not exist, return an error
+	if _, ok := f.components[node.ID]; !ok {
+		return errors.New("node does not exist")
+	}
+	// if the ip/mac is already in use, return an error
+	for _, c := range f.rosetta_mapping {
+		if c.BootMAC == node.MAC || c.BootIPAddress == node.IP {
+			return errors.New("ip/mac already in use")
+		}
+	}
+	f.components[node.ID] = node.Component
+	for i, c := range f.rosetta_mapping {
+		if c.ComponentID == node.ID {
+			if node.MAC != "" {
+				f.rosetta_mapping[i].BootMAC = node.MAC
+			}
+			if node.IP != "" {
+				f.rosetta_mapping[i].BootIPAddress = node.IP
+			}
+			break
+		}
+	}
+	return nil
+}
