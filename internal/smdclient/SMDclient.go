@@ -216,7 +216,6 @@ func (s *SMDClient) PopulateNodes() {
 			newNode.Interfaces = append(newNode.Interfaces, newInterface)
 			s.nodes[ep.CompID] = newNode
 		}
-		s.nodesMutex.Unlock()
 	}
 }
 
