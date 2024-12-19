@@ -17,8 +17,9 @@ type GroupData struct {
 
 type OpenCHAMIComponent struct {
 	base.Component
-	MAC string `json:"mac"`
-	IP  string `json:"ip"`
+	MAC  string `json:"mac"`            // MAC address of the inteface used to boot the component
+	IP   string `json:"ip"`             // IP address of the interface used to boot the component
+	WGIP string `json:"wgip,omitempty"` // Wireguard IP address of the interface used for cloud-init
 }
 
 type OpenCHAMIInstanceInfo struct {
@@ -42,6 +43,8 @@ type ClusterDefaults struct {
 	ClusterName      string   `json:"cluster-name,omitempty" yaml:"cluster-name,omitempty"`
 	PublicKeys       []string `json:"public-keys,omitempty" yaml:"public-keys,omitempty"`
 	BaseUrl          string   `json:"base-url,omitempty" yaml:"base-url,omitempty"`
+	BootSubnet       string   `json:"boot-subnet,omitempty" yaml:"boot-subnet,omitempty"`
+	WGSubnet         string   `json:"wg-subnet,omitempty" yaml:"wg-subnet,omitempty"`
 }
 
 type CloudConfigFile struct {

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -37,6 +39,7 @@ var (
 	baseUrl              string
 	fakeSMDEnabled       = false
 	impersonationEnabled = false
+	wireguardServer      string
 	debug                = true
 )
 
@@ -54,6 +57,7 @@ func main() {
 	flag.StringVar(&certPath, "cacert", certPath, "Path to CA cert. (defaults to system CAs)")
 	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
 	flag.BoolVar(&impersonationEnabled, "impersonation", impersonationEnabled, "Enable impersonation feature")
+	flag.StringVar(&wireguardServer, "wireguard-server", wireguardServer, "Wireguard server IP address and network (e.g. 100.97.0.1/16)")
 	flag.BoolVar(&debug, "debug", debug, "Enable debug logging")
 	flag.Parse()
 
@@ -123,7 +127,16 @@ func main() {
 
 	ciHandler := NewCiHandler(store, sm, clusterName)
 	router_unsec := chi.NewRouter()
-	initCiRouter(router_unsec, ciHandler)
+	var wgInterfaceManager *wgtunnel.InterfaceManager
+	if wireguardServer != "" {
+		// Initialize WireGuard server
+		wgIp, wgNet, err := net.ParseCIDR(wireguardServer)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("Failed to parse WireGuard server IP and netmask from %s.  Use the format '100.97.0.1/16'", wireguardServer)
+		}
+		wgInterfaceManager = wgtunnel.NewInterfaceManager("wg0", wgIp, wgNet)
+	}
+	initCiRouter(router_unsec, ciHandler, wgInterfaceManager)
 	router.Mount("/cloud-init", router_unsec)
 
 	if secureRouteEnable {
@@ -133,7 +146,8 @@ func main() {
 			jwtauth.Verifier(keyset),
 			openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
 		)
-		initCiRouter(router_sec, ciHandler)
+
+		initCiRouter(router_sec, ciHandler, wgInterfaceManager)
 		router.Mount("/cloud-init-secure", router_sec)
 	}
 
@@ -142,12 +156,14 @@ func main() {
 
 }
 
-func initCiRouter(router chi.Router, handler *CiHandler) {
+func initCiRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
 	// Add cloud-init endpoints to router
 	router.Get("/user-data", UserDataHandler)
 	router.Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
 	router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
 	router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+	router.Post("/phone-home/{id}", PhoneHomeHandler(handler.store))
+	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager))
 
 	// admin API subrouter
 	router.Route("/admin", func(r chi.Router) {
