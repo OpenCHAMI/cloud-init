@@ -116,7 +116,7 @@ func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// update group key-value data
-	err = h.store.UpdateGroupData(groupName, data)
+	err = h.store.UpdateGroupData(groupName, data, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

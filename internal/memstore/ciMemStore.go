@@ -67,9 +67,13 @@ func (m *MemStore) GetGroupData(groupName string) (cistore.GroupData, error) {
 }
 
 // UpdateGroupData is similar to AddGroupData but only works if the group exists
-func (m *MemStore) UpdateGroupData(groupName string, groupData cistore.GroupData) error {
+func (m *MemStore) UpdateGroupData(groupName string, groupData cistore.GroupData, create bool) error {
 	m.GroupsMutex.RLock()
 	defer m.GroupsMutex.RUnlock()
+	if create {
+		m.Groups[groupName] = groupData
+		return nil
+	}
 
 	_, ok := m.Groups[groupName]
 	if ok {
