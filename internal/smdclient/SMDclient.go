@@ -24,9 +24,11 @@ type SMDClientInterface interface {
 	IDfromMAC(mac string) (string, error)
 	IDfromIP(ipaddr string) (string, error)
 	IPfromID(id string) (string, error)
+	MACfromID(id string) (string, error)
 	GroupMembership(id string) ([]string, error)
 	ComponentInformation(id string) (base.Component, error)
 	PopulateNodes()
+	ClusterName() string
 }
 
 // Add client usage examples
@@ -40,6 +42,7 @@ var (
 
 // SMDClient is a client for SMD
 type SMDClient struct {
+	clusterName       string
 	smdClient         *http.Client
 	smdBaseURL        string
 	tokenEndpoint     string
@@ -62,7 +65,7 @@ type NodeMapping struct {
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
 // and uses the provided JWT server for authentication
-func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath string, insecure bool) (*SMDClient, error) {
+func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, insecure bool) (*SMDClient, error) {
 	var (
 		c        *http.Client = &http.Client{Timeout: 2 * time.Second}
 		certPool *x509.CertPool
@@ -95,6 +98,7 @@ func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath st
 	}
 
 	client := &SMDClient{
+		clusterName:       clusterName,
 		smdClient:         c,
 		smdBaseURL:        baseurl,
 		tokenEndpoint:     jwtURL,
@@ -105,6 +109,11 @@ func NewSMDClient(baseurl string, jwtURL string, accessToken string, certPath st
 	}
 	client.PopulateNodes()
 	return client, nil
+}
+
+// ClusterName returns the name of the cluster
+func (s *SMDClient) ClusterName() string {
+	return s.clusterName
 }
 
 // getSMD is a helper function to initialize the SMDClient
@@ -158,6 +167,8 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 // PopulateNodes fetches the Ethernet interface data from the SMD server and populates the nodes map
 // with the corresponding node information, including MAC addresses, IP addresses, and descriptions.
 func (s *SMDClient) PopulateNodes() {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
 	var ethIfaceArray []sm.CompEthInterfaceV2
 	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
 	if err := s.getSMD(ep, &ethIfaceArray); err != nil {
@@ -166,7 +177,6 @@ func (s *SMDClient) PopulateNodes() {
 	}
 
 	for _, ep := range ethIfaceArray {
-		s.nodesMutex.Lock()
 		if existingNode, exists := s.nodes[ep.CompID]; exists {
 			found := false
 			for index, existingInterface := range existingNode.Interfaces {
@@ -206,7 +216,6 @@ func (s *SMDClient) PopulateNodes() {
 			newNode.Interfaces = append(newNode.Interfaces, newInterface)
 			s.nodes[ep.CompID] = newNode
 		}
-		s.nodesMutex.Unlock()
 	}
 }
 
@@ -255,8 +264,25 @@ func (s *SMDClient) IPfromID(id string) (string, error) {
 	return "", errors.New("ID " + id + " not found in nodes")
 }
 
+func (s *SMDClient) MACfromID(id string) (string, error) {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
+	if node, found := s.nodes[id]; found {
+		if node.Interfaces != nil {
+			if len(node.Interfaces) > 0 {
+				return node.Interfaces[0].MAC, nil
+			}
+			return "", errors.New("no interfaces found for ID " + id)
+		}
+	}
+	return "", errors.New("ID " + id + " not found in nodes")
+}
+
 // GroupMembership returns the group labels for the xname with the given ID
 func (s *SMDClient) GroupMembership(id string) ([]string, error) {
+	if id == "" {
+		log.Err(errors.New("ID is empty")).Msg("ID is empty")
+	}
 	ml := new(sm.Membership)
 	ep := "/hsm/v2/memberships/" + id
 	err := s.getSMD(ep, ml)
