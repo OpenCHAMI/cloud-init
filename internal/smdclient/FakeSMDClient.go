@@ -26,6 +26,7 @@ type SMDRosettaStone struct {
 	ComponentID   string
 	BootMAC       string
 	BootIPAddress string
+	WGIPAddress   string
 	NID           string
 	Hostname      string
 }
@@ -80,7 +81,7 @@ func (f *FakeSMDClient) IDfromMAC(mac string) (string, error) {
 
 func (f *FakeSMDClient) IDfromIP(ipaddr string) (string, error) {
 	for _, c := range f.rosetta_mapping {
-		if c.BootIPAddress == ipaddr {
+		if c.BootIPAddress == ipaddr || c.WGIPAddress == ipaddr {
 			return c.ComponentID, nil
 		}
 	}
@@ -353,4 +354,24 @@ func (f *FakeSMDClient) UpdateNode(node cistore.OpenCHAMIComponent) error {
 		}
 	}
 	return nil
+}
+
+func (f *FakeSMDClient) AddWGIP(id string, wgip string) error {
+	for idx, c := range f.rosetta_mapping {
+		if c.ComponentID == id {
+			c.WGIPAddress = wgip
+			f.rosetta_mapping[idx] = c
+			return nil
+		}
+	}
+	return fmt.Errorf("node (%s) not found", id)
+}
+
+func (f *FakeSMDClient) WGIPfromID(id string) (string, error) {
+	for _, c := range f.rosetta_mapping {
+		if c.ComponentID == id {
+			return c.WGIPAddress, nil
+		}
+	}
+	return "", fmt.Errorf("node (%s) not found", id)
 }

@@ -29,6 +29,8 @@ type SMDClientInterface interface {
 	ComponentInformation(id string) (base.Component, error)
 	PopulateNodes()
 	ClusterName() string
+	AddWGIP(id string, wgip string) error
+	WGIPfromID(id string) (string, error)
 }
 
 // Add client usage examples
@@ -55,6 +57,7 @@ type SMDClient struct {
 type NodeInterface struct {
 	MAC  string `json:"mac"`
 	IP   string `json:"ip"`
+	WGIP string `json:"wgip"`
 	Desc string `json:"description"`
 }
 
@@ -241,7 +244,7 @@ func (s *SMDClient) IDfromIP(ipaddr string) (string, error) {
 
 	for _, node := range s.nodes {
 		for _, iface := range node.Interfaces {
-			if strings.EqualFold(ipaddr, iface.IP) {
+			if strings.EqualFold(ipaddr, iface.IP) || strings.EqualFold(ipaddr, iface.WGIP) {
 				return node.Xname, nil
 			}
 		}
@@ -300,4 +303,33 @@ func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
 		return node, err
 	}
 	return node, nil
+}
+
+func (s *SMDClient) AddWGIP(id string, wgip string) error {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
+	if node, found := s.nodes[id]; found {
+		if node.Interfaces != nil {
+			if len(node.Interfaces) > 0 {
+				node.Interfaces[0].WGIP = wgip
+				return nil
+			}
+			return errors.New("no interfaces found for ID " + id)
+		}
+	}
+	return nil
+}
+
+func (s *SMDClient) WGIPfromID(id string) (string, error) {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
+	if node, found := s.nodes[id]; found {
+		if node.Interfaces != nil {
+			if len(node.Interfaces) > 0 {
+				return node.Interfaces[0].WGIP, nil
+			}
+			return "", errors.New("no interfaces found for ID " + id)
+		}
+	}
+	return "", errors.New("ID " + id + " not found in nodes")
 }
