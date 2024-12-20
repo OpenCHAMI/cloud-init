@@ -23,6 +23,7 @@ func AddClientHandler(st Store) http.HandlerFunc {
 		}
 
 		var req PublicKeyRequest
+		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
@@ -61,6 +62,7 @@ func AddClientHandler(st Store) http.HandlerFunc {
 		}
 
 		// Add the client to the WireGuard configuration.
+		log.Debug().Msgf("Adding WireGuard peer: PublicKey=%s, ClientVPNIP=%s, ClientIP=%s\n", publicKey, clientVPNIP, clientIP)
 		if err := AddWireGuardPeer(st.GetInterfaceName(), publicKey, clientVPNIP, clientIP); err != nil {
 			http.Error(w, "Failed to configure WireGuard tunnel: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -79,6 +81,9 @@ func AddClientHandler(st Store) http.HandlerFunc {
 			"server-port":       serverConfig.Port,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		w.WriteHeader(http.StatusCreated)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Error().Err(err).Msg("Failed to encode response")
+		}
 	}
 }

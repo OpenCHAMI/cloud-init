@@ -3,6 +3,7 @@ package wgtunnel
 import (
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -69,6 +70,7 @@ func NewInterfaceManager(name string, localIp net.IP, network *net.IPNet) *Inter
 func (m *InterfaceManager) IpForPeer(peerName string, publicKey string) string {
 	m.peersMutex.RLock()
 	defer m.peersMutex.RUnlock()
+	log.Debug().Msgf("Allocating IP for peer: PeerName=%s, PublicKey=%s\n", peerName, publicKey)
 	if _, ok := m.peers[peerName]; !ok {
 		// Peer not found.  Store the peer and return the IP.
 		ip := m.allocateIP(peerName)
@@ -77,12 +79,11 @@ func (m *InterfaceManager) IpForPeer(peerName string, publicKey string) string {
 			PublicKey: publicKey,
 		}
 	}
+	log.Debug().Msgf("Allocated IP for peer: PeerName=%s, PublicKey=%s, IP=%s\n", peerName, publicKey, m.peers[peerName].IP.IP.String())
 	return m.peers[peerName].IP.IP.String()
 }
 
 func (m *InterfaceManager) allocateIP(peerName string) net.IPAddr {
-	m.peersMutex.Lock()
-	defer m.peersMutex.Unlock()
 	ip := m.nextIP()
 	m.peers[peerName] = PeerConfig{
 		IP: ip,
@@ -91,8 +92,6 @@ func (m *InterfaceManager) allocateIP(peerName string) net.IPAddr {
 }
 
 func (m *InterfaceManager) nextIP() net.IPAddr {
-	m.peersMutex.Lock()
-	defer m.peersMutex.Unlock()
 	if m.lastallocatedIP == nil {
 		m.lastallocatedIP = &net.IPAddr{
 			IP: m.network.IP,
@@ -133,21 +132,39 @@ func (m *InterfaceManager) PublicKey() (string, error) {
 
 func (m *InterfaceManager) StartServer() error {
 	// Step 1: Create the WireGuard interface
-	if err := exec.Command("ip", "link", "add", "dev", m.interfaceName, "type", "wireguard").Run(); err != nil {
+	createInterfaceCommand := exec.Command("ip", "link", "add", "dev", m.interfaceName, "type", "wireguard")
+	if out, err := createInterfaceCommand.Output(); err != nil {
 		if !strings.Contains(err.Error(), "File exists") { // Skip if interface already exists
+			log.Error().Str("output", string(out)).Msgf("Failed to assign IP address to interface: %v", err)
 			return fmt.Errorf("failed to create WireGuard interface: %v", err)
 		}
 	}
 
 	// Step 3: Assign IP address to the WireGuard interface
-	if err := exec.Command("ip", "address", "add", "dev", m.interfaceName, m.network.String()).Run(); err != nil {
+	if out, err := exec.Command("ip", "address", "add", "dev", m.interfaceName, m.network.String()).Output(); err != nil {
+		log.Error().Str("output", string(out)).Msgf("Failed to assign IP address to interface: %v", err)
 		return fmt.Errorf("failed to assign IP address to interface: %v", err)
 	}
 
 	// Step 4: Set the private key and listen port
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("wg set %s listen-port %d private-key <(echo %s)", m.interfaceName, m.listenPort, m.privateKey))
-	cmd.Stdin = strings.NewReader(m.privateKey)
-	if err := cmd.Run(); err != nil {
+	// Write the private key to a temporary file
+	tmpfile, err := os.CreateTemp("", "wg-privatekey")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary file for private key: %v", err)
+	}
+	defer os.Remove(tmpfile.Name()) // Clean up the file afterwards
+
+	if _, err := tmpfile.WriteString(m.privateKey); err != nil {
+		return fmt.Errorf("failed to write private key to temporary file: %v", err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		return fmt.Errorf("failed to close temporary file: %v", err)
+	}
+
+	// Use the temporary file in the wg set command
+	cmd := exec.Command("wg", "set", m.interfaceName, "listen-port", fmt.Sprintf("%d", m.listenPort), "private-key", tmpfile.Name())
+	if out, err := cmd.Output(); err != nil {
+		log.Error().Str("output", string(out)).Msgf("Failed to configure WireGuard: %v", err)
 		return fmt.Errorf("failed to configure WireGuard: %v", err)
 	}
 
@@ -169,13 +186,15 @@ func AddWireGuardPeer(interfaceID, publicKey, vpnIP, clientIP string) error {
 		"peer", publicKey,
 		"allowed-ips", allowedIPs,
 	)
-	if err := cmd.Run(); err != nil {
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Error().Str("output", string(out)).Msgf("Failed to add WireGuard peer: %v", err)
 		return fmt.Errorf("failed to add WireGuard peer: %v", err)
 	}
 
 	// Update routing if necessary.
 	cmd = exec.Command("ip", "route", "add", clientIP, "via", vpnIP, "dev", interfaceID)
-	if err := cmd.Run(); err != nil {
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Error().Str("output", string(out)).Msgf("Failed to update routing: %v", err)
 		return fmt.Errorf("failed to update routing: %v", err)
 	}
 
@@ -184,42 +203,6 @@ func AddWireGuardPeer(interfaceID, publicKey, vpnIP, clientIP string) error {
 		Str("Client IP", clientIP).
 		Str("VPN IP", vpnIP).
 		Msgf("Peer added: PublicKey=%s, VPNIP=%s, ClientIP=%s\n", publicKey, vpnIP, clientIP)
-	return nil
-}
-
-// setupWireGuardServer sets up the initial WireGuard interface and configuration.
-func SetupWireGuardServer(interfaceID string, listenPort int, ipmask string) error {
-	// Step 1: Generate private/public keys if not already generated
-	privateKey, err := generateKey()
-	if err != nil {
-		return fmt.Errorf("failed to generate private key: %v", err)
-	}
-
-	// Step 2: Create the WireGuard interface
-	if err := exec.Command("ip", "link", "add", "dev", interfaceID, "type", "wireguard").Run(); err != nil {
-		if !strings.Contains(err.Error(), "File exists") { // Skip if interface already exists
-			return fmt.Errorf("failed to create WireGuard interface: %v", err)
-		}
-	}
-
-	// Step 3: Assign IP address to the WireGuard interface
-	if err := exec.Command("ip", "address", "add", "dev", interfaceID, ipmask).Run(); err != nil {
-		return fmt.Errorf("failed to assign IP address to interface: %v", err)
-	}
-
-	// Step 4: Set the private key and listen port
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("wg set %s listen-port %d private-key <(echo %s)", interfaceID, listenPort, privateKey))
-	cmd.Stdin = strings.NewReader(privateKey)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to configure WireGuard: %v", err)
-	}
-
-	// Step 5: Bring the interface up
-	if err := exec.Command("ip", "link", "set", "up", "dev", interfaceID).Run(); err != nil {
-		return fmt.Errorf("failed to bring up the WireGuard interface: %v", err)
-	}
-
-	log.Printf("WireGuard server configured: Interface=%s, Port=%d\n", interfaceID, listenPort)
 	return nil
 }
 
