@@ -90,7 +90,7 @@ func main() {
 	store := memstore.NewMemStore()
 	ciHandler := NewCiHandler(store, sm, clusterName)
 	router_unsec := chi.NewRouter()
-	initCiRouter(router_unsec, ciHandler)
+	initCiRouter(router_unsec, keyset, ciHandler)
 	router.Mount("/cloud-init", router_unsec)
 
 	// Secured datastore and router
@@ -101,7 +101,7 @@ func main() {
 		jwtauth.Verifier(keyset),
 		openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
 	)
-	initCiRouter(router_sec, ciHandler_sec)
+	initCiRouter(router_sec, nil, ciHandler_sec)
 	router.Mount("/cloud-init-secure", router_sec)
 
 	// Serve all routes
@@ -109,24 +109,42 @@ func main() {
 
 }
 
-func initCiRouter(router chi.Router, handler *CiHandler) {
-	// Add cloud-init endpoints to router
-	router.Get("/", handler.ListEntries)
-	router.Get("/user-data", handler.GetDataByIP(UserData))
-	router.Get("/meta-data", handler.GetDataByIP(MetaData))
-	router.Get("/vendor-data", handler.GetDataByIP(VendorData))
-	router.Get("/instance-data", InstanceDataHandler(handler.sm, handler.clusterName))
-	router.Get("/{id}", GetEntry(handler.store, handler.sm))
-	router.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
-	router.Put("/{id}/user-data", handler.UpdateUserEntry)
-	router.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
-	router.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
-	router.Delete("/{id}", handler.DeleteEntry)
+func initCiRouter(router chi.Router, keyset *jwtauth.JWTAuth, handler *CiHandler) {
+	// Read endpoints
+	router.Group(func(router chi.Router) {
+		// Standard endpoints
+		router.Get("/", handler.ListEntries)
+		router.Get("/user-data", handler.GetDataByIP(UserData))
+		router.Get("/meta-data", handler.GetDataByIP(MetaData))
+		router.Get("/vendor-data", handler.GetDataByIP(VendorData))
+		router.Get("/instance-data", InstanceDataHandler(handler.sm, handler.clusterName))
+		router.Get("/{id}", GetEntry(handler.store, handler.sm))
+		router.Get("/{id}/user-data", handler.GetDataByMAC(UserData))
+		router.Get("/{id}/meta-data", handler.GetDataByMAC(MetaData))
+		router.Get("/{id}/vendor-data", handler.GetDataByMAC(VendorData))
 
-	// groups API endpoints
-	router.Get("/groups", handler.GetGroups)
-	router.Post("/groups/{id}", handler.AddGroupData)
-	router.Get("/groups/{id}", handler.GetGroupData)
-	router.Put("/groups/{id}", handler.UpdateGroupData)
-	router.Delete("/groups/{id}", handler.RemoveGroupData)
+		// groups API endpoints
+		router.Get("/groups", handler.GetGroups)
+		router.Get("/groups/{id}", handler.GetGroupData)
+	})
+
+	// Write endpoints
+	router.Group(func(router chi.Router) {
+		// Use auth middleware for write endpoints, if possible
+		if keyset != nil {
+			router.Use(
+				jwtauth.Verifier(keyset),
+				jwtauth.Authenticator(keyset),
+			)
+		}
+
+		// Standard endpoints
+		router.Put("/{id}/user-data", handler.UpdateUserEntry)
+		router.Delete("/{id}", handler.DeleteEntry)
+
+		// groups API endpoints
+		router.Post("/groups/{id}", handler.AddGroupData)
+		router.Put("/groups/{id}", handler.UpdateGroupData)
+		router.Delete("/groups/{id}", handler.RemoveGroupData)
+	})
 }
