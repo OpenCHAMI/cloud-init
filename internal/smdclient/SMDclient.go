@@ -52,6 +52,7 @@ type SMDClient struct {
 	nodes             map[string]NodeMapping
 	nodesMutex        *sync.Mutex
 	nodes_last_update time.Time
+	stopCacheRefresh  chan struct{}
 }
 
 type NodeInterface struct {
@@ -74,7 +75,7 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 		certPool *x509.CertPool
 	)
 
-	// try and load the cert if path is provied first
+	// try and load the cert if path is provided first
 	if certPath != "" {
 		cacert, err := os.ReadFile(certPath)
 		if err != nil {
@@ -82,7 +83,6 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 		}
 		certPool := x509.NewCertPool()
 		certPool.AppendCertsFromPEM(cacert)
-
 	}
 
 	// set up the HTTP client's config
@@ -109,9 +109,40 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 		nodesMutex:        &sync.Mutex{},
 		nodes_last_update: time.Now(),
 		nodes:             make(map[string]NodeMapping),
+		stopCacheRefresh:  make(chan struct{}),
 	}
-	client.PopulateNodes()
+
+	// Start the cache refresh goroutine
+	go client.startCacheRefresh()
+
 	return client, nil
+}
+
+// startCacheRefresh starts a goroutine that refreshes the cache every minute
+func (s *SMDClient) startCacheRefresh() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			s.RefreshCache()
+		case <-s.stopCacheRefresh:
+			return
+		}
+	}
+}
+
+// RefreshCache refreshes the cache
+func (s *SMDClient) RefreshCache() {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
+	s.PopulateNodes()
+}
+
+// StopCacheRefresh stops the cache refresh goroutine
+func (s *SMDClient) StopCacheRefresh() {
+	close(s.stopCacheRefresh)
 }
 
 // ClusterName returns the name of the cluster
