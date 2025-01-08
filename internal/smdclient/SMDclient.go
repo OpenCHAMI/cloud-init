@@ -53,6 +53,7 @@ type SMDClient struct {
 	nodesMutex        *sync.Mutex
 	nodes_last_update time.Time
 	stopCacheRefresh  chan struct{}
+	stopOnce          sync.Once
 }
 
 type NodeInterface struct {
@@ -129,8 +130,10 @@ func (s *SMDClient) startCacheRefresh() {
 	for {
 		select {
 		case <-ticker.C:
+			log.Debug().Msg("Ticker triggered. Refreshing cache")
 			s.RefreshCache()
 		case <-s.stopCacheRefresh:
+			ticker.Stop()
 			return
 		}
 	}
@@ -138,14 +141,15 @@ func (s *SMDClient) startCacheRefresh() {
 
 // RefreshCache refreshes the cache
 func (s *SMDClient) RefreshCache() {
-	s.nodesMutex.Lock()
-	defer s.nodesMutex.Unlock()
 	log.Debug().Msg("Refreshing SMD cache")
 	s.PopulateNodes()
 }
 
 // StopCacheRefresh stops the cache refresh goroutine
 func (s *SMDClient) StopCacheRefresh() {
+	s.stopOnce.Do(func() {
+		close(s.stopCacheRefresh)
+	})
 	close(s.stopCacheRefresh)
 }
 
@@ -255,6 +259,8 @@ func (s *SMDClient) PopulateNodes() {
 			s.nodes[ep.CompID] = newNode
 		}
 	}
+	s.nodes_last_update = time.Now()
+	log.Debug().Msg("Nodes map populated")
 }
 
 // IDfromMAC returns the ID of the xname that has the MAC address
