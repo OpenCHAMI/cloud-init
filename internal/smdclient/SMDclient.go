@@ -112,6 +112,9 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 		stopCacheRefresh:  make(chan struct{}),
 	}
 
+	// Populate the cache initially
+	client.PopulateNodes()
+
 	// Start the cache refresh goroutine
 	go client.startCacheRefresh()
 
@@ -137,6 +140,7 @@ func (s *SMDClient) startCacheRefresh() {
 func (s *SMDClient) RefreshCache() {
 	s.nodesMutex.Lock()
 	defer s.nodesMutex.Unlock()
+	log.Debug().Msg("Refreshing SMD cache")
 	s.PopulateNodes()
 }
 
@@ -209,7 +213,7 @@ func (s *SMDClient) PopulateNodes() {
 		log.Error().Err(err).Msg("Failed to get SMD data")
 		return
 	}
-
+	log.Debug().Msgf("Populating nodes with %d Ethernet interfaces", len(ethIfaceArray))
 	for _, ep := range ethIfaceArray {
 		if existingNode, exists := s.nodes[ep.CompID]; exists {
 			found := false
