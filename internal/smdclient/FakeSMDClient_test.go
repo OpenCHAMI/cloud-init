@@ -99,7 +99,7 @@ func TestIncrementMAC(t *testing.T) {
 }
 
 func TestNewFakeSMDClient(t *testing.T) {
-	client := NewFakeSMDClient(50)
+	client := NewFakeSMDClient("fake", 50)
 
 	if len(client.components) != 50 {
 		t.Errorf("expected 50 components, got %d", len(client.components))

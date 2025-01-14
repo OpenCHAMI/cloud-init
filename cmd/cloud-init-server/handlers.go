@@ -2,27 +2,22 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
-	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
-	"github.com/OpenCHAMI/cloud-init/pkg/citypes"
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
 	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v2"
 )
 
 type CiHandler struct {
-	store       ciStore
+	store       cistore.Store
 	sm          smdclient.SMDClientInterface
 	clusterName string
 }
 
-func NewCiHandler(s ciStore, c smdclient.SMDClientInterface, clusterName string) *CiHandler {
+func NewCiHandler(s cistore.Store, c smdclient.SMDClientInterface, clusterName string) *CiHandler {
 	return &CiHandler{
 		store:       s,
 		sm:          c,
@@ -30,400 +25,11 @@ func NewCiHandler(s ciStore, c smdclient.SMDClientInterface, clusterName string)
 	}
 }
 
-// Enumeration for cloud-init data categories
-type ciDataKind uint
-
-// Takes advantage of implicit repetition and iota's auto-incrementing
-const (
-	UserData ciDataKind = iota
-	MetaData
-	VendorData
-)
-
-// ListEntries godoc
-// @Summary List all cloud-init entries
-// @Description List all cloud-init entries
-// @Produce json
-// @Success 200 {object} map[string]CI
-// @Router /harbor [get]
-func (h CiHandler) ListEntries(w http.ResponseWriter, r *http.Request) {
-	ci, err := h.store.List()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	render.JSON(w, r, ci)
-}
-
-// AddEntry godoc
-// @Summary Add a new cloud-init entry
-// @Description Add a new cloud-init entry
-// @Accept json
-// @Produce json
-// @Param ci body CI true "Cloud-init entry to add"
-// @Success 200 {string} string "name of the new entry"
-// @Failure 400 {string} string "bad request"
-// @Failure 500 {string} string "internal server error"
-// @Router /harbor [post]
-func (h CiHandler) AddEntry(w http.ResponseWriter, r *http.Request) {
-	var ci citypes.CI
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err = json.Unmarshal(body, &ci); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	err = h.store.Add(ci.Name, ci)
-	if err != nil {
-		if err == memstore.ErrGroupDataExists {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	render.JSON(w, r, ci.Name)
-}
-
-// AddUserEntry godoc
-// @Summary Add a new user-data entry in specified cloud-init data
-// @Description Add a new user-data entry in specified cloud-init data
-// @Accept json
-// @Produce json
-// @Param ci body CI true "User-ata entry to add to cloud-init data"
-// @Success 200 {string} string "name of the new entry"
-// @Failure 400 {string} string "bad request"
-// @Failure 500 {string} string "internal server error"
-// @Router /harbor [post]
-func (h CiHandler) AddUserEntry(w http.ResponseWriter, r *http.Request) {
-	var (
-		ci       citypes.CI
-		userdata citypes.UserData
-		body     []byte
-		err      error
-	)
-
-	// read the request body for user data
-	body, err = io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	// unmarshal only to user data and not cloud-init data
-	if err = json.Unmarshal(body, &userdata); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// store the userdata in the cloud-init data
-	ci.CIData.UserData = userdata
-
-	// add the cloud-init data
-	err = h.store.Add(ci.Name, ci)
-	if err != nil {
-		if err == memstore.ErrGroupDataExists {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	render.JSON(w, r, ci.Name)
-}
-
-// GetEntry godoc
-// @Summary Get a cloud-init entry
-// @Description Get a cloud-init entry
-// @Produce json
-// @Param id path string true "ID of the cloud-init entry to get"
-// @Success 200 {object} CI
-// @Failure 404 {string} string "not found"
-// @Router /harbor/{id} [get]
-func GetEntry(store ciStore, sm smdclient.SMDClientInterface) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := chi.URLParam(r, "id")
-		log.Info().Msg(fmt.Sprintf("Getting groups for ID %s", id))
-		groupLabels, _ := sm.GroupMembership(id) // TODO: Deal with errors that occur in the real SMD client
-		log.Info().Msg(fmt.Sprintf("Got groups for ID %s: %v", id, groupLabels))
-
-		log.Info().Msg(fmt.Sprintf("Getting component information for ID %s", id))
-		component, err := sm.ComponentInformation(id) // This needs to be an xname
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		log.Info().Msg(fmt.Sprintf("Got component information for ID %s: %v", id, component))
-
-		log.Info().Msg(fmt.Sprintf("Getting cloud-init data for ID %s", id))
-		ci, err := store.Get(id, groupLabels)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-		} else {
-			log.Info().Msg(fmt.Sprintf("Got cloud-init data for ID %s: %v", id, ci))
-			ci.CIData.MetaData["xname"] = component.ID
-			ci.CIData.MetaData["NID"] = component.NID
-			ci.CIData.MetaData["cloud_name"] = "OpenCHAMI"
-			render.JSON(w, r, ci)
-		}
-
-	}
-}
-
-func (h CiHandler) GetDataByMAC(dataKind ciDataKind) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := chi.URLParam(r, "id")
-		// Retrieve the node's xname based on MAC address
-		name, err := h.sm.IDfromMAC(id)
-		if err != nil {
-			log.Print(err)
-			name = id // Fall back to using the given name as-is
-		} else {
-			log.Printf("xname %s with mac %s found\n", name, id)
-		}
-		groupLabels, err := h.sm.GroupMembership(name)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError) // TODO: Make the error more helpful
-			return
-		}
-		// Actually respond with the data
-		h.getData(name, groupLabels, dataKind, w)
-	}
-}
-
-func (h CiHandler) GetDataByIP(dataKind ciDataKind) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Strip port number from RemoteAddr to obtain raw IP
-		portIndex := strings.LastIndex(r.RemoteAddr, ":")
-		var ip string
-		if portIndex > 0 {
-			ip = r.RemoteAddr[:portIndex]
-		} else {
-			ip = r.RemoteAddr
-		}
-		// Retrieve the node's xname based on IP address
-		name, err := h.sm.IDfromIP(ip)
-		if err != nil {
-			log.Print(err)
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			return
-		} else {
-			log.Printf("xname %s with ip %s found\n", name, ip)
-		}
-		groupLabels, err := h.sm.GroupMembership(name)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError) // TODO: Make the error more helpful
-			return
-		}
-		// Actually respond with the data
-		h.getData(name, groupLabels, dataKind, w)
-	}
-}
-
-func (h CiHandler) getData(id string, groupLabels []string, dataKind ciDataKind, w http.ResponseWriter) {
-
-	ci, err := h.store.Get(id, groupLabels)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-	}
-
-	var data *map[string]interface{}
-	switch dataKind {
-	case UserData:
-		w.Write([]byte("## template :jinja\n#cloud-config\n"))
-		data = &ci.CIData.UserData
-	case MetaData:
-		data = &ci.CIData.MetaData
-	case VendorData:
-		data = &ci.CIData.VendorData
-	}
-
-	ydata, err := yaml.Marshal(data)
-	if err != nil {
-		fmt.Print(err)
-	}
-	w.Header().Set("Content-Type", "text/yaml")
-	w.Write([]byte(ydata))
-}
-
-func (h CiHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
-	var ci citypes.CI
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err = json.Unmarshal(body, &ci); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	id := chi.URLParam(r, "id")
-
-	err = h.store.Update(id, ci)
-	if err != nil {
-		if err == memstore.ErrResourceNotFound {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	render.JSON(w, r, id)
-}
-
-func (h CiHandler) UpdateUserEntry(w http.ResponseWriter, r *http.Request) {
-	var (
-		id       = chi.URLParam(r, "id")
-		ci       citypes.CI
-		userdata citypes.UserData
-		err      error
-	)
-
-	// read the request body for user data
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	// unmarshal only to user data and not cloud-init data
-	if err = json.Unmarshal(body, &userdata); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	// set the user-data to overwrite the existing entry
-	ci.CIData.UserData = userdata
-	err = h.store.Update(id, ci)
-	if err != nil {
-		if err == memstore.ErrResourceNotFound {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	render.JSON(w, r, id)
-}
-
-func (h CiHandler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-
-	err := h.store.Remove(id)
-	if err != nil {
-		if err == memstore.ErrResourceNotFound {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	render.JSON(w, r, map[string]string{"status": "success"})
-}
-
-func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
-	var (
-		groups map[string]citypes.GroupData
-		bytes  []byte
-		err    error
-	)
-	groups = h.store.GetGroups()
-	bytes, err = json.MarshalIndent(groups, "", "\t")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(bytes)
-}
-
-func (h CiHandler) AddGroupData(w http.ResponseWriter, r *http.Request) {
-	var (
-		groupName string = chi.URLParam(r, "id")
-		data      citypes.GroupData
-		err       error
-	)
-
-	data, err = parseData(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	err = h.store.AddGroupData(groupName, data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-}
-
-func (h CiHandler) GetGroupData(w http.ResponseWriter, r *http.Request) {
-	var (
-		id    string = chi.URLParam(r, "id")
-		data  citypes.GroupData
-		bytes []byte
-		err   error
-	)
-
-	data, err = h.store.GetGroupData(id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	bytes, err = yaml.Marshal(data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(bytes)
-}
-
-func (h CiHandler) UpdateGroupData(w http.ResponseWriter, r *http.Request) {
-	var (
-		id   string = chi.URLParam(r, "id")
-		data citypes.GroupData
-		err  error
-	)
-
-	data, err = parseData(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// update group key-value data
-	err = h.store.UpdateGroupData(id, data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h CiHandler) RemoveGroupData(w http.ResponseWriter, r *http.Request) {
-	var (
-		id  string = chi.URLParam(r, "id")
-		err error
-	)
-	err = h.store.RemoveGroupData(id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-func parseData(r *http.Request) (citypes.GroupData, error) {
+func parseData(r *http.Request) (cistore.GroupData, error) {
 	var (
 		body []byte
 		err  error
-		data citypes.GroupData
+		data cistore.GroupData
 	)
 
 	// read the POST body for JSON data
@@ -434,7 +40,132 @@ func parseData(r *http.Request) (citypes.GroupData, error) {
 	// unmarshal data to add to group data
 	err = json.Unmarshal(body, &data)
 	if err != nil {
+		log.Debug().Msgf("Error unmarshalling JSON data: %v", err)
 		return data, err
 	}
 	return data, nil
+}
+
+func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		data := cistore.ClusterDefaults{}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Error().Msgf("Error reading request body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		// unmarshal data to add to group data
+		err = json.Unmarshal(body, &data)
+		if err != nil {
+			log.Debug().Msgf("Error unmarshalling JSON data: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		err = store.SetClusterDefaults(data)
+		if err != nil {
+			log.Error().Msgf("Error setting cluster defaults: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+	}
+}
+
+func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data, err := store.GetClusterDefaults()
+		if err != nil {
+			log.Error().Msgf("Error getting cluster defaults: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			log.Error().Msgf("Error marshalling cluster defaults: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(jsonData)
+	}
+}
+
+func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var id string = chi.URLParam(r, "id")
+		var info cistore.OpenCHAMIInstanceInfo
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Error().Msgf("Error reading request body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		// unmarshal data to add to group data
+		err = json.Unmarshal(body, &info)
+		if err != nil {
+			log.Debug().Msgf("Error unmarshalling JSON data: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		err = store.SetInstanceInfo(id, info)
+		if err != nil {
+			log.Error().Msgf("Error setting instance info: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+	}
+}
+
+// Phone home should be a POST request x-www-form-urlencoded like this: pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
+func PhoneHomeHandler(store cistore.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		ip := getActualRequestIP(r)
+		log.Info().Msgf("Phone home request from %s", ip)
+		// TODO: validate the request IP against the SMD client and reject if needed
+
+		err := r.ParseForm()
+		if err != nil {
+			log.Error().Msgf("Error parsing form data: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		pubKeyRsa := r.FormValue("pub_key_rsa")
+		pubKeyEcdsa := r.FormValue("pub_key_ecdsa")
+		pubKeyEd25519 := r.FormValue("pub_key_ed25519")
+		instanceId := r.FormValue("instance_id")
+		hostname := r.FormValue("hostname")
+		fqdn := r.FormValue("fqdn")
+
+		log.Info().
+			Str("pub_key_rsa", pubKeyRsa).
+			Str("pub_key_ecdsa", pubKeyEcdsa).
+			Str("pub_key_ed25519", pubKeyEd25519).
+			Str("instance_id", instanceId).
+			Str("hostname", hostname).
+			Str("fqdn", fqdn).
+			Msgf("Received phone home data: pub_key_rsa=%s, pub_key_ecdsa=%s, pub_key_ed25519=%s, instance_id=%s, hostname=%s, fqdn=%s",
+				pubKeyRsa, pubKeyEcdsa, pubKeyEd25519, instanceId, hostname, fqdn)
+
+		w.WriteHeader(http.StatusOK)
+	}
 }
