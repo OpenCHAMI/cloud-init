@@ -7,7 +7,7 @@ RUN apk add --no-cache tini
 # Include curl in the final image.
 RUN set -ex \
     && apk update \
-    && apk add --no-cache curl tini \
+    && apk add --no-cache curl tini wireguard-tools iputils iproute2 \
     && rm -rf /var/cache/apk/*  \
     && rm -rf /tmp/*
 
@@ -26,6 +26,5 @@ USER 65534:65534
 
 # Set up the command to start the service.
 CMD /usr/local/bin/cloud-init-server --listen ${LISTEN_ADDR} --smd-url ${SMD_URL} --token-url ${TOKEN_URL} --jwks-url ${JWKS_URL:-""}
-
 
 ENTRYPOINT ["/sbin/tini", "--"]
