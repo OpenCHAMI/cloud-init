@@ -42,7 +42,7 @@ jobs:
           echo "BUILD_USER=$(whoami)" >> $GITHUB_ENV
           echo "CGO_ENABLED=0" >> $GITHUB_ENV
       - name: Release with goreleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
