@@ -3,16 +3,31 @@ package cistore
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	base "github.com/Cray-HPE/hms-base"
 )
 
 type GroupData struct {
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Data        map[string]string `json:"meta-data,omitempty"`
-	File        CloudConfigFile   `json:"file,omitempty"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	Data        map[string]interface{} `json:"meta-data,omitempty"`
+	File        CloudConfigFile        `json:"file,omitempty"`
+}
+
+func (g *GroupData) ParseFromJSON(body []byte) error {
+	// Parse the JSON
+	if err := json.Unmarshal(body, g); err != nil {
+		return err
+	}
+
+	// Perform validation
+	if g.Name == "" {
+		return errors.New("name is required")
+	}
+
+	return nil
 }
 
 type OpenCHAMIComponent struct {
