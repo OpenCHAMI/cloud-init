@@ -26,19 +26,16 @@ func NewCiHandler(s cistore.Store, c smdclient.SMDClientInterface, clusterName s
 }
 
 func parseData(r *http.Request) (cistore.GroupData, error) {
-	var (
-		body []byte
-		err  error
-		data cistore.GroupData
-	)
+	var data cistore.GroupData
 
-	// read the POST body for JSON data
-	body, err = io.ReadAll(r.Body)
+	// Read the POST body for JSON data
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return data, err
 	}
-	// unmarshal data to add to group data
-	err = json.Unmarshal(body, &data)
+
+	// Use the GroupData method to parse the JSON
+	err = data.ParseFromJSON(body)
 	if err != nil {
 		log.Debug().Msgf("Error unmarshalling JSON data: %v", err)
 		return data, err
