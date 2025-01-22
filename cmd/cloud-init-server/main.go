@@ -165,10 +165,10 @@ func main() {
 		middleware.Timeout(60*time.Second),
 		openchami_logger.OpenCHAMILogger(log.Logger),
 	)
-	router_unsec := chi.NewRouter()
-	initCiRouter(router_unsec, ciHandler, wgInterfaceManager)
-	router.Mount("/cloud-init", router_unsec)
 
+	router_top := chi.NewRouter()
+	initCiTopRouter(router_top, ciHandler, wgInterfaceManager)
+        router.Mount("/cloud-init", router_top)
 	if secureRouteEnable {
 		// Secured routes
 		router_sec := chi.NewRouter()
@@ -177,26 +177,32 @@ func main() {
 			openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
 		)
 
-		initCiRouter(router_sec, ciHandler, wgInterfaceManager)
-		router.Mount("/cloud-init-secure", router_sec)
+		initCiAdminRouter(router_sec, ciHandler)
+		router.Mount("/cloud-init/admin", router_sec)
+	} else {
+		router_unsec := chi.NewRouter()
+		initCiAdminRouter(router_unsec, ciHandler)
+		router.Mount("/cloud-init/admin", router_unsec)
 	}
 
 	// Serve all routes
 	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
-
 }
 
-func initCiRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
-	// Add cloud-init endpoints to router
-	router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
-	router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
-	router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
-	router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
-	router.Post("/phone-home/{id}", PhoneHomeHandler(handler.store))
-	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
 
+func initCiTopRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
+	// Add cloud-init endpoints to router
+        router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
+        router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
+        router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
+        router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+        router.Post("/phone-home/{id}", PhoneHomeHandler(handler.store))
+        router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
+}
+
+func initCiAdminRouter(router chi.Router, handler *CiHandler) {
 	// admin API subrouter
-	router.Route("/admin", func(r chi.Router) {
+	router.Route("/", func(r chi.Router) {
 
 		// Cluster Defaults
 		r.Get("/cluster-defaults", GetClusterDataHandler(handler.store))
