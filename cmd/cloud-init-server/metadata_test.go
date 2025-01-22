@@ -54,6 +54,15 @@ func TestGenerateHostname(t *testing.T) {
 			},
 			expected: "cl5678",
 		},
+		{
+			clusterName: "cluster",
+			component: cistore.OpenCHAMIComponent{
+				Component: base.Component{
+					NID: json.Number("5678"),
+				},
+			},
+			expected: "cl5678",
+		},
 	}
 
 	for _, tt := range tests {
