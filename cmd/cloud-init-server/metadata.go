@@ -61,12 +61,12 @@ func generateMetaData(component cistore.OpenCHAMIComponent, groups []string, s c
 	// Update extended information from within cloud-init
 	metadata.InstanceID = extendedInstanceData.InstanceID
 	if extendedInstanceData.LocalHostname == "" {
-		metadata.LocalHostname = generateHostname(clusterName, component)
+		metadata.LocalHostname = generateHostname(clusterDefaults.ClusterName, component)
 	} else {
 		metadata.LocalHostname = extendedInstanceData.LocalHostname
 	}
 	if extendedInstanceData.Hostname == "" {
-		metadata.Hostname = generateHostname(clusterName, component)
+		metadata.Hostname = generateHostname(clusterDefaults.ClusterName, component)
 	} else {
 		metadata.Hostname = extendedInstanceData.Hostname
 	}
