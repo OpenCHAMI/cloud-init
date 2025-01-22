@@ -60,6 +60,8 @@ type ClusterDefaults struct {
 	BaseUrl          string   `json:"base-url,omitempty" yaml:"base-url,omitempty"`
 	BootSubnet       string   `json:"boot-subnet,omitempty" yaml:"boot-subnet,omitempty"`
 	WGSubnet         string   `json:"wg-subnet,omitempty" yaml:"wg-subnet,omitempty"`
+	ShortName        string   `json:"short-name,omitempty" yaml:"short-name,omitempty"`
+	NidLength        int      `json:"nid-length,omitempty" yaml:"nid-length,omitempty"`
 }
 
 type CloudConfigFile struct {

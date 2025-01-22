@@ -61,12 +61,12 @@ func generateMetaData(component cistore.OpenCHAMIComponent, groups []string, s c
 	// Update extended information from within cloud-init
 	metadata.InstanceID = extendedInstanceData.InstanceID
 	if extendedInstanceData.LocalHostname == "" {
-		metadata.LocalHostname = generateHostname(clusterDefaults.ClusterName, component)
+		metadata.LocalHostname = generateHostname(clusterDefaults.ClusterName, clusterDefaults.ShortName, clusterDefaults.NidLength, component)
 	} else {
 		metadata.LocalHostname = extendedInstanceData.LocalHostname
 	}
 	if extendedInstanceData.Hostname == "" {
-		metadata.Hostname = generateHostname(clusterDefaults.ClusterName, component)
+		metadata.Hostname = generateHostname(clusterDefaults.ClusterName, clusterDefaults.ShortName, clusterDefaults.NidLength, component)
 	} else {
 		metadata.Hostname = extendedInstanceData.Hostname
 	}
@@ -117,20 +117,22 @@ func generateMetaData(component cistore.OpenCHAMIComponent, groups []string, s c
 	return metadata
 }
 
-func generateHostname(clusterName string, comp cistore.OpenCHAMIComponent) string {
+func generateHostname(clusterName string, shortName string, nidLength int, comp cistore.OpenCHAMIComponent) string {
 	// in the future, we might want to map the hostname to an xname or something else.
-	switch comp.Role {
-	case "compute":
-		nid, _ := comp.NID.Int64()
-		return fmt.Sprintf("%.2s%04d", clusterName, nid)
-	case "io":
-		nid, _ := comp.NID.Int64()
-		return fmt.Sprintf("%.2s-io%02d", clusterName, nid)
-	case "front_end":
-		nid, _ := comp.NID.Int64()
-		return fmt.Sprintf("%.2s-fe%02d", clusterName, nid)
-	default:
-		nid, _ := comp.NID.Int64()
-		return fmt.Sprintf("%.2s%04d", clusterName, nid)
+	nid, _ := comp.NID.Int64()
+	var sname string
+	var nlen int
+
+	if shortName == "" {
+		sname = fmt.Sprintf("%.2s", clusterName)
+	} else {
+		sname = shortName
 	}
+        if nidLength == 0 {
+		nlen = 4
+	} else {
+		nlen = nidLength
+	}
+	log.Debug().Msgf("shortName: %v, nidLength: %v", sname, nlen)
+	return fmt.Sprintf("%s%0*d",sname, nlen, nid)
 }
