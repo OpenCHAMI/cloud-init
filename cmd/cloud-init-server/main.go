@@ -166,31 +166,27 @@ func main() {
 		openchami_logger.OpenCHAMILogger(log.Logger),
 	)
 
-	router_top := chi.NewRouter()
-	initCiTopRouter(router_top, ciHandler, wgInterfaceManager)
-        router.Mount("/cloud-init", router_top)
+	router_client := chi.NewRouter()
+	initCiClientRouter(router_client, ciHandler, wgInterfaceManager)
+        router.Mount("/cloud-init", router_client)
+
+	router_admin := chi.NewRouter()
 	if secureRouteEnable {
 		// Secured routes
-		router_sec := chi.NewRouter()
-		router_sec.Use(
+		router_admin.Use(
 			jwtauth.Verifier(keyset),
 			openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
 		)
-
-		initCiAdminRouter(router_sec, ciHandler)
-		router.Mount("/cloud-init/admin", router_sec)
-	} else {
-		router_unsec := chi.NewRouter()
-		initCiAdminRouter(router_unsec, ciHandler)
-		router.Mount("/cloud-init/admin", router_unsec)
 	}
+	initCiAdminRouter(router_admin, ciHandler)
+	router.Mount("/cloud-init/admin", router_admin)
 
 	// Serve all routes
 	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
 }
 
 
-func initCiTopRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
+func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
 	// Add cloud-init endpoints to router
         router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
         router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
