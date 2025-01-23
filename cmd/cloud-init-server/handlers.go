@@ -7,6 +7,7 @@ import (
 
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
@@ -129,7 +130,7 @@ func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) h
 }
 
 // Phone home should be a POST request x-www-form-urlencoded like this: pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
-func PhoneHomeHandler(store cistore.Store) http.HandlerFunc {
+func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -139,7 +140,15 @@ func PhoneHomeHandler(store cistore.Store) http.HandlerFunc {
 		log.Info().Msgf("Phone home request from %s", ip)
 		// TODO: validate the request IP against the SMD client and reject if needed
 
-		err := r.ParseForm()
+		id, err := sm.IDfromIP(ip)
+		if err != nil {
+			log.Error().Msgf("Error getting ID from IP: %v", err)
+		}
+		peerName, err := sm.IPfromID(id)
+		if err != nil {
+			log.Error().Msgf("Error getting IP from ID: %v", err)
+		}
+		err = r.ParseForm()
 		if err != nil {
 			log.Error().Msgf("Error parsing form data: %v", err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -163,6 +172,12 @@ func PhoneHomeHandler(store cistore.Store) http.HandlerFunc {
 			Msgf("Received phone home data: pub_key_rsa=%s, pub_key_ecdsa=%s, pub_key_ed25519=%s, instance_id=%s, hostname=%s, fqdn=%s",
 				pubKeyRsa, pubKeyEcdsa, pubKeyEd25519, instanceId, hostname, fqdn)
 
-		w.WriteHeader(http.StatusOK)
+		if wg != nil {
+			go func() {
+				wg.RemovePeer(peerName)
+			}()
+
+			w.WriteHeader(http.StatusOK)
+		}
 	}
 }

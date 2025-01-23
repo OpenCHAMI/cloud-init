@@ -17,7 +17,7 @@ type PublicKeyRequest struct {
 }
 
 // addClientHandler handles adding a WireGuard client.
-func AddClientHandler(st Store, smdClient smdclient.SMDClientInterface) http.HandlerFunc {
+func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
@@ -57,7 +57,7 @@ func AddClientHandler(st Store, smdClient smdclient.SMDClientInterface) http.Han
 		log.Info().Msgf("Received request: PublicKey=%s, ClientIP=%s\n", publicKey, clientIP)
 
 		// Assign a unique IP for the client.
-		clientVPNIP := st.IpForPeer(clientIP, publicKey)
+		clientVPNIP := im.IpForPeer(clientIP, publicKey)
 		if clientVPNIP == "" {
 			http.Error(w, "Failed to allocate client IP", http.StatusInternalServerError)
 			return
@@ -76,12 +76,12 @@ func AddClientHandler(st Store, smdClient smdclient.SMDClientInterface) http.Han
 
 		// Add the client to the WireGuard configuration.
 		log.Info().Msgf("Adding WireGuard peer: PublicKey=%s, ClientVPNIP=%s, ClientIP=%s\n", publicKey, clientVPNIP, clientIP)
-		if err := AddWireGuardPeer(st.GetInterfaceName(), publicKey, clientVPNIP, clientIP); err != nil {
+		if err := im.AddPeer(im.GetInterfaceName(), publicKey, clientVPNIP, clientIP); err != nil {
 			http.Error(w, "Failed to configure WireGuard tunnel: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		serverConfig, err := st.GetServerConfig()
+		serverConfig, err := im.GetServerConfig()
 		if err != nil {
 			http.Error(w, "Failed to get server configuration: "+err.Error(), http.StatusInternalServerError)
 			return

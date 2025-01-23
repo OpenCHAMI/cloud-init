@@ -230,6 +230,35 @@ func (m *InterfaceManager) StartServer() error {
 
 }
 
+func (m *InterfaceManager) StopServer() error {
+	// Step 1: Bring the interface down
+	if err := exec.Command("ip", "link", "set", "down", "dev", m.interfaceName).Run(); err != nil {
+		return fmt.Errorf("failed to bring down the WireGuard interface: %v", err)
+	}
+
+	// Step 2: Delete the WireGuard interface
+	if err := exec.Command("ip", "link", "delete", "dev", m.interfaceName).Run(); err != nil {
+		return fmt.Errorf("failed to delete the WireGuard interface: %v", err)
+	}
+
+	return nil
+}
+
+func (m *InterfaceManager) AddPeer(peerName, publicKey, vpnIP, clientIP string) error {
+	m.peersMutex.RLock()
+	defer m.peersMutex.RUnlock()
+
+	// Add the peer to the WireGuard configuration
+	if err := AddWireGuardPeer(m.interfaceName, publicKey, vpnIP, clientIP); err != nil {
+		return err
+	}
+	m.peers[peerName] = PeerConfig{
+		PublicKey: publicKey,
+		IP:        net.IPAddr{IP: net.ParseIP(vpnIP), Zone: ""},
+	}
+	return nil
+}
+
 // AddWireGuardPeer adds a peer to the WireGuard configuration.
 func AddWireGuardPeer(interfaceID, publicKey, vpnIP, clientIP string) error {
 	allowedIPs := vpnIP + "/32"
