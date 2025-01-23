@@ -168,7 +168,7 @@ func main() {
 
 	router_client := chi.NewRouter()
 	initCiClientRouter(router_client, ciHandler, wgInterfaceManager)
-        router.Mount("/cloud-init", router_client)
+	router.Mount("/cloud-init", router_client)
 
 	router_admin := chi.NewRouter()
 	if secureRouteEnable {
@@ -185,15 +185,14 @@ func main() {
 	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
 }
 
-
 func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
 	// Add cloud-init endpoints to router
-        router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
-        router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
-        router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
-        router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
-        router.Post("/phone-home/{id}", PhoneHomeHandler(handler.store))
-        router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
+	router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
+	router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
+	router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
+	router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+	router.Post("/phone-home/{id}", PhoneHomeHandler(handler.store, wgInterfaceManager))
+	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
 }
 
 func initCiAdminRouter(router chi.Router, handler *CiHandler) {
