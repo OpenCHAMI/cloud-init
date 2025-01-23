@@ -9,6 +9,12 @@ import (
 )
 
 func TestGenerateHostname(t *testing.T) {
+	clusterDefaults := cistore.ClusterDefaults{
+		ClusterName: "cluster",
+		ShortName:   "cl",
+		NidLength:   4,
+	}
+
 	tests := []struct {
 		clusterName string
 		component   cistore.OpenCHAMIComponent
@@ -32,7 +38,7 @@ func TestGenerateHostname(t *testing.T) {
 					NID:  json.Number("12"),
 				},
 			},
-			expected: "cl-io12",
+			expected: "cl0012",
 		},
 		{
 			clusterName: "cluster",
@@ -42,7 +48,7 @@ func TestGenerateHostname(t *testing.T) {
 					NID:  json.Number("34"),
 				},
 			},
-			expected: "cl-fe34",
+			expected: "cl0034",
 		},
 		{
 			clusterName: "cluster",
@@ -67,7 +73,7 @@ func TestGenerateHostname(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
-			got := generateHostname(tt.clusterName, tt.component)
+			got := generateHostname(tt.clusterName, clusterDefaults.ShortName, clusterDefaults.NidLength, tt.component)
 			if got != tt.expected {
 				t.Errorf("generateHostname() = %v, want %v", got, tt.expected)
 			}
