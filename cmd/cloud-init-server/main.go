@@ -191,7 +191,7 @@ func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManage
 	router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
 	router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
 	router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
-	router.Post("/phone-home/{id}", PhoneHomeHandler(handler.store, wgInterfaceManager))
+	router.Post("/phone-home/{id}", PhoneHomeHandler(wgInterfaceManager, handler.sm))
 	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
 }
 
