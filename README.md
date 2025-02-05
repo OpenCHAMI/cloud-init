@@ -1,108 +1,115 @@
-# OpenCHAMI cloud-init Server
+# OpenCHAMI Cloud-Init Server
 
-The OpenCHAMI cloud-init server retrieves detailed inventory information from SMD and uses it to create cloud-init payloads customized for each node in an OpenCHAMI cluster.
+## Summary of Repo
+The **OpenCHAMI cloud-init server** retrieves detailed inventory information from SMD and uses it to create cloud-init payloads customized for each node in an OpenCHAMI cluster.
 
-## cloud-init Server Setup
+## Table of Contents
+1. [About / Introduction](#about--introduction)
+2. [Overview](#overview)
+   - [Unprotected Data](#unprotected-data)
+     - [Setup with `user-data`](#setup-with-user-data)
+     - [Generating Custom Metadata with Groups](#generating-custom-metadata-with-groups)
+   - [JWT-Protected Data](#jwt-protected-data)
+3. [Build / Install](#build--install)
+4. [Testing](#testing)
+5. [Running](#running)
+6. [More Reading](#more-reading)
 
-OpenCHAMI utilizes the cloud-init platform for post-boot configuration. A custom cloud-init server container is included with this quickstart Docker Compose setup, but must be populated prior to use.
+---
 
-The cloud-init server provides multiple API endpoints, described in the sections below. Choose the appropriate option for your needs, or combine them as appropriate.
+## About / Introduction
+OpenCHAMI utilizes the **cloud-init** platform for post-boot configuration. As part of a quickstart Docker Compose setup, a custom cloud-init server container is included but must be populated before use.
 
-> [!NOTE]
-> This guide assumes that the cloud-init server is exposed as `foobar.openchami.cluster`.
-> If your instance is named differently, adapt the examples accordingly.
+> **Note**  
+> This guide assumes the cloud-init server is accessible at `foobar.openchami.cluster`. If your setup differs, adapt the URLs accordingly.
+
+---
+
+## Overview
 
 ### Unprotected Data
 
 #### Setup with `user-data`
-
-User data can be injected into the cloud-init payload by making a PUT request to the `/cloud-init/{id}/user-data` endpoint. The request should contain a JSON-formatted body and can contain any arbritrary data desired.
+User data can be injected into the cloud-init payload by making a `PUT` request to the `/cloud-init/{id}/user-data` endpoint. The request body should be JSON-formatted and can contain arbitrary data for your needs.
 
 For example:
-
 ```bash
 curl 'https://foobar.openchami.cluster/cloud-init/test/user-data' \
     -X PUT \
     -d '{
-            "write_files": [{"content": "hello world", "path": "/etc/hello"}]
-        }
-    }}'
+          "write_files": [
+            {
+              "content": "hello world",
+              "path": "/etc/hello"
+            }
+          ]
+        }'
 ```
 
-...which will create a payload that will look like the example below. Notice that the `id` gets injected into the payload as the `name` property.
-
+This creates a payload similar to:
 ```json
 {
-    "name": "IDENTIFIER", 
-    "cloud-init": {
-        "userdata": {
-            "write_files": [{"content": "hello world", "path": "/etc/hello"}]
-        },
-        "metadata": {...},
-    }
+  "name": "IDENTIFIER",
+  "cloud-init": {
+    "userdata": {
+      "write_files": [
+        {"content": "hello world", "path": "/etc/hello"}
+      ]
+    },
+    "metadata": { ... }
+  }
 }
 ```
 
-> [!NOTE]
-> Data can only be added manually into the `userdata` section of the payload. There is no way to add data directly to the `metadata` section.
+- `IDENTIFIER` can be:
+  - A node MAC address
+  - A node xname
+  - An SMD group name
 
-`IDENTIFIER` can be:
-
-- A node MAC address
-- A node xname
-- An SMD group name
-
-It may be easiest to add nodes to a group for testing, and upload a cloud-init configuration for that group to this server.
+> **Note**  
+> Data added via `PUT` only goes into the `userdata` section. There is no direct way to add data to the `metadata` section this way.
 
 #### Generating Custom Metadata with Groups
+The cloud-init server provides a **group API** to inject custom data into `metadata` when retrieving node data. It does this by looking up group labels from SMD and matching them with data submitted to the API.
 
-The cloud-init server provides a group API to inject custom arbitrary data into the metadata section when requesting data with the specified `IDENTIFIER` mentioned above. The server will do a lookup for group labels from SMD and match the labels with the submitted data through the API.
+1. Add group data to the cloud-init server:
+   ```bash
+   curl -k http://127.0.0.1:27780/cloud-init/groups/install-nginx \
+        -d@install-nginx.json
+   ```
+2. `install-nginx.json` might look like this:
+   ```json
+   {
+     "tier": "frontend",
+     "application": "nginx"
+   }
+   ```
+3. When a node in the `install-nginx` group fetches its data, the extra keys appear under `metadata.groups`:
+   ```bash
+   curl -k http://127.0.0.1:27780/cloud-init/x3000c1s7b53
+   ```
+   ```json
+   {
+     "name": "x3000c1s7b53",
+     "cloud-init": {
+       "userdata": { ... },
+       "vendordata": { ... },
+       "metadata": {
+         "groups": {
+           "install-nginx": {
+             "data": {
+               "application": "nginx",
+               "tier": "frontend"
+             }
+           }
+         }
+       }
+     }
+   }
+   ```
 
-For example, to add group data to the cloud-init server, we can make the following request:
-
-```bash
-curl -k http://127.0.0.1:27780/cloud-init/groups/install-nginx -d@install-nginx.json
-```
-
-The JSON data in `install-nginx.json`:
-
-```json
-{
-    "tier": "frontend",
-    "application": "nginx"
-}
-```
-
-Now, when we fetch data for a node in the `install-nginx` group, this data will be injected into the cloud-init metadata. Additionally, we can view all groups stored in cloud-init by making a GET request to the `/cloud-init/groups` endpoint.
-
-```bash
-curl -k http://127.0.0.1:27780/cloud-init/x3000c1s7b53
-```
-
-And the response:
-
-```json
-{
-  "name": "x3000c1s7b53",
-  "cloud-init": {
-        "userdata": {...},
-        "vendordata": {...},
-        "metadata": {
-            "groups": {
-                "install-nginx": {
-                    "data": {
-                        "application": "nginx",
-                        "tier": "frontend"
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
-> [!NOTE]
-> The `IDENTIFIER` specified MUST be added to SMD for the data injection to work correctly.
+> **Important**  
+> The specified `IDENTIFIER` must exist in SMD for the data injection to work.
 
 #### Usage
 
@@ -117,40 +124,45 @@ Thus, the intended use case is to set nodes' cloud-init datasource URLs to `http
 ### JWT-Protected Data
 
 #### Setup
-
-The second endpoint, located at `/cloud-init-secure/`, restricts access to its cloud-init data behind a valid bearer token (i.e. a JWT).
-Storing data into this endpoint requires a valid access token, which we assume is stored in `$ACCESS_TOKEN`.
-The workflow described for unprotected data can be used, with the addition of the required authorization header, via e.g. `curl`'s `-H "Authorization: Bearer $ACCESS_TOKEN"`.
-
-#### Usage
-
-In order to access this protected data, nodes must also supply valid JWTs.
-Distribution of these tokens is out-of-scope for this repository, but may be handled via the [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager).
-
-Once the JWT is known, it can be used to authenticate with the cloud-init server, via an invocation such as:
+Another set of endpoints at `/cloud-init-secure/` requires a **valid bearer token (JWT)** to access or store data. For example, using `curl`, you must include:
 
 ```bash
-curl 'https://foobar.openchami.cluster/cloud-init-secure/<IDENTIFIER>/{meta-data,user-data,vendor-data}' \
-    --create-dirs --output '/PATH/TO/DATA-DIR/#1' \
-    --header "Authorization: Bearer $ACCESS_TOKEN"
+curl -k \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -X PUT \
+  -d@secure-data.json \
+  https://foobar.openchami.cluster/cloud-init-secure/test/user-data
 ```
 
-cloud-init (i.e. on the node) can then be pointed at `file:///PATH/TO/DATA-DIR/` as its datasource URL.
+This parallels the unprotected data workflow but adds token-based authorization.
 
-## Build/Install with goreleaser
+#### Usage
+When retrieving data for a node, you must include the JWT:
 
-This project uses [GoReleaser](https://goreleaser.com/) to automate releases and include additional build metadata such as commit info, build time, and versioning. Below is a guide on how to set up and build the project locally using GoReleaser.
+```bash
+curl 'https://foobar.openchami.cluster/cloud-init-secure/IDENTIFIER/{meta-data,user-data,vendor-data}' \
+  --create-dirs --output '/PATH/TO/DATA-DIR/#1' \
+  --header "Authorization: Bearer $ACCESS_TOKEN"
+```
+Then, point cloud-init (on the node) to `file:///PATH/TO/DATA-DIR/` as its datasource URL.
+
+> **Note**  
+> Distributing or managing these tokens is out of scope here; see the [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager) for a potential solution.
+
+---
+
+## Build / Install
+
+This project uses **[GoReleaser](https://goreleaser.com/)** for building and releasing, embedding additional metadata such as commit info, build time, and version. Below is a brief overview for local builds.
 
 ### Environment Variables
+To include detailed metadata in your builds, set the following:
 
-To include detailed build metadata, ensure the following environment variables are set:
+- **GIT_STATE**: `clean` if your repo is clean, `dirty` if uncommitted changes exist  
+- **BUILD_HOST**: Hostname of the build machine  
+- **GO_VERSION**: Version of Go used (for consistent versioning info)  
+- **BUILD_USER**: Username of the person/system performing the build  
 
-* __GIT_STATE__: Indicates whether there are uncommitted changes in the working directory. Set to clean if the repository is clean, or dirty if there are uncommitted changes.
-* __BUILD_HOST__: The hostname of the machine where the build is being performed. 
-* __GO_VERSION__: The version of Go used for the build. GoReleaser uses this to ensure consistent Go versioning information.
-* __BUILD_USER__: The username of the person or system performing the build.
-
-Set all the environment variables with:
 ```bash
 export GIT_STATE=$(if git diff-index --quiet HEAD --; then echo 'clean'; else echo 'dirty'; fi)
 export BUILD_HOST=$(hostname)
@@ -159,16 +171,72 @@ export BUILD_USER=$(whoami)
 ```
 
 ### Building Locally with GoReleaser
+1. [Install GoReleaser](https://goreleaser.com/install/) following their documentation.  
+2. Run in snapshot mode to build locally without releasing:
 
-Once the environment variables are set, you can build the project locally using GoReleaser in snapshot mode (to avoid publishing).
+   ```bash
+   goreleaser release --snapshot --clean
+   ```
+3. Check the `dist/` directory for compiled binaries, which will include the injected metadata.
 
+> **Note**  
+> If you encounter errors, ensure your GoReleaser version matches the one used in the [Release Action](.github/workflows/Release.yml).
 
-Follow the installation instructions from [GoReleaser’s documentation](https://goreleaser.com/install/).
+---
 
-1. Run GoReleaser in snapshot mode with the --snapshot flag to create a local build without attempting to release it:
-  ```bash
-  goreleaser release --snapshot --clean
-  ```
-2.	Check the dist/ directory for the built binaries, which will include the metadata from the environment variables. You can inspect the binary output to confirm that the metadata was correctly embedded.
+## Testing
+Currently, there are no specific automated tests in this repository (or details have not been provided). However, you can verify functionality by:
 
-__NOTE__ If you see errors, ensure that you are using the same version of goreleaser that is being used in the [Release Action](.github/workflows/Release.yml)
+1. Uploading `user-data` or group configurations via `curl`  
+2. Fetching them back with `curl https://foobar.openchami.cluster/cloud-init/<IDENTIFIER>/{meta-data,user-data,vendor-data}`  
+3. Checking the returned JSON to confirm your data appears where expected  
+
+You can also incorporate additional tests or integration checks as needed for your environment.
+
+---
+
+## Running
+- A **custom cloud-init server container** is included with the Docker Compose setup.  
+- Once the container is running, you can access endpoints at `https://<HOSTNAME>/cloud-init/` or `https://<HOSTNAME>/cloud-init-secure/`, where `<HOSTNAME>` is typically `foobar.openchami.cluster`.
+
+**Example (unprotected flow)**:
+1. Run the Docker Compose setup:
+   ```bash
+   docker-compose up -d
+   ```
+2. Make a request to add user data:
+   ```bash
+   curl -X PUT \
+     'https://foobar.openchami.cluster/cloud-init/test/user-data' \
+     -d '{
+           "write_files": [
+             {
+               "content": "hello world",
+               "path": "/etc/hello"
+             }
+           ]
+         }'
+   ```
+3. Retrieve and inspect data:
+   ```bash
+   curl 'https://foobar.openchami.cluster/cloud-init/test/meta-data'
+   curl 'https://foobar.openchami.cluster/cloud-init/test/user-data'
+   ```
+**Example (JWT-protected flow)**:
+1. Obtain (or generate) a valid `ACCESS_TOKEN`.  
+2. Send or retrieve data via the `/cloud-init-secure/` endpoints with the bearer token:
+   ```bash
+   curl -H "Authorization: Bearer $ACCESS_TOKEN" \
+     'https://foobar.openchami.cluster/cloud-init-secure/test/user-data'
+   ```
+
+---
+
+## More Reading
+
+- [Official cloud-init documentation](https://cloud-init.io/)  
+- [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager)  
+- [GoReleaser Documentation](https://goreleaser.com/)  
+- [SMD Documentation (if available internally)](#)  
+
+---
