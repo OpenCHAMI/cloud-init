@@ -1,153 +1,46 @@
 # OpenCHAMI Cloud-Init Server
 
 ## Summary of Repo
-The **OpenCHAMI cloud-init server** retrieves detailed inventory information from SMD and uses it to create cloud-init payloads customized for each node in an OpenCHAMI cluster.
+The **OpenCHAMI cloud-init service** retrieves detailed inventory information from SMD and uses it to create cloud-init payloads customized for each node in an OpenCHAMI cluster.
 
 ## Table of Contents
 1. [About / Introduction](#about--introduction)
-2. [Overview](#overview)
-   - [Unprotected Data](#unprotected-data)
-     - [Setup with `user-data`](#setup-with-user-data)
-     - [Generating Custom Metadata with Groups](#generating-custom-metadata-with-groups)
-   - [JWT-Protected Data](#jwt-protected-data)
-3. [Build / Install](#build--install)
-4. [Testing](#testing)
-5. [Running](#running)
+2. [Build / Install](#build--install)
+   - [Environment Variables](#environment-variables)
+   - [Building Locally with GoReleaser](#building-locally-with-goreleaser)
+3. [Running the Service](#running-the-service)
+   - [Cluster Name](#cluster-name)
+   - [Fake SMD Mode](#fake-smd-mode)
+   - [Impersonation](#impersonation)
+   - [Nocloud-net Datasource](#nocloud-net-datasource)
+4. [Testing the Service](#testing-the-service)
+   - [Basic Endpoint Testing](#basic-endpoint-testing)
+   - [Meta-data](#meta-data)
+   - [User-data](#user-data)
+   - [Vendor-data](#vendor-data)
+5. [Group Handling and Overrides](#group-handling-and-overrides)
+   - [Updating Group Data with a Simple Jinja Example](#updating-group-data-with-a-simple-jinja-example)
+   - [Complex Base64 Example](#complex-base64-example)
+   - [Cluster Defaults and Instance Overrides](#cluster-defaults-and-instance-overrides)
+     - [Set Cluster Defaults](#set-cluster-defaults)
+     - [Override Instance Data](#override-instance-data)
 6. [More Reading](#more-reading)
 
 ---
 
 ## About / Introduction
-OpenCHAMI utilizes the **cloud-init** platform for post-boot configuration. As part of a quickstart Docker Compose setup, a custom cloud-init server container is included but must be populated before use.
+The **OpenCHAMI Cloud-Init Service** is designed to generate cloud-init configuration for nodes in an OpenCHAMI cluster. The new design pushes the complexity of merging configurations into the cloud-init client rather than the server. This README provides instructions based on the [Demo.md](https://github.com/OpenCHAMI/cloud-init/blob/main/demo/Demo.md) file for running and testing the service.
 
-> **Note**  
-> This guide assumes the cloud-init server is accessible at `foobar.openchami.cluster`. If your setup differs, adapt the URLs accordingly.
+This service provides configuration data to cloud-init clients via the standard nocloud-net datasource. The service merges configuration from several sources:
+- **SMD data** (or simulated data in development mode)
+- **User-supplied JSON** (for custom configurations)
+- **Cluster defaults and group overrides**
 
----
-
-## Overview
-
-### Unprotected Data
-
-#### Setup with `user-data`
-User data can be injected into the cloud-init payload by making a `PUT` request to the `/cloud-init/{id}/user-data` endpoint. The request body should be JSON-formatted and can contain arbitrary data for your needs.
-
-For example:
-```bash
-curl 'https://foobar.openchami.cluster/cloud-init/test/user-data' \
-    -X PUT \
-    -d '{
-          "write_files": [
-            {
-              "content": "hello world",
-              "path": "/etc/hello"
-            }
-          ]
-        }'
-```
-
-This creates a payload similar to:
-```json
-{
-  "name": "IDENTIFIER",
-  "cloud-init": {
-    "userdata": {
-      "write_files": [
-        {"content": "hello world", "path": "/etc/hello"}
-      ]
-    },
-    "metadata": { ... }
-  }
-}
-```
-
-- `IDENTIFIER` can be:
-  - A node MAC address
-  - A node xname
-  - An SMD group name
-
-> **Note**  
-> Data added via `PUT` only goes into the `userdata` section. There is no direct way to add data to the `metadata` section this way.
-
-#### Generating Custom Metadata with Groups
-The cloud-init server provides a **group API** to inject custom data into `metadata` when retrieving node data. It does this by looking up group labels from SMD and matching them with data submitted to the API.
-
-1. Add group data to the cloud-init server:
-   ```bash
-   curl -k http://127.0.0.1:27780/cloud-init/groups/install-nginx \
-        -d@install-nginx.json
-   ```
-2. `install-nginx.json` might look like this:
-   ```json
-   {
-     "tier": "frontend",
-     "application": "nginx"
-   }
-   ```
-3. When a node in the `install-nginx` group fetches its data, the extra keys appear under `metadata.groups`:
-   ```bash
-   curl -k http://127.0.0.1:27780/cloud-init/x3000c1s7b53
-   ```
-   ```json
-   {
-     "name": "x3000c1s7b53",
-     "cloud-init": {
-       "userdata": { ... },
-       "vendordata": { ... },
-       "metadata": {
-         "groups": {
-           "install-nginx": {
-             "data": {
-               "application": "nginx",
-               "tier": "frontend"
-             }
-           }
-         }
-       }
-     }
-   }
-   ```
-
-> **Important**  
-> The specified `IDENTIFIER` must exist in SMD for the data injection to work.
-
-#### Usage
-
-Data is retrieved via HTTP GET requests to the `meta-data`, `user-data`, and `vendor-data` endpoints.
-
-For example, one could download all cloud-init data for a node/group via `curl 'https://foobar.openchami.cluster/cloud-init/<IDENTIFIER>/{meta-data,user-data,vendor-data}'`.
-
-When retrieving data, `IDENTIFIER` can also be omitted entirely (e.g. `https://foobar.openchami.cluster/cloud-init/user-data`). In this case, the cloud-init server will attempt to look up the relevant xname based on the request's source IP address.
-
-Thus, the intended use case is to set nodes' cloud-init datasource URLs to `https://foobar.openchami.cluster/cloud-init/`, from which the cloud-init client will load its configuration data. Note that in this case, no `IDENTIFIER` is provided, so IP-based autodetection will be performed.
-
-### JWT-Protected Data
-
-#### Setup
-Another set of endpoints at `/cloud-init-secure/` requires a **valid bearer token (JWT)** to access or store data. For example, using `curl`, you must include:
-
-```bash
-curl -k \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -X PUT \
-  -d@secure-data.json \
-  https://foobar.openchami.cluster/cloud-init-secure/test/user-data
-```
-
-This parallels the unprotected data workflow but adds token-based authorization.
-
-#### Usage
-When retrieving data for a node, you must include the JWT:
-
-```bash
-curl 'https://foobar.openchami.cluster/cloud-init-secure/IDENTIFIER/{meta-data,user-data,vendor-data}' \
-  --create-dirs --output '/PATH/TO/DATA-DIR/#1' \
-  --header "Authorization: Bearer $ACCESS_TOKEN"
-```
-Then, point cloud-init (on the node) to `file:///PATH/TO/DATA-DIR/` as its datasource URL.
-
-> **Note**  
-> Distributing or managing these tokens is out of scope here; see the [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager) for a potential solution.
+Cloud-init on nodes retrieves data in a fixed order:
+1. `/meta-data` – YAML document with system configuration.
+2. `/user-data` – User-supplied configuration (which overrides vendor settings).
+3. `/vendor-data` – Vendor-supplied configuration via include-file mechanisms.
+4. `/network-config` – (Not currently supported by OpenCHAMI)
 
 ---
 
@@ -179,57 +72,155 @@ export BUILD_USER=$(whoami)
    ```
 3. Check the `dist/` directory for compiled binaries, which will include the injected metadata.
 
-> **Note**  
+> [!NOTE]
 > If you encounter errors, ensure your GoReleaser version matches the one used in the [Release Action](.github/workflows/Release.yml).
 
 ---
 
-## Testing
-Currently, there are no specific automated tests in this repository (or details have not been provided). However, you can verify functionality by:
+## Running the Service
 
-1. Uploading `user-data` or group configurations via `curl`  
-2. Fetching them back with `curl https://foobar.openchami.cluster/cloud-init/<IDENTIFIER>/{meta-data,user-data,vendor-data}`  
-3. Checking the returned JSON to confirm your data appears where expected  
+### Cluster Name
 
-You can also incorporate additional tests or integration checks as needed for your environment.
+Each instance of cloud-init is linked to a single SMD and operates for a single cluster. Until the cluster name is automatically available via your inventory system, you must specify it on the command line using the `-cluster-name` flag.
+
+_Example:_
+```bash
+-cluster-name venado
+```
+
+### Fake SMD Mode
+
+For development purposes, you can run the cloud-init server without connecting to a real SMD instance. By setting the environment variable `CLOUD_INIT_SMD_SIMULATOR` to `true`, the service will generate a set of simulated nodes.
+
+**Example command:**
+```bash
+CLOUD_INIT_SMD_SIMULATOR=true dist/cloud-init_darwin_arm64_v8.0/cloud-init-server -cluster-name venado -insecure -impersonation=true
+```
+
+### Impersonation
+
+By default, the service determines what configuration to return based on the IP address of the requesting node. For testing, impersonation routes can be enabled with the `-impersonation=true` flag.
+
+**Sample commands:**
+```bash
+curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/meta-data
+```
+
+### Nocloud-net Datasource
+
+```bash
+cloud-init=enabled ds=nocloud-net;s=http://192.0.0.1/cloud-init
+```
 
 ---
+## Testing the Service
 
-## Running
-- A **custom cloud-init server container** is included with the Docker Compose setup.  
-- Once the container is running, you can access endpoints at `https://<HOSTNAME>/cloud-init/` or `https://<HOSTNAME>/cloud-init-secure/`, where `<HOSTNAME>` is typically `foobar.openchami.cluster`.
+The following testing steps (adapted from Demo.md) help you verify that the service is functioning correctly.
 
-**Example (unprotected flow)**:
-1. Run the Docker Compose setup:
-   ```bash
-   docker-compose up -d
-   ```
-2. Make a request to add user data:
-   ```bash
-   curl -X PUT \
-     'https://foobar.openchami.cluster/cloud-init/test/user-data' \
-     -d '{
-           "write_files": [
-             {
-               "content": "hello world",
-               "path": "/etc/hello"
-             }
-           ]
-         }'
-   ```
-3. Retrieve and inspect data:
-   ```bash
-   curl 'https://foobar.openchami.cluster/cloud-init/test/meta-data'
-   curl 'https://foobar.openchami.cluster/cloud-init/test/user-data'
-   ```
-**Example (JWT-protected flow)**:
-1. Obtain (or generate) a valid `ACCESS_TOKEN`.  
-2. Send or retrieve data via the `/cloud-init-secure/` endpoints with the bearer token:
-   ```bash
-   curl -H "Authorization: Bearer $ACCESS_TOKEN" \
-     'https://foobar.openchami.cluster/cloud-init-secure/test/user-data'
-   ```
+### Basic Endpoint Testing
 
+#### Start the Service in Fake SMD Mode (if desired):
+
+**Example:**
+
+```bash
+CLOUD_INIT_SMD_SIMULATOR=true dist/cloud-init_darwin_arm64_v8.0/cloud-init-server -cluster-name venado -insecure -impersonation=true
+```
+
+#### Query the Standard Endpoints:
+
+#### Meta-data:
+
+```bash
+curl http://localhost:27777/cloud-init/meta-data
+```
+
+You should see a YAML document with instance information (e.g., instance-id, cluster-name, etc.).
+
+#### User-data:
+
+```bash
+curl http://localhost:27777/cloud-init/user-data
+```
+
+For now, this returns a blank cloud-config document:
+
+```yaml
+#cloud-config
+```
+
+#### Vendor-data:
+
+```bash
+curl http://localhost:27777/cloud-init/vendor-data
+```
+
+Vendor-data typically includes include-file directives pointing to group-specific YAML files:
+
+```yaml
+#include
+http://192.168.13.3:8080/all.yaml
+http://192.168.13.3:8080/login.yaml
+http://192.168.13.3:8080/compute.yaml
+```
+
+## Group Handling and Overrides
+
+The service supports advanced configuration through group handling and instance overrides.
+
+### Updating Group Data with a Simple Jinja Example
+
+This example sets a syslog aggregator via jinja templating. The group data is stored under the group name and then used in the vendor-data file.
+
+```bash
+curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+    -H "Content-Type: application/json" \
+    -d '{
+        "name": "x3001",
+        "description": "Cabinet x3001",
+        "data": {
+            "syslog_aggregator": "192.168.0.1"
+        },
+        "file": {
+            "content": "#template: jinja\n#cloud-config\nrsyslog:\n  remotes: {x3001: {{ vendor_data.groups[\"x3001\"].syslog_aggregator }}}\n  service_reload_command: auto\n",
+            "encoding": "plain"
+        }
+    }'
+```
+
+### Complex Base64 Example
+
+To add more sophisticated vendor-data (for example, installing the slurm client), you can encode a complete cloud-config in base64. (See the script in Demo.md for a complete example.)
+
+### Cluster Defaults and Instance Overrides
+
+#### Set Cluster Defaults:
+
+```bash
+curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
+    -H "Content-Type: application/json" \
+    -d '{
+        "cloud-provider": "openchami",
+        "region": "us-west-2",
+        "availability-zone": "us-west-2a",
+        "cluster-name": "venado",
+        "public-keys": [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArV2...",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArV3..."
+        ]
+    }'
+```
+
+#### Override Instance Data:
+
+```bash
+curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
+    -H "Content-Type: application/json" \
+    -d '{
+        "local-hostname": "compute-1",
+        "instance-type": "t2.micro"
+    }'
+```
 ---
 
 ## More Reading
@@ -237,6 +228,4 @@ You can also incorporate additional tests or integration checks as needed for yo
 - [Official cloud-init documentation](https://cloud-init.io/)  
 - [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager)  
 - [GoReleaser Documentation](https://goreleaser.com/)  
-- [SMD Documentation (if available internally)](#)  
-
----
+- [SMD Documentation](https://github.com/OpenCHAMI/smd)  
