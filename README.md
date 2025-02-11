@@ -38,9 +38,10 @@ This service provides configuration data to cloud-init clients via the standard 
 
 Cloud-init on nodes retrieves data in a fixed order:
 1. `/meta-data` – YAML document with system configuration.
-2. `/user-data` – User-supplied configuration (which overrides vendor settings).
+2. `/user-data` - a document which can be any of the [user data formats](https://cloudinit.readthedocs.io/en/latest/explanation/format.html#cloud-config-data)
 3. `/vendor-data` – Vendor-supplied configuration via include-file mechanisms.
-4. `/network-config` – (Not currently supported by OpenCHAMI)
+4. `/network-config` – An optional document in one of two [network configuration formats](https://cloudinit.readthedocs.io/en/latest/reference/network-config.html#network-config).  This is only requested if configured to do so with a kernel parameter or through cloud-init configuration in the image. __NB__: __OpenCHAMI doesn't support delivering `network-config` via the cloud-init server today__
+
 
 ---
 
