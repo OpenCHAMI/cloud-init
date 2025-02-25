@@ -11,11 +11,18 @@ import (
 )
 
 // VendorDataHandler godoc
-// @Summary Get vendor data
-// @Description For OpenCHAMI, the vendor-data will always be a list of other #cloud-config URLs to download and merge.
-// @Produce plain
-// @Success 200 {string} string
-// @Router /vendor-data [get]
+//	@Summary		Get vendor data
+//	@Description	For OpenCHAMI, the vendor-data will always be a list of other
+//	@Description	#cloud-config URLs to download and merge.
+//	@Description
+//	@Description	If the impersonation API is enabled, an ID can be provided in
+//	@Description	the URL path using `/admin/impersonation`. In this case, the
+//	@Description	vendor-data will be retrieved for the requested ID.
+//	@Produce		plain
+//	@Success		200	{string}	string
+//	@Param			id	path		string	false	"Node ID"
+//	@Router			/cloud-init/vendor-data [get]
+//	@Router			/cloud-init/admin/impersonation/{id}/vendor-data [get]
 func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var urlId string = chi.URLParam(r, "id")

@@ -1,5 +1,11 @@
 package main
 
+//	@Title			OpenCHAMI Cloud-Init Server API
+//	@Version		1.0.0
+//	@Description	API for cloud-init clients using the OpenCHAMI cloud-init server
+//	@License.name	MIT
+//	@License.url	https://github.com/OpenCHAMI/.github/blob/main/LICENSE
+
 import (
 	"flag"
 	"fmt"

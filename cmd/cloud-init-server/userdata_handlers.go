@@ -9,11 +9,39 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// UserDataHandler godoc
+//	@Summary		Get user-data for requesting node
+//	@Description	Get user-data for requesting node base on the requesting IP. For
+//	@Description	OpenCHAMI, this will always be `#cloud-config`.
+//	@Description
+//	@Description	If the impersonation API is enabled, an ID can be provided in
+//	@Description	the URL path using `/admin/impersonation`. In this case, the
+//	@Description	user-data will be retrieved for the requested ID.
+//	@Produce		plain
+//	@Success		200	{object}	string
+//	@Param			id	path		string	false	"Node ID"
+//	@Router			/cloud-init/user-data [get]
+//	@Router			/cloud-init/admin/impersonation/{id}/user-data [get]
 func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 	payload := `#cloud-config`
 	w.Write([]byte(payload))
 }
 
+// GroupUserDataHandler godoc
+//	@Summary		Get user-data for a particular group
+//	@Description	Get user-data for a particular group based on its name.
+//	@Description
+//	@Description	If the impersonation API is enabled, an ID can be provided in
+//	@Description	the URL path using `/admin/impersonation`. In this case, the
+//	@Description	group user-data will be retrieved for the requested ID.
+//	@Produce		plain
+//	@Success		200		{object}	string
+//	@Failure		404		{object}	nil
+//	@Failure		500		{object}	nil
+//	@Param			id		path		string	false	"Node ID"
+//	@Param			group	path		string	true	"Group name"
+//	@Router			/cloud-init/{group}.yaml [get]
+//	@Router			/cloud-init/admin/impersonation/{id}/{group}.yaml [get]
 func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, group, err := getIDAndGroup(r, smd)
