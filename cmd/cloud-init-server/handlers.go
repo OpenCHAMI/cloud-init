@@ -5,11 +5,14 @@ import (
 	"io"
 	"net/http"
 
+	// Import to run swag.Register() to generated docs
+	_ "github.com/OpenCHAMI/cloud-init/docs"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
+	"github.com/swaggo/swag"
 )
 
 type CiHandler struct {
@@ -42,6 +45,24 @@ func parseData(r *http.Request) (cistore.GroupData, error) {
 		return data, err
 	}
 	return data, nil
+}
+
+// DocsHandler godoc
+//
+//	@Summary	Return JSON-formatted OpenAPI documentation
+//	@Produce	json
+//	@Success	200	{object}	string
+//	@Failure	500	{object}	nil
+//	@Router		/cloud-init/docs [get]
+func DocsHandler(w http.ResponseWriter, r *http.Request) {
+	doc, err := swag.ReadDoc()
+	if err != nil {
+		log.Error().Msgf("Error reading OpenAPI docs: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	bDoc := []byte(doc)
+	w.Write(bDoc)
 }
 
 // SetClusterDataHandler godoc

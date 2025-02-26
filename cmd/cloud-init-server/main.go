@@ -193,6 +193,7 @@ func main() {
 
 func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
 	// Add cloud-init endpoints to router
+	router.Get("/docs", DocsHandler)
 	router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
 	router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
 	router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
