@@ -41,6 +41,10 @@ jobs:
           echo "GO_VERSION=$(go version | awk '{print $3}')" >> $GITHUB_ENV
           echo "BUILD_USER=$(whoami)" >> $GITHUB_ENV
           echo "CGO_ENABLED=0" >> $GITHUB_ENV
+      
+      - name: Install Swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+        
       - name: Release with goreleaser
         uses: goreleaser/goreleaser-action@v6
         env:
