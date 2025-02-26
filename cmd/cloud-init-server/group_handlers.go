@@ -10,14 +10,16 @@ import (
 )
 
 // GetGroups godoc
-//	@Summary		Get groups known by cloud-init
-//	@Description	Get meta-data and cloud-init config for all groups known to
-//	@Description	cloud-init.
-//	@Tags			admin,groups
-//	@Produce		json
-//	@Success		200	{object}	map[string]cistore.ClusterDefaults
-//	@Failure		500	{object}	nil
-//	@Router			/cloud-init/admin/groups [get]
+//
+//		@Summary		Get groups known by cloud-init
+//		@Description	Get meta-data and cloud-init config for all groups known to
+//		@Description	cloud-init.  Note that group membership is managed outside of
+//	 @Description	the cloud-init service, normally in SMD.
+//		@Tags			admin,groups
+//		@Produce		json
+//		@Success		200	{object}	map[string]cistore.ClusterDefaults
+//		@Failure		500	{object}	nil
+//		@Router			/cloud-init/admin/groups [get]
 func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
 		groups map[string]cistore.GroupData
@@ -37,6 +39,7 @@ func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddGroupHandler godoc
+//
 //	@Summary		Add a new group
 //	@Description	Add a new group to cloud-init corresponding to an SMD group.
 //	@Description	Group-wide meta-data and/or a cloud-init configuration (in
@@ -80,6 +83,7 @@ func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetGroupHandler godoc
+//
 //	@Summary		Get data for single group
 //	@Description	Get meta-data and cloud-init config for a single group known to
 //	@Description	cloud-init.
@@ -112,6 +116,7 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateGroupHandler godoc
+//
 //	@Summary		Set group-specific meta-data and/or cloud-init config
 //	@Description	Set meta-data or cloud-init configuration for a specific group,
 //	@Description	overwriting any previous values.
@@ -119,6 +124,7 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Description	If successful, a 201 Created status is returned and the
 //	@Description	"Location" header is set to the new group's groups endpoint,
 //	@Description	"/groups/{group}".
+//	@Description    This operation is idempotent and replaces any existing content.
 //	@Tags			admin,groups
 //	@Accept			json
 //	@Success		201		{object}	nil
@@ -151,6 +157,7 @@ func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // godoc RemoveGroupHandler
+//
 //	@Summary		Delete a group
 //	@Description	Delete a group with its meta-data and cloud-init config.
 //	@Tags			admin,groups

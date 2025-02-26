@@ -9,9 +9,9 @@ import (
 
 type MetaData struct {
 	InstanceID    string       `json:"instance-id" yaml:"instance-id"`
-	LocalHostname string       `json:"local-hostname" yaml:"local-hostname" example:"compute-1" description:"Node-specific hostname"`
-	Hostname      string       `json:"hostname" yaml:"hostname"`
-	ClusterName   string       `json:"cluster-name" yaml:"cluster-name" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN`
+	LocalHostname string       `json:"local-hostname" yaml:"local-hostname" example:"compute-1" description:"Node-specific short hostname"`
+	Hostname      string       `json:"hostname" yaml:"hostname" example:"compute-1.demo.openchami.cluster" description:"Node-specific hostname, often FQDN and how other hosts may reference this host"`
+	ClusterName   string       `json:"cluster-name" yaml:"cluster-name" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN"`
 	InstanceData  InstanceData `json:"instance-data" yaml:"instance_data"`
 }
 
@@ -40,8 +40,8 @@ type VendorData struct {
 	SubRole          string           `json:"sub-role,omitempty" yaml:"sub_role,omitempty"`
 	Cabinet          string           `json:"cabinet,omitempty" yaml:"cabinet,omitempty"`
 	Location         string           `json:"location,omitempty" yaml:"location,omitempty"`
-	ClusterName      string           `json:"cluster_name,omitempty" yaml:"cluster_name,omitempty" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN`
-	Groups           map[string]Group `json:"groups" yaml:"groups" description:"Groups known to cloud-init and their meta-data`
+	ClusterName      string           `json:"cluster_name,omitempty" yaml:"cluster_name,omitempty" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN"`
+	Groups           map[string]Group `json:"groups" yaml:"groups" description:"Groups known to cloud-init and their meta-data"`
 }
 
 type Group map[string]interface{}
@@ -128,11 +128,11 @@ func generateHostname(clusterName string, shortName string, nidLength int, comp 
 	} else {
 		sname = shortName
 	}
-        if nidLength == 0 {
+	if nidLength == 0 {
 		nlen = 4
 	} else {
 		nlen = nidLength
 	}
 	log.Debug().Msgf("shortName: %v, nidLength: %v", sname, nlen)
-	return fmt.Sprintf("%s%0*d",sname, nlen, nid)
+	return fmt.Sprintf("%s%0*d", sname, nlen, nid)
 }

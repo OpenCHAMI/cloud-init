@@ -12,7 +12,7 @@ import (
 type GroupData struct {
 	Name        string                 `json:"name" example:"compute" description:"Group name"`
 	Description string                 `json:"description,omitempty" example:"The compute group" description:"A short description of the group"`
-	Data        map[string]interface{} `json:"meta-data,omitempty" description:"Key-value pairs representing group meta-data"`
+	Data        map[string]interface{} `json:"meta-data,omitempty" description:"json map of a string (key) to a struct (value) representing group meta-data"`
 	File        CloudConfigFile        `json:"file,omitempty" description:"Cloud-Init configuration for group"`
 }
 
@@ -38,11 +38,11 @@ type OpenCHAMIComponent struct {
 }
 
 type OpenCHAMIInstanceInfo struct {
-	ID               string   `json:"id" example:"x3000c1b1n1" description:"Node unique identifier`
+	ID               string   `json:"id" example:"x3000c1b1n1" description:"Node unique identifier, on systems that support xnames, this will be an xname which includes location information"`
 	InstanceID       string   `json:"instance-id" yaml:"instance-id"`
 	LocalHostname    string   `json:"local-hostname,omitempty" yaml:"local-hostname" example:"compute-1" description:"Node-specific hostname"`
 	Hostname         string   `json:"hostname,omitempty" yaml:"hostname"`
-	ClusterName      string   `json:"cluster-name,omitempty" yaml:"cluster-name" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN`
+	ClusterName      string   `json:"cluster-name,omitempty" yaml:"cluster-name" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN"`
 	Region           string   `json:"region,omitempty" yaml:"region"`
 	AvailabilityZone string   `json:"availability-zone,omitempty" yaml:"availability-zone"`
 	CloudProvider    string   `json:"cloud-provider,omitempty" yaml:"cloud-provider"`
@@ -57,12 +57,12 @@ type ClusterDefaults struct {
 	CloudProvider    string   `json:"cloud_provider,omitempty" yaml:"cloud-provider,omitempty"`
 	Region           string   `json:"region,omitempty" yaml:"region,omitempty"`
 	AvailabilityZone string   `json:"availability-zone,omitempty" yaml:"availability-zone,omitempty"`
-	ClusterName      string   `json:"cluster-name,omitempty" yaml:"cluster-name,omitempty" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN`
+	ClusterName      string   `json:"cluster-name,omitempty" yaml:"cluster-name,omitempty" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN"`
 	PublicKeys       []string `json:"public-keys,omitempty" yaml:"public-keys,omitempty" example:"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMLtQNuzGcMDatF+YVMMkuxbX2c5v2OxWftBhEVfFb+U user1@demo-head,ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB4vVRvkzmGE5PyWX2fuzJEgEfET4PRLHXCnD1uFZ8ZL user2@demo-head"`
 	BaseUrl          string   `json:"base-url,omitempty" yaml:"base-url,omitempty" example:"http://demo.openchami.cluster:8081/cloud-init"`
 	BootSubnet       string   `json:"boot-subnet,omitempty" yaml:"boot-subnet,omitempty"`
 	WGSubnet         string   `json:"wg-subnet,omitempty" yaml:"wg-subnet,omitempty"`
-	ShortName        string   `json:"short-name,omitempty" yaml:"short-name,omitempty", example:"nid" description:"Shortened name of cluster; this string is prepended to padded NID and set as node hostname if hostname is not set for node"`
+	ShortName        string   `json:"short-name,omitempty" yaml:"short-name,omitempty" example:"nid" description:"Shortened name of cluster; this string is prepended to padded NID and set as node hostname if hostname is not set for node"`
 	NidLength        int      `json:"nid-length,omitempty" yaml:"nid-length,omitempty" example:"3" description:"Width of digits for node ID"`
 }
 
