@@ -45,6 +45,7 @@ func parseData(r *http.Request) (cistore.GroupData, error) {
 }
 
 // SetClusterDataHandler godoc
+//
 //	@Summary		Set cluster defaults
 //	@Description	Set default meta-data values for cluster.
 //	@Tags			admin,cluster-defaults
@@ -83,6 +84,7 @@ func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 }
 
 // GetClusterDataHandler godoc
+//
 //	@Summary		Get cluster defaults
 //	@Description	Get default meta-data values for cluster.
 //	@Tags			admin,cluster-defaults
@@ -113,6 +115,7 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 }
 
 // InstanceInfoHandler godoc
+//
 //	@Summary		Set node-specific meta-data
 //	@Description	Set meta-data for a specific node ID, overwriting relevant group meta-data.
 //	@Tags			admin,instance-data
@@ -157,6 +160,7 @@ func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) h
 }
 
 // PhoneHomeHandler godoc
+//
 //	@Summary		Signal to cloud-init server that host has completed running cloud-init configuration
 //	@Description	Signal to the cloud-init server that the specific host has completed running
 //	@Description	the cloud-init configuration tasks so that, if a WireGuard tunnel is being used,

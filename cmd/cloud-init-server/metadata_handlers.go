@@ -29,6 +29,7 @@ func getActualRequestIP(r *http.Request) string {
 }
 
 // MetaDataHandler godoc
+//
 //	@Summary		Get meta-data for requesting node
 //	@Description	Get meta-data for requesting node based on the requesting IP.
 //	@Description

@@ -11,6 +11,7 @@ import (
 )
 
 // VendorDataHandler godoc
+//
 //	@Summary		Get vendor data
 //	@Description	For OpenCHAMI, the vendor-data will always be a list of other
 //	@Description	`#cloud-config` URLs to download and merge.

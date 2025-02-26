@@ -10,6 +10,7 @@ import (
 )
 
 // UserDataHandler godoc
+//
 //	@Summary		Get user-data for requesting node
 //	@Description	Get user-data for requesting node base on the requesting IP. For
 //	@Description	OpenCHAMI, this will always be `#cloud-config`.
@@ -28,6 +29,7 @@ func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GroupUserDataHandler godoc
+//
 //	@Summary		Get user-data for a particular group
 //	@Description	Get user-data for a particular group based on its name.
 //	@Description

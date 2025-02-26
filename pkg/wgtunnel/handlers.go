@@ -27,6 +27,7 @@ type WGResponse struct {
 }
 
 // AddClientHandler godoc
+//
 //	@Summary		Add a WireGuard client
 //	@Description	Initiate a WireGuard tunnel from a client using its public key
 //	@Description	and peer name (IP address).

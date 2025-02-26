@@ -141,13 +141,13 @@ func (m *MemStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) e
 		cd.ClusterName = clusterDefaults.ClusterName
 	}
 	if clusterDefaults.ShortName != "" {
-                log.Debug().Msgf("Setting ShortName to %s", clusterDefaults.ShortName)
-                cd.ShortName = clusterDefaults.ShortName
-        }
+		log.Debug().Msgf("Setting ShortName to %s", clusterDefaults.ShortName)
+		cd.ShortName = clusterDefaults.ShortName
+	}
 	if clusterDefaults.NidLength != 0 {
-                log.Debug().Msgf("Setting NidLength to %v", clusterDefaults.NidLength)
-                cd.NidLength = clusterDefaults.NidLength
-        }
+		log.Debug().Msgf("Setting NidLength to %v", clusterDefaults.NidLength)
+		cd.NidLength = clusterDefaults.NidLength
+	}
 	if clusterDefaults.BaseUrl != "" {
 		log.Debug().Msgf("Setting BaseUrl to %s", clusterDefaults.BaseUrl)
 		cd.BaseUrl = strings.TrimRight(clusterDefaults.BaseUrl, "/")
