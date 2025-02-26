@@ -9,6 +9,17 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+// GetGroups godoc
+//
+//	@Summary		Get groups known by cloud-init
+//	@Description	Get meta-data and cloud-init config for all groups known to
+//	@Description	cloud-init.  Note that group membership is managed outside of
+//	@Description	the cloud-init service, normally in SMD.
+//	@Tags			admin,groups
+//	@Produce		json
+//	@Success		200	{object}	map[string]cistore.ClusterDefaults
+//	@Failure		500	{object}	nil
+//	@Router			/cloud-init/admin/groups [get]
 func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
 		groups map[string]cistore.GroupData
@@ -27,37 +38,28 @@ func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/*
-AddGroupHandler adds a new group with it's associated data specified by the user.
-
-*/
-// AddGroupHandler handles the HTTP request for adding a new group.
-// It parses the request data into a GroupData struct, validates it,
-// and then attempts to store it using the handler's store. If successful,
-// it sets the Location header to the new group's URL and responds with
-// HTTP status 201 Created. If there is an error during parsing or storing,
-// it responds with the appropriate HTTP error status.
+// AddGroupHandler godoc
 //
-// Curl Example:
-//
-// curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
-//      -H "Content-Type: application/json" \
-//      -d '{
-//           "name": "x3000",
-//           "description": "Cabinet x3000",
-//           "data": {
-//             "syslog_aggregator": "192.168.0.1"
-//            },
-//           "file": {
-//             "content": "#cloud-config\nrsyslog:\n  remotes: {x3000: \"192.168.0.5\"}\nservice_reload_command: auto\n",
-//             "encoding": "plain"
-//           }
-//         }'
-// It parses the request data into a GroupData struct and attempts to add it to the store.
-// Encoding options are "plain" or "base64".
-// If parsing fails, it responds with a 422 Unprocessable Entity status.
-// If adding the group data to the store fails, it responds with a 409 Conflict status.
-// On success, it sets the Location header to the new group's URL and responds with a 201 Created status.
+//	@Summary		Add a new group
+//	@Description	Add a new group to cloud-init corresponding to an SMD group.
+//	@Description	Group-wide meta-data and/or a cloud-init configuration (in
+//	@Description	either plain or base64 encoding) can be specified.
+//	@Description
+//	@Description	If successful, a 201 Created status is returned and the
+//	@Description	`Location` header is set to the new group's groups endpoint,
+//	@Description	`/groups/{name}`.
+//	@Description
+//	@Description	If request parsing fails, a 422 Unprocessable Entity status is
+//	@Description	returned. If adding group data to the data store fails, a 409
+//	@Description	Conflict status is returned.
+//	@Tags			admin,groups
+//	@Accept			json
+//	@Success		201		{object}	nil
+//	@Failure		409		{object}	nil
+//	@Failure		422		{object}	nil
+//	@Header			201		{string}	Location			"/groups/{id}"
+//	@Param			group	body		cistore.GroupData	true	"Group data"
+//	@Router			/cloud-init/admin/groups [post]
 func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		data cistore.GroupData
@@ -80,6 +82,17 @@ func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// GetGroupHandler godoc
+//
+//	@Summary		Get data for single group
+//	@Description	Get meta-data and cloud-init config for a single group known to
+//	@Description	cloud-init.
+//	@Tags			admin,groups
+//	@Produce		json
+//	@Success		200	{object}	cistore.GroupData
+//	@Failure		500	{object}	nil
+//	@Param			id	path		string	true	"Group ID"
+//	@Router			/cloud-init/admin/groups/{id} [get]
 func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		id    string = chi.URLParam(r, "id")
@@ -102,6 +115,24 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(bytes)
 }
 
+// UpdateGroupHandler godoc
+//
+//	@Summary		Set group-specific meta-data and/or cloud-init config
+//	@Description	Set meta-data or cloud-init configuration for a specific group,
+//	@Description	overwriting any previous values.
+//	@Description
+//	@Description	If successful, a 201 Created status is returned and the
+//	@Description	`Location` header is set to the new group's groups endpoint,
+//	@Description	`/groups/{group}`. This operation is idempotent and replaces
+//	@Description	any existing content.
+//	@Tags			admin,groups
+//	@Accept			json
+//	@Success		201		{object}	nil
+//	@Failure		422		{object}	nil
+//	@Failure		500		{object}	nil
+//	@Header			201		{string}	Location	"/groups/{name}"
+//	@Param			name	path		string		true	"Group name"
+//	@Router			/cloud-init/admin/groups/{name} [put]
 func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		groupName string = chi.URLParam(r, "name")
@@ -125,6 +156,15 @@ func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// RemoveGroupHandler godoc
+//
+//	@Summary		Delete a group
+//	@Description	Delete a group with its meta-data and cloud-init config.
+//	@Tags			admin,groups
+//	@Success		200	{object}	nil
+//	@Failure		500	{object}	nil
+//	@Param			id	path		string	true	"Group ID"
+//	@Router			/cloud-init/admin/groups/{id} [delete]
 func (h CiHandler) RemoveGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		id  string = chi.URLParam(r, "id")

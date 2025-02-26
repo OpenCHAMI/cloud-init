@@ -28,6 +28,22 @@ func getActualRequestIP(r *http.Request) string {
 	return strings.TrimSpace(ip)
 }
 
+// MetaDataHandler godoc
+//
+//	@Summary		Get meta-data for requesting node
+//	@Description	Get meta-data for requesting node based on the requesting IP.
+//	@Description
+//	@Description	If the impersonation API is enabled, an ID can be provided in
+//	@Description	the URL path using `/admin/impersonation`. In this case, the
+//	@Description	meta-data will be retrieved for the requested ID.
+//	@Produce		application/x-yaml
+//	@Success		200	{object}	MetaData
+//	@Failure		404	{object}	nil
+//	@Failure		422	{object}	nil
+//	@Failure		500	{object}	nil
+//	@Param			id	path		string	false	"Node ID"
+//	@Router			/cloud-init/meta-data [get]
+//	@Router			/cloud-init/admin/impersonation/{id}/meta-data [get]
 func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var urlId string = chi.URLParam(r, "id")

@@ -1,5 +1,11 @@
 package main
 
+//	@Title			OpenCHAMI Cloud-Init Server API
+//	@Version		1.0.0
+//	@Description	API for cloud-init clients using the OpenCHAMI cloud-init server
+//	@License.name	MIT
+//	@License.url	https://github.com/OpenCHAMI/.github/blob/main/LICENSE
+
 import (
 	"flag"
 	"fmt"
@@ -187,6 +193,7 @@ func main() {
 
 func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
 	// Add cloud-init endpoints to router
+	router.Get("/openapi.json", DocsHandler)
 	router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
 	router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
 	router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))

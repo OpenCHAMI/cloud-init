@@ -5,11 +5,14 @@ import (
 	"io"
 	"net/http"
 
+	// Import to run swag.Register() to generated docs
+	_ "github.com/OpenCHAMI/cloud-init/docs"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
+	"github.com/swaggo/swag"
 )
 
 type CiHandler struct {
@@ -44,6 +47,34 @@ func parseData(r *http.Request) (cistore.GroupData, error) {
 	return data, nil
 }
 
+// DocsHandler godoc
+//
+//	@Summary	Return JSON-formatted OpenAPI documentation
+//	@Produce	json
+//	@Success	200	{object}	string
+//	@Failure	500	{object}	nil
+//	@Router		/cloud-init/openapi.json [get]
+func DocsHandler(w http.ResponseWriter, r *http.Request) {
+	doc, err := swag.ReadDoc()
+	if err != nil {
+		log.Error().Msgf("Error reading OpenAPI docs: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	bDoc := []byte(doc)
+	w.Write(bDoc)
+}
+
+// SetClusterDataHandler godoc
+//
+//	@Summary		Set cluster defaults
+//	@Description	Set default meta-data values for cluster.
+//	@Tags			admin,cluster-defaults
+//	@Accept			json
+//	@Success		201	{object}	nil
+//	@Failure		400	{object}	nil
+//	@Failure		500	{object}	nil
+//	@Router			/cloud-init/admin/cluster-defaults [post]
 func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -73,6 +104,15 @@ func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	}
 }
 
+// GetClusterDataHandler godoc
+//
+//	@Summary		Get cluster defaults
+//	@Description	Get default meta-data values for cluster.
+//	@Tags			admin,cluster-defaults
+//	@Produce		json
+//	@Success		200	{object}	cistore.ClusterDefaults
+//	@Failure		500	{object}	nil
+//	@Router			/cloud-init/admin/cluster-defaults [get]
 func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := store.GetClusterDefaults()
@@ -95,6 +135,17 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	}
 }
 
+// InstanceInfoHandler godoc
+//
+//	@Summary		Set node-specific meta-data
+//	@Description	Set meta-data for a specific node ID, overwriting relevant group meta-data.
+//	@Tags			admin,instance-data
+//	@Accept			json
+//	@Success		201	{object}	nil
+//	@Failure		400	{object}	nil
+//	@Failure		500	{object}	nil
+//	@Param			id	path		string	true	"Node ID"
+//	@Router			/cloud-init/admin/instance-info/{id} [put]
 func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
@@ -129,7 +180,25 @@ func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) h
 	}
 }
 
-// Phone home should be a POST request x-www-form-urlencoded like this: pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
+// PhoneHomeHandler godoc
+//
+//	@Summary		Signal to cloud-init server that host has completed running cloud-init configuration
+//	@Description	Signal to the cloud-init server that the specific host has completed running
+//	@Description	the cloud-init configuration tasks so that, if a WireGuard tunnel is being used,
+//	@Description	it can be torn down. This endpoint should not be manually requested by a user
+//	@Description	but is only meant to be used by a cloud-init client that has received its
+//	@Description	config from an OpenCHAMI cloud-init server.
+//	@Tags			phone-home
+//	@Success		200				{object}	nil
+//	@Failure		400				{object}	nil
+//	@Param			id				path		string	true	"Node's unique identifier"
+//	@Param			pub_key_rsa		formData	string	true	"Node's WireGuard RSA public key"
+//	@Param			pub_key_ecdsa	formData	string	true	"Node's WireGuard ECDSA public key"
+//	@Param			pub_key_ed25519	formData	string	true	"Node's WireGuard ED35519 public key"
+//	@Param			instance_id		formData	string	true	"Node's given instance ID"
+//	@Param			hostname		formData	string	true	"Node's given hostname"
+//	@Param			fqdn			formData	string	true	"Node's given fully-qualified domain name"
+//	@Router			/cloud-init/phone-home/{id} [post]
 func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

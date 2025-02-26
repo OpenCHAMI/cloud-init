@@ -5,6 +5,7 @@ before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
+    - swag init -g cmd/cloud-init-server/main.go
 
 builds:
   - id: cloud-init
@@ -15,15 +16,15 @@ builds:
     # export GO_VERSION=$(go version | awk '{print $3}')
     # export BUILD_USER=$(whoami)
     ldflags:
-      - "-X main.GitCommit={{.Commit}} \
-         -X main.BuildTime={{.Timestamp}} \
-         -X main.Version={{.Version}} \
-         -X main.GitBranch={{.Branch}} \
-         -X main.GitTag={{.Tag}} \
-         -X main.GitState={{ .Env.GIT_STATE }} \
-         -X main.BuildHost={{ .Env.BUILD_HOST }} \
-         -X main.GoVersion={{ .Env.GO_VERSION }} \
-         -X main.BuildUser={{ .Env.BUILD_USER }} "
+      - "-X 'main.GitCommit={{.Commit}}' \
+         -X 'main.BuildTime={{.Timestamp}}' \
+         -X 'main.Version={{.Version}}' \
+         -X 'main.GitBranch={{.Branch}}' \
+         -X 'main.GitTag={{.Tag}}' \
+         -X 'main.GitState={{ .Env.GIT_STATE }}' \
+         -X 'main.BuildHost={{ .Env.BUILD_HOST }}' \
+         -X 'main.GoVersion={{ .Env.GO_VERSION }}' \
+         -X 'main.BuildUser={{ .Env.BUILD_USER }}'"
     goos:
       - linux
       - darwin

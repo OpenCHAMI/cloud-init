@@ -1,0 +1,641 @@
+definitions:
+  cistore.CloudConfigFile:
+    properties:
+      content:
+        example: IyMgdGVtcGxhdGU6IGppbmphCiNjbG91ZC1jb25maWcKbWVyZ2VfaG93OgotIG5hbWU6IGxpc3QKICBzZXR0aW5nczogW2FwcGVuZF0KLSBuYW1lOiBkaWN0CiAgc2V0dGluZ3M6IFtub19yZXBsYWNlLCByZWN1cnNlX2xpc3RdCnVzZXJzOgogIC0gbmFtZTogcm9vdAogICAgc3NoX2F1dGhvcml6ZWRfa2V5czoge3sgZHMubWV0YV9kYXRhLmluc3RhbmNlX2RhdGEudjEucHVibGljX2tleXMgfX0KZGlzYWJsZV9yb290OiBmYWxzZQo=
+        type: string
+      encoding:
+        enum:
+        - base64
+        - plain
+        type: string
+      filename:
+        type: string
+    type: object
+  cistore.ClusterDefaults:
+    properties:
+      availability-zone:
+        type: string
+      base-url:
+        example: http://demo.openchami.cluster:8081/cloud-init
+        type: string
+      boot-subnet:
+        type: string
+      cloud_provider:
+        type: string
+      cluster-name:
+        example: demo
+        type: string
+      nid-length:
+        example: 3
+        type: integer
+      public-keys:
+        example:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMLtQNuzGcMDatF+YVMMkuxbX2c5v2OxWftBhEVfFb+U
+          user1@demo-head
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB4vVRvkzmGE5PyWX2fuzJEgEfET4PRLHXCnD1uFZ8ZL
+          user2@demo-head
+        items:
+          type: string
+        type: array
+      region:
+        type: string
+      short-name:
+        example: nid
+        type: string
+      wg-subnet:
+        type: string
+    type: object
+  cistore.GroupData:
+    properties:
+      description:
+        example: The compute group
+        type: string
+      file:
+        $ref: '#/definitions/cistore.CloudConfigFile'
+      meta-data:
+        additionalProperties: true
+        type: object
+      name:
+        example: compute
+        type: string
+    type: object
+  main.Group:
+    additionalProperties: true
+    type: object
+  main.InstanceData:
+    properties:
+      v1:
+        properties:
+          availability-zone:
+            type: string
+          cloud-name:
+            type: string
+          cloud-provider:
+            type: string
+          hostname:
+            type: string
+          instance-id:
+            type: string
+          instance-type:
+            type: string
+          local-hostname:
+            type: string
+          local-ipv4: {}
+          public-keys:
+            items:
+              type: string
+            type: array
+          region:
+            type: string
+          vendor-data:
+            $ref: '#/definitions/main.VendorData'
+        type: object
+    type: object
+  main.MetaData:
+    properties:
+      cluster-name:
+        example: demo
+        type: string
+      hostname:
+        example: compute-1.demo.openchami.cluster
+        type: string
+      instance-data:
+        $ref: '#/definitions/main.InstanceData'
+      instance-id:
+        type: string
+      local-hostname:
+        example: compute-1
+        type: string
+    type: object
+  main.VendorData:
+    properties:
+      cabinet:
+        type: string
+      cloud-init-base-url:
+        type: string
+      cluster_name:
+        example: demo
+        type: string
+      groups:
+        additionalProperties:
+          $ref: '#/definitions/main.Group'
+        type: object
+      location:
+        type: string
+      nid:
+        type: integer
+      rack:
+        type: string
+      role:
+        type: string
+      sub-role:
+        type: string
+      version:
+        type: string
+    type: object
+  wgtunnel.PublicKeyRequest:
+    properties:
+      public_key:
+        example: 9NS6+NR0J38SZ9IlY9hBDLs6aBpNDhxHUHL8OTlNEDU=
+        type: string
+    type: object
+  wgtunnel.WGResponse:
+    properties:
+      client-vpn-ip:
+        example: 10.89.0.7
+        type: string
+      message:
+        example: WireGuard tunnel created successfully
+        type: string
+      server-ip:
+        example: 10.87.0.1
+        type: string
+      server-port:
+        example: "51820"
+        type: string
+      server-public-key:
+        example: dHMOGL8vTGhTgqXyYdu6cLGXEPmTcWm+vS18GcQseyg=
+        type: string
+    type: object
+info:
+  contact: {}
+  description: API for cloud-init clients using the OpenCHAMI cloud-init server
+  license:
+    name: MIT
+    url: https://github.com/OpenCHAMI/.github/blob/main/LICENSE
+  title: OpenCHAMI Cloud-Init Server API
+  version: 1.0.0
+paths:
+  /cloud-init/{group}.yaml:
+    get:
+      description: |-
+        Get user-data for a particular group based on its name.
+
+        If the impersonation API is enabled, an ID can be provided in
+        the URL path using `/admin/impersonation`. In this case, the
+        group user-data will be retrieved for the requested ID.
+      parameters:
+      - description: Group name
+        in: path
+        name: group
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      summary: Get user-data for a particular group
+  /cloud-init/admin/cluster-defaults:
+    get:
+      description: Get default meta-data values for cluster.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cistore.ClusterDefaults'
+        "500":
+          description: Internal Server Error
+      summary: Get cluster defaults
+      tags:
+      - admin
+      - cluster-defaults
+    post:
+      consumes:
+      - application/json
+      description: Set default meta-data values for cluster.
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      summary: Set cluster defaults
+      tags:
+      - admin
+      - cluster-defaults
+  /cloud-init/admin/groups:
+    get:
+      description: |-
+        Get meta-data and cloud-init config for all groups known to
+        cloud-init.  Note that group membership is managed outside of
+        the cloud-init service, normally in SMD.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/cistore.ClusterDefaults'
+            type: object
+        "500":
+          description: Internal Server Error
+      summary: Get groups known by cloud-init
+      tags:
+      - admin
+      - groups
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Add a new group to cloud-init corresponding to an SMD group.
+        Group-wide meta-data and/or a cloud-init configuration (in
+        either plain or base64 encoding) can be specified.
+
+        If successful, a 201 Created status is returned and the
+        `Location` header is set to the new group's groups endpoint,
+        `/groups/{name}`.
+
+        If request parsing fails, a 422 Unprocessable Entity status is
+        returned. If adding group data to the data store fails, a 409
+        Conflict status is returned.
+      parameters:
+      - description: Group data
+        in: body
+        name: group
+        required: true
+        schema:
+          $ref: '#/definitions/cistore.GroupData'
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: /groups/{id}
+              type: string
+        "409":
+          description: Conflict
+        "422":
+          description: Unprocessable Entity
+      summary: Add a new group
+      tags:
+      - admin
+      - groups
+  /cloud-init/admin/groups/{id}:
+    delete:
+      description: Delete a group with its meta-data and cloud-init config.
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+      summary: Delete a group
+      tags:
+      - admin
+      - groups
+    get:
+      description: |-
+        Get meta-data and cloud-init config for a single group known to
+        cloud-init.
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cistore.GroupData'
+        "500":
+          description: Internal Server Error
+      summary: Get data for single group
+      tags:
+      - admin
+      - groups
+  /cloud-init/admin/groups/{name}:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Set meta-data or cloud-init configuration for a specific group,
+        overwriting any previous values.
+
+        If successful, a 201 Created status is returned and the
+        `Location` header is set to the new group's groups endpoint,
+        `/groups/{group}`. This operation is idempotent and replaces
+        any existing content.
+      parameters:
+      - description: Group name
+        in: path
+        name: name
+        required: true
+        type: string
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: /groups/{name}
+              type: string
+        "422":
+          description: Unprocessable Entity
+        "500":
+          description: Internal Server Error
+      summary: Set group-specific meta-data and/or cloud-init config
+      tags:
+      - admin
+      - groups
+  /cloud-init/admin/impersonation/{id}/{group}.yaml:
+    get:
+      description: |-
+        Get user-data for a particular group based on its name.
+
+        If the impersonation API is enabled, an ID can be provided in
+        the URL path using `/admin/impersonation`. In this case, the
+        group user-data will be retrieved for the requested ID.
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        type: string
+      - description: Group name
+        in: path
+        name: group
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      summary: Get user-data for a particular group
+  /cloud-init/admin/impersonation/{id}/meta-data:
+    get:
+      description: |-
+        Get meta-data for requesting node based on the requesting IP.
+
+        If the impersonation API is enabled, an ID can be provided in
+        the URL path using `/admin/impersonation`. In this case, the
+        meta-data will be retrieved for the requested ID.
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        type: string
+      produces:
+      - application/x-yaml
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.MetaData'
+        "404":
+          description: Not Found
+        "422":
+          description: Unprocessable Entity
+        "500":
+          description: Internal Server Error
+      summary: Get meta-data for requesting node
+  /cloud-init/admin/impersonation/{id}/user-data:
+    get:
+      description: |-
+        Get user-data for requesting node base on the requesting IP. For
+        OpenCHAMI, this will always be `#cloud-config`.
+
+        If the impersonation API is enabled, an ID can be provided in
+        the URL path using `/admin/impersonation`. In this case, the
+        user-data will be retrieved for the requested ID.
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Get user-data for requesting node
+  /cloud-init/admin/impersonation/{id}/vendor-data:
+    get:
+      description: |-
+        For OpenCHAMI, the vendor-data will always be a list of other
+        `#cloud-config` URLs to download and merge.
+
+        If the impersonation API is enabled, an ID can be provided in
+        the URL path using `/admin/impersonation`. In this case, the
+        vendor-data will be retrieved for the requested ID.
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Get vendor data
+  /cloud-init/admin/instance-info/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Set meta-data for a specific node ID, overwriting relevant group
+        meta-data.
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      summary: Set node-specific meta-data
+      tags:
+      - admin
+      - instance-data
+  /cloud-init/meta-data:
+    get:
+      description: |-
+        Get meta-data for requesting node based on the requesting IP.
+
+        If the impersonation API is enabled, an ID can be provided in
+        the URL path using `/admin/impersonation`. In this case, the
+        meta-data will be retrieved for the requested ID.
+      produces:
+      - application/x-yaml
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.MetaData'
+        "404":
+          description: Not Found
+        "422":
+          description: Unprocessable Entity
+        "500":
+          description: Internal Server Error
+      summary: Get meta-data for requesting node
+  /cloud-init/openapi.json:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+      summary: Return JSON-formatted OpenAPI documentation
+  /cloud-init/phone-home/{id}:
+    post:
+      description: |-
+        Signal to the cloud-init server that the specific host has completed running
+        the cloud-init configuration tasks so that, if a WireGuard tunnel is being used,
+        it can be torn down. This endpoint should not be manually requested by a user
+        but is only meant to be used by a cloud-init client that has received its
+        config from an OpenCHAMI cloud-init server.
+      parameters:
+      - description: Node's unique identifier
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Node's WireGuard RSA public key
+        in: formData
+        name: pub_key_rsa
+        required: true
+        type: string
+      - description: Node's WireGuard ECDSA public key
+        in: formData
+        name: pub_key_ecdsa
+        required: true
+        type: string
+      - description: Node's WireGuard ED35519 public key
+        in: formData
+        name: pub_key_ed25519
+        required: true
+        type: string
+      - description: Node's given instance ID
+        in: formData
+        name: instance_id
+        required: true
+        type: string
+      - description: Node's given hostname
+        in: formData
+        name: hostname
+        required: true
+        type: string
+      - description: Node's given fully-qualified domain name
+        in: formData
+        name: fqdn
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+      summary: Signal to cloud-init server that host has completed running cloud-init
+        configuration
+      tags:
+      - phone-home
+  /cloud-init/user-data:
+    get:
+      description: |-
+        Get user-data for requesting node base on the requesting IP. For
+        OpenCHAMI, this will always be `#cloud-config`.
+
+        If the impersonation API is enabled, an ID can be provided in
+        the URL path using `/admin/impersonation`. In this case, the
+        user-data will be retrieved for the requested ID.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Get user-data for requesting node
+  /cloud-init/vendor-data:
+    get:
+      description: |-
+        For OpenCHAMI, the vendor-data will always be a list of other
+        `#cloud-config` URLs to download and merge.
+
+        If the impersonation API is enabled, an ID can be provided in
+        the URL path using `/admin/impersonation`. In this case, the
+        vendor-data will be retrieved for the requested ID.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Get vendor data
+  /cloud-init/wg-init:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Initiate a WireGuard tunnel from a client using its public key
+        and peer name (IP address).
+
+        The source IP of the request is read and is used as the peer
+        name along with the public key to authenticate unless the
+        `X-Forward-For` header is set. In that case, the value of the
+        header is used as the peer name. If the peer exists in the
+        internal tunnel manager, the IP presented is the one used.
+        Otherwise, the next available IP in range is assigned.
+      parameters:
+      - description: WireGuard public key of client
+        in: body
+        name: pubkey
+        required: true
+        schema:
+          $ref: '#/definitions/wgtunnel.PublicKeyRequest'
+      - description: Override source IP
+        in: header
+        name: X-Forwarded-For
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/wgtunnel.WGResponse'
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      summary: Add a WireGuard client
+swagger: "2.0"

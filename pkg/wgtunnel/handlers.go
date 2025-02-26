@@ -13,10 +13,39 @@ import (
 
 // PublicKeyRequest represents the JSON payload for a WireGuard public key.
 type PublicKeyRequest struct {
-	PublicKey string `json:"public_key"`
+	PublicKey string `json:"public_key" example:"9NS6+NR0J38SZ9IlY9hBDLs6aBpNDhxHUHL8OTlNEDU=" description:"WireGuard public key content"`
 }
 
-// addClientHandler handles adding a WireGuard client.
+// WGResponse represents the JSON payload for a response from the WireGuard
+// server.
+type WGResponse struct {
+	Message      string `json:"message" example:"WireGuard tunnel created successfully"`
+	ClientVPNIP  string `json:"client-vpn-ip" example:"10.89.0.7" description:"Assigned WireGuard VPN IP address"`
+	ServerPubKey string `json:"server-public-key" example:"dHMOGL8vTGhTgqXyYdu6cLGXEPmTcWm+vS18GcQseyg="`
+	ServerIP     string `json:"server-ip" example:"10.87.0.1" description:"WireGuard server IP"`
+	ServerPort   string `json:"server-port" example:"51820" description:"WireGuard server port"`
+}
+
+// AddClientHandler godoc
+//
+//	@Summary		Add a WireGuard client
+//	@Description	Initiate a WireGuard tunnel from a client using its public key
+//	@Description	and peer name (IP address).
+//	@Description
+//	@Description	The source IP of the request is read and is used as the peer
+//	@Description	name along with the public key to authenticate unless the
+//	@Description	`X-Forward-For` header is set. In that case, the value of the
+//	@Description	header is used as the peer name. If the peer exists in the
+//	@Description	internal tunnel manager, the IP presented is the one used.
+//	@Description	Otherwise, the next available IP in range is assigned.
+//	@Accept			json
+//	@Produce		json
+//	@Success		200				{object}	WGResponse
+//	@Failure		400				{object}	nil
+//	@Failure		500				{object}	nil
+//	@Param			pubkey			body		PublicKeyRequest	true	"WireGuard public key of client"
+//	@Param			X-Forwarded-For	header		string				false	"Override source IP"
+//	@Router			/cloud-init/wg-init [post]
 func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -87,12 +116,12 @@ func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterfa
 			return
 		}
 
-		response := map[string]string{
-			"message":           "WireGuard tunnel created successfully",
-			"client-vpn-ip":     clientVPNIP,
-			"server-public-key": serverConfig.PublicKey,
-			"server-ip":         serverConfig.IP,
-			"server-port":       serverConfig.Port,
+		response := WGResponse{
+			Message:      "WireGuard tunnel created successfully",
+			ClientVPNIP:  clientVPNIP,
+			ServerPubKey: serverConfig.PublicKey,
+			ServerIP:     serverConfig.IP,
+			ServerPort:   serverConfig.Port,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
