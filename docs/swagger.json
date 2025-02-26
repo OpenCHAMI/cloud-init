@@ -1,0 +1,813 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API for cloud-init clients using the OpenCHAMI cloud-init server",
+        "title": "OpenCHAMI Cloud-Init Server API",
+        "contact": {},
+        "license": {
+            "name": "MIT",
+            "url": "https://github.com/OpenCHAMI/.github/blob/main/LICENSE"
+        },
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/cloud-init/admin/cluster-defaults": {
+            "get": {
+                "description": "Get default meta-data values for cluster.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "cluster-defaults"
+                ],
+                "summary": "Get cluster defaults",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cistore.ClusterDefaults"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            },
+            "post": {
+                "description": "Set default meta-data values for cluster.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "cluster-defaults"
+                ],
+                "summary": "Set cluster defaults",
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/cloud-init/admin/groups": {
+            "get": {
+                "description": "Get meta-data and cloud-init config for all groups known to\ncloud-init.  Note that group membership is managed outside of\nthe cloud-init service, normally in SMD.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "groups"
+                ],
+                "summary": "Get groups known by cloud-init",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/cistore.ClusterDefaults"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            },
+            "post": {
+                "description": "Add a new group to cloud-init corresponding to an SMD group.\nGroup-wide meta-data and/or a cloud-init configuration (in\neither plain or base64 encoding) can be specified.\n\nIf successful, a 201 Created status is returned and the\n`Location` header is set to the new group's groups endpoint,\n`/groups/{name}`.\n\nIf request parsing fails, a 422 Unprocessable Entity status is\nreturned. If adding group data to the data store fails, a 409\nConflict status is returned.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "groups"
+                ],
+                "summary": "Add a new group",
+                "parameters": [
+                    {
+                        "description": "Group data",
+                        "name": "group",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cistore.GroupData"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "/groups/{id}"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity"
+                    }
+                }
+            }
+        },
+        "/cloud-init/admin/groups/{id}": {
+            "get": {
+                "description": "Get meta-data and cloud-init config for a single group known to\ncloud-init.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "groups"
+                ],
+                "summary": "Get data for single group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cistore.GroupData"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a group with its meta-data and cloud-init config.",
+                "tags": [
+                    "admin",
+                    "groups"
+                ],
+                "summary": "Delete a group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/cloud-init/admin/groups/{name}": {
+            "put": {
+                "description": "Set meta-data or cloud-init configuration for a specific group,\noverwriting any previous values.\n\nIf successful, a 201 Created status is returned and the\n`Location` header is set to the new group's groups endpoint,\n`/groups/{group}`. This operation is idempotent and replaces\nany existing content.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "groups"
+                ],
+                "summary": "Set group-specific meta-data and/or cloud-init config",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "/groups/{name}"
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/cloud-init/admin/impersonation/{id}/meta-data": {
+            "get": {
+                "description": "Get meta-data for requesting node based on the requesting IP.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nmeta-data will be retrieved for the requested ID.",
+                "produces": [
+                    "application/x-yaml"
+                ],
+                "summary": "Get meta-data for requesting node",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.MetaData"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/cloud-init/admin/impersonation/{id}/user-data": {
+            "get": {
+                "description": "Get user-data for requesting node base on the requesting IP. For\nOpenCHAMI, this will always be `#cloud-config`.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nuser-data will be retrieved for the requested ID.",
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Get user-data for requesting node",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/cloud-init/admin/impersonation/{id}/vendor-data": {
+            "get": {
+                "description": "For OpenCHAMI, the vendor-data will always be a list of other\n`#cloud-config` URLs to download and merge.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nvendor-data will be retrieved for the requested ID.",
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Get vendor data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/cloud-init/admin/impersonation/{id}/{group}.yaml": {
+            "get": {
+                "description": "Get user-data for a particular group based on its name.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\ngroup user-data will be retrieved for the requested ID.",
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Get user-data for a particular group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Group name",
+                        "name": "group",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/cloud-init/admin/instance-info/{id}": {
+            "put": {
+                "description": "Set meta-data for a specific node ID, overwriting relevant group meta-data.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "instance-data"
+                ],
+                "summary": "Set node-specific meta-data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/cloud-init/meta-data": {
+            "get": {
+                "description": "Get meta-data for requesting node based on the requesting IP.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nmeta-data will be retrieved for the requested ID.",
+                "produces": [
+                    "application/x-yaml"
+                ],
+                "summary": "Get meta-data for requesting node",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.MetaData"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/cloud-init/phone-home/{id}": {
+            "post": {
+                "description": "Signal to the cloud-init server that the specific host has completed running\nthe cloud-init configuration tasks so that, if a WireGuard tunnel is being used,\nit can be torn down. This endpoint should not be manually requested by a user\nbut is only meant to be used by a cloud-init client that has received its\nconfig from an OpenCHAMI cloud-init server.",
+                "tags": [
+                    "phone-home"
+                ],
+                "summary": "Signal to cloud-init server that host has completed running cloud-init configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node's unique identifier",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Node's WireGuard RSA public key",
+                        "name": "pub_key_rsa",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Node's WireGuard ECDSA public key",
+                        "name": "pub_key_ecdsa",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Node's WireGuard ED35519 public key",
+                        "name": "pub_key_ed25519",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Node's given instance ID",
+                        "name": "instance_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Node's given hostname",
+                        "name": "hostname",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Node's given fully-qualified domain name",
+                        "name": "fqdn",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    }
+                }
+            }
+        },
+        "/cloud-init/user-data": {
+            "get": {
+                "description": "Get user-data for requesting node base on the requesting IP. For\nOpenCHAMI, this will always be `#cloud-config`.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nuser-data will be retrieved for the requested ID.",
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Get user-data for requesting node",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/cloud-init/vendor-data": {
+            "get": {
+                "description": "For OpenCHAMI, the vendor-data will always be a list of other\n`#cloud-config` URLs to download and merge.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nvendor-data will be retrieved for the requested ID.",
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Get vendor data",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/cloud-init/wg-init": {
+            "post": {
+                "description": "Initiate a WireGuard tunnel from a client using its public key\nand peer name (IP address).\n\nThe source IP of the request is read and is used as the peer\nname along with the public key to authenticate unless the\n`X-Forward-For` header is set. In that case, the value of the\nheader is used as the peer name. If the peer exists in the\ninternal tunnel manager, the IP presented is the one used.\nOtherwise, the next available IP in range is assigned.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Add a WireGuard client",
+                "parameters": [
+                    {
+                        "description": "WireGuard public key of client",
+                        "name": "pubkey",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/wgtunnel.PublicKeyRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Override source IP",
+                        "name": "X-Forwarded-For",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/wgtunnel.WGResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/cloud-init/{group}.yaml": {
+            "get": {
+                "description": "Get user-data for a particular group based on its name.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\ngroup user-data will be retrieved for the requested ID.",
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Get user-data for a particular group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group name",
+                        "name": "group",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "cistore.CloudConfigFile": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "IyMgdGVtcGxhdGU6IGppbmphCiNjbG91ZC1jb25maWcKbWVyZ2VfaG93OgotIG5hbWU6IGxpc3QKICBzZXR0aW5nczogW2FwcGVuZF0KLSBuYW1lOiBkaWN0CiAgc2V0dGluZ3M6IFtub19yZXBsYWNlLCByZWN1cnNlX2xpc3RdCnVzZXJzOgogIC0gbmFtZTogcm9vdAogICAgc3NoX2F1dGhvcml6ZWRfa2V5czoge3sgZHMubWV0YV9kYXRhLmluc3RhbmNlX2RhdGEudjEucHVibGljX2tleXMgfX0KZGlzYWJsZV9yb290OiBmYWxzZQo="
+                },
+                "encoding": {
+                    "type": "string",
+                    "enum": [
+                        "base64",
+                        "plain"
+                    ]
+                },
+                "filename": {
+                    "type": "string"
+                }
+            }
+        },
+        "cistore.ClusterDefaults": {
+            "type": "object",
+            "properties": {
+                "availability-zone": {
+                    "type": "string"
+                },
+                "base-url": {
+                    "type": "string",
+                    "example": "http://demo.openchami.cluster:8081/cloud-init"
+                },
+                "boot-subnet": {
+                    "type": "string"
+                },
+                "cloud_provider": {
+                    "type": "string"
+                },
+                "cluster-name": {
+                    "type": "string",
+                    "example": "demo"
+                },
+                "nid-length": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "public-keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMLtQNuzGcMDatF+YVMMkuxbX2c5v2OxWftBhEVfFb+U user1@demo-head",
+                        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB4vVRvkzmGE5PyWX2fuzJEgEfET4PRLHXCnD1uFZ8ZL user2@demo-head"
+                    ]
+                },
+                "region": {
+                    "type": "string"
+                },
+                "short-name": {
+                    "type": "string",
+                    "example": "nid"
+                },
+                "wg-subnet": {
+                    "type": "string"
+                }
+            }
+        },
+        "cistore.GroupData": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "The compute group"
+                },
+                "file": {
+                    "$ref": "#/definitions/cistore.CloudConfigFile"
+                },
+                "meta-data": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "name": {
+                    "type": "string",
+                    "example": "compute"
+                }
+            }
+        },
+        "main.Group": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "main.InstanceData": {
+            "type": "object",
+            "properties": {
+                "v1": {
+                    "type": "object",
+                    "properties": {
+                        "availability-zone": {
+                            "type": "string"
+                        },
+                        "cloud-name": {
+                            "type": "string"
+                        },
+                        "cloud-provider": {
+                            "type": "string"
+                        },
+                        "hostname": {
+                            "type": "string"
+                        },
+                        "instance-id": {
+                            "type": "string"
+                        },
+                        "instance-type": {
+                            "type": "string"
+                        },
+                        "local-hostname": {
+                            "type": "string"
+                        },
+                        "local-ipv4": {},
+                        "public-keys": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "region": {
+                            "type": "string"
+                        },
+                        "vendor-data": {
+                            "$ref": "#/definitions/main.VendorData"
+                        }
+                    }
+                }
+            }
+        },
+        "main.MetaData": {
+            "type": "object",
+            "properties": {
+                "cluster-name": {
+                    "type": "string",
+                    "example": "demo"
+                },
+                "hostname": {
+                    "type": "string",
+                    "example": "compute-1.demo.openchami.cluster"
+                },
+                "instance-data": {
+                    "$ref": "#/definitions/main.InstanceData"
+                },
+                "instance-id": {
+                    "type": "string"
+                },
+                "local-hostname": {
+                    "type": "string",
+                    "example": "compute-1"
+                }
+            }
+        },
+        "main.VendorData": {
+            "type": "object",
+            "properties": {
+                "cabinet": {
+                    "type": "string"
+                },
+                "cloud-init-base-url": {
+                    "type": "string"
+                },
+                "cluster_name": {
+                    "type": "string",
+                    "example": "demo"
+                },
+                "groups": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/main.Group"
+                    }
+                },
+                "location": {
+                    "type": "string"
+                },
+                "nid": {
+                    "type": "integer"
+                },
+                "rack": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "sub-role": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "wgtunnel.PublicKeyRequest": {
+            "type": "object",
+            "properties": {
+                "public_key": {
+                    "type": "string",
+                    "example": "9NS6+NR0J38SZ9IlY9hBDLs6aBpNDhxHUHL8OTlNEDU="
+                }
+            }
+        },
+        "wgtunnel.WGResponse": {
+            "type": "object",
+            "properties": {
+                "client-vpn-ip": {
+                    "type": "string",
+                    "example": "10.89.0.7"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "WireGuard tunnel created successfully"
+                },
+                "server-ip": {
+                    "type": "string",
+                    "example": "10.87.0.1"
+                },
+                "server-port": {
+                    "type": "string",
+                    "example": "51820"
+                },
+                "server-public-key": {
+                    "type": "string",
+                    "example": "dHMOGL8vTGhTgqXyYdu6cLGXEPmTcWm+vS18GcQseyg="
+                }
+            }
+        }
+    }
+}
