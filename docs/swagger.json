@@ -375,6 +375,25 @@
                 }
             }
         },
+        "/cloud-init/docs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Return JSON-formatted OpenAPI documentation",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/cloud-init/meta-data": {
             "get": {
                 "description": "Get meta-data for requesting node based on the requesting IP.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nmeta-data will be retrieved for the requested ID.",
