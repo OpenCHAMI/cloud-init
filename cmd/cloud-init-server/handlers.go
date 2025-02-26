@@ -53,7 +53,7 @@ func parseData(r *http.Request) (cistore.GroupData, error) {
 //	@Produce	json
 //	@Success	200	{object}	string
 //	@Failure	500	{object}	nil
-//	@Router		/cloud-init/docs [get]
+//	@Router		/cloud-init/openapi.json [get]
 func DocsHandler(w http.ResponseWriter, r *http.Request) {
 	doc, err := swag.ReadDoc()
 	if err != nil {

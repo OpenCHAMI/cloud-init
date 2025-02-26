@@ -480,18 +480,6 @@ paths:
       tags:
       - admin
       - instance-data
-  /cloud-init/docs:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-        "500":
-          description: Internal Server Error
-      summary: Return JSON-formatted OpenAPI documentation
   /cloud-init/meta-data:
     get:
       description: |-
@@ -514,6 +502,18 @@ paths:
         "500":
           description: Internal Server Error
       summary: Get meta-data for requesting node
+  /cloud-init/openapi.json:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+      summary: Return JSON-formatted OpenAPI documentation
   /cloud-init/phone-home/{id}:
     post:
       description: |-
