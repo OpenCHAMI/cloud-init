@@ -33,7 +33,7 @@ type WGResponse struct {
 //	@Description
 //	@Description	The source IP of the request is read and is used as the peer
 //	@Description	name along with the public key to authenticate unless the
-//	@Description	X-Forward-For header is set. In that case, the value of the
+//	@Description	`X-Forward-For` header is set. In that case, the value of the
 //	@Description	header is used as the peer name. If the peer exists in the
 //	@Description	internal tunnel manager, the IP presented is the one used.
 //	@Description	Otherwise, the next available IP in range is assigned.

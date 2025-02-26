@@ -13,7 +13,7 @@ import (
 // VendorDataHandler godoc
 //	@Summary		Get vendor data
 //	@Description	For OpenCHAMI, the vendor-data will always be a list of other
-//	@Description	#cloud-config URLs to download and merge.
+//	@Description	`#cloud-config` URLs to download and merge.
 //	@Description
 //	@Description	If the impersonation API is enabled, an ID can be provided in
 //	@Description	the URL path using `/admin/impersonation`. In this case, the

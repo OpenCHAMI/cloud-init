@@ -11,15 +11,15 @@ import (
 
 // GetGroups godoc
 //
-//		@Summary		Get groups known by cloud-init
-//		@Description	Get meta-data and cloud-init config for all groups known to
-//		@Description	cloud-init.  Note that group membership is managed outside of
-//	 @Description	the cloud-init service, normally in SMD.
-//		@Tags			admin,groups
-//		@Produce		json
-//		@Success		200	{object}	map[string]cistore.ClusterDefaults
-//		@Failure		500	{object}	nil
-//		@Router			/cloud-init/admin/groups [get]
+//	@Summary		Get groups known by cloud-init
+//	@Description	Get meta-data and cloud-init config for all groups known to
+//	@Description	cloud-init.  Note that group membership is managed outside of
+//	@Description	the cloud-init service, normally in SMD.
+//	@Tags			admin,groups
+//	@Produce		json
+//	@Success		200	{object}	map[string]cistore.ClusterDefaults
+//	@Failure		500	{object}	nil
+//	@Router			/cloud-init/admin/groups [get]
 func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
 		groups map[string]cistore.GroupData
@@ -46,8 +46,8 @@ func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 //	@Description	either plain or base64 encoding) can be specified.
 //	@Description
 //	@Description	If successful, a 201 Created status is returned and the
-//	@Description	"Location" header is set to the new group's groups endpoint,
-//	@Description	"/groups/{name}".
+//	@Description	`Location` header is set to the new group's groups endpoint,
+//	@Description	`/groups/{name}`.
 //	@Description
 //	@Description	If request parsing fails, a 422 Unprocessable Entity status is
 //	@Description	returned. If adding group data to the data store fails, a 409
@@ -122,9 +122,9 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Description	overwriting any previous values.
 //	@Description
 //	@Description	If successful, a 201 Created status is returned and the
-//	@Description	"Location" header is set to the new group's groups endpoint,
-//	@Description	"/groups/{group}".
-//	@Description    This operation is idempotent and replaces any existing content.
+//	@Description	`Location` header is set to the new group's groups endpoint,
+//	@Description	`/groups/{group}`. This operation is idempotent and replaces
+//	@Description	any existing content.
 //	@Tags			admin,groups
 //	@Accept			json
 //	@Success		201		{object}	nil
