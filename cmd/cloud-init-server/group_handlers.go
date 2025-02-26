@@ -156,7 +156,7 @@ func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// godoc RemoveGroupHandler
+// RemoveGroupHandler godoc
 //
 //	@Summary		Delete a group
 //	@Description	Delete a group with its meta-data and cloud-init config.
