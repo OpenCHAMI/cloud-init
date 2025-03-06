@@ -71,9 +71,10 @@ func DocsHandler(w http.ResponseWriter, r *http.Request) {
 //	@Description	Set default meta-data values for cluster.
 //	@Tags			admin,cluster-defaults
 //	@Accept			json
-//	@Success		201	{object}	nil
-//	@Failure		400	{object}	nil
-//	@Failure		500	{object}	nil
+//	@Success		201		{object}	nil
+//	@Failure		400		{object}	nil
+//	@Failure		500		{object}	nil
+//	@Param			data	body		cistore.ClusterDefaults	true	"Cluster defaults data"
 //	@Router			/cloud-init/admin/cluster-defaults [post]
 func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -141,10 +142,11 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 //	@Description	Set meta-data for a specific node ID, overwriting relevant group meta-data.
 //	@Tags			admin,instance-data
 //	@Accept			json
-//	@Success		201	{object}	nil
-//	@Failure		400	{object}	nil
-//	@Failure		500	{object}	nil
-//	@Param			id	path		string	true	"Node ID"
+//	@Success		201				{object}	nil
+//	@Failure		400				{object}	nil
+//	@Failure		500				{object}	nil
+//	@Param			id				path		string							true	"Node ID"
+//	@Param			instance-info	body		cistore.OpenCHAMIInstanceInfo	true	"Instance info data"
 //	@Router			/cloud-init/admin/instance-info/{id} [put]
 func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

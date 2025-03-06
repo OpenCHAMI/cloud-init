@@ -60,6 +60,41 @@ definitions:
         example: compute
         type: string
     type: object
+  cistore.OpenCHAMIInstanceInfo:
+    properties:
+      availability-zone:
+        type: string
+      cloud-init-base-url:
+        type: string
+      cloud-provider:
+        type: string
+      cluster-name:
+        example: demo
+        type: string
+      hostname:
+        type: string
+      id:
+        example: x3000c1b1n1
+        type: string
+      instance-id:
+        type: string
+      instance-type:
+        type: string
+      local-hostname:
+        example: compute-1
+        type: string
+      public-keys:
+        example:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMLtQNuzGcMDatF+YVMMkuxbX2c5v2OxWftBhEVfFb+U
+          user1@demo-head
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB4vVRvkzmGE5PyWX2fuzJEgEfET4PRLHXCnD1uFZ8ZL
+          user2@demo-head
+        items:
+          type: string
+        type: array
+      region:
+        type: string
+    type: object
   main.Group:
     additionalProperties: true
     type: object
@@ -213,6 +248,13 @@ paths:
       consumes:
       - application/json
       description: Set default meta-data values for cluster.
+      parameters:
+      - description: Cluster defaults data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/cistore.ClusterDefaults'
       responses:
         "201":
           description: Created
@@ -341,6 +383,12 @@ paths:
         name: name
         required: true
         type: string
+      - description: Group data
+        in: body
+        name: group_data
+        required: true
+        schema:
+          $ref: '#/definitions/cistore.GroupData'
       responses:
         "201":
           description: Created
@@ -469,6 +517,12 @@ paths:
         name: id
         required: true
         type: string
+      - description: Instance info data
+        in: body
+        name: instance-info
+        required: true
+        schema:
+          $ref: '#/definitions/cistore.OpenCHAMIInstanceInfo'
       responses:
         "201":
           description: Created

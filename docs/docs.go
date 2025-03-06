@@ -52,6 +52,17 @@ const docTemplate = `{
                     "cluster-defaults"
                 ],
                 "summary": "Set cluster defaults",
+                "parameters": [
+                    {
+                        "description": "Cluster defaults data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cistore.ClusterDefaults"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "Created"
@@ -207,6 +218,15 @@ const docTemplate = `{
                         "name": "name",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Group data",
+                        "name": "group_data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cistore.GroupData"
+                        }
                     }
                 ],
                 "responses": {
@@ -368,6 +388,15 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Instance info data",
+                        "name": "instance-info",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cistore.OpenCHAMIInstanceInfo"
+                        }
                     }
                 ],
                 "responses": {
@@ -689,6 +718,54 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "compute"
+                }
+            }
+        },
+        "cistore.OpenCHAMIInstanceInfo": {
+            "type": "object",
+            "properties": {
+                "availability-zone": {
+                    "type": "string"
+                },
+                "cloud-init-base-url": {
+                    "type": "string"
+                },
+                "cloud-provider": {
+                    "type": "string"
+                },
+                "cluster-name": {
+                    "type": "string",
+                    "example": "demo"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "x3000c1b1n1"
+                },
+                "instance-id": {
+                    "type": "string"
+                },
+                "instance-type": {
+                    "type": "string"
+                },
+                "local-hostname": {
+                    "type": "string",
+                    "example": "compute-1"
+                },
+                "public-keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMLtQNuzGcMDatF+YVMMkuxbX2c5v2OxWftBhEVfFb+U user1@demo-head",
+                        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB4vVRvkzmGE5PyWX2fuzJEgEfET4PRLHXCnD1uFZ8ZL user2@demo-head"
+                    ]
+                },
+                "region": {
+                    "type": "string"
                 }
             }
         },
