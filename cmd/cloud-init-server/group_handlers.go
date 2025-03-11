@@ -6,7 +6,6 @@ import (
 
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // GetGroups godoc
@@ -107,7 +106,7 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bytes, err = yaml.Marshal(data)
+	bytes, err = json.Marshal(data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
