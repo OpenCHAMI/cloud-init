@@ -127,11 +127,12 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Description	any existing content.
 //	@Tags			admin,groups
 //	@Accept			json
-//	@Success		201		{object}	nil
-//	@Failure		422		{object}	nil
-//	@Failure		500		{object}	nil
-//	@Header			201		{string}	Location	"/groups/{name}"
-//	@Param			name	path		string		true	"Group name"
+//	@Success		201			{object}	nil
+//	@Failure		422			{object}	nil
+//	@Failure		500			{object}	nil
+//	@Header			201			{string}	Location			"/groups/{name}"
+//	@Param			name		path		string				true	"Group name"
+//	@Param			group_data	body		cistore.GroupData	true	"Group data"
 //	@Router			/cloud-init/admin/groups/{name} [put]
 func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
