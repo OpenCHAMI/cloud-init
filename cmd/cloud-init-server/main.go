@@ -8,7 +8,6 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	openchami_middleware "github.com/OpenCHAMI/cloud-init/internal/middleware"
+	"github.com/OpenCHAMI/cloud-init/internal/quackstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
@@ -52,6 +52,8 @@ var (
 	wireguardOnly        bool
 	debug                bool
 	wireGuardMiddleware  func(http.Handler) http.Handler
+	storageBackend       = "mem"           // Default to memstore
+	dbPath               = "cloud-init.db" // Default database path for quackstore
 	store                cistore.Store
 )
 
@@ -93,6 +95,8 @@ func setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&wireguardServer, "wireguard-server", getEnv("WIREGUARD_SERVER", ""), "WireGuard server IP address and network (e.g. 100.97.0.1/16)")
 	flags.BoolVar(&wireguardOnly, "wireguard-only", parseBool(getEnv("WIREGUARD_ONLY", "false")), "Only allow access to the cloud-init functions from the WireGuard subnet")
 	flags.BoolVar(&debug, "debug", parseBool(getEnv("DEBUG", "false")), "Enable debug logging")
+	flags.StringVar(&storageBackend, "storage-backend", getEnv("STORAGE_BACKEND", "mem"), "Storage backend to use (mem or quack)")
+	flags.StringVar(&dbPath, "db-path", getEnv("DB_PATH", "cloud-init.db"), "Path to the database file for quackstore backend")
 }
 
 // bindViperToFlags binds each flag to Viper so environment variables work seamlessly.
@@ -114,6 +118,8 @@ func bindViperToFlags() {
 	viper.BindEnv("wireguard_server")
 	viper.BindEnv("wireguard_only")
 	viper.BindEnv("debug")
+	viper.BindEnv("storage_backend")
+	viper.BindEnv("db_path")
 }
 
 // startServer is where we run our main program logic
@@ -137,6 +143,8 @@ func startServer() error {
 			Str("wireguard-server", wireguardServer).
 			Bool("wireguard-only", wireguardOnly).
 			Bool("debug", debug).
+			Str("storage-backend", storageBackend).
+			Str("db-path", dbPath).
 			Msg("Resolved configuration")
 	}
 
@@ -144,6 +152,20 @@ func startServer() error {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	// Initialize storage backend
+	var err error
+	switch storageBackend {
+	case "mem":
+		store = memstore.NewMemStore()
+	case "quack":
+		store, err = quackstore.NewQuackStore(dbPath)
+		if err != nil {
+			return fmt.Errorf("failed to initialize quackstore: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported storage backend: %s", storageBackend)
+	}
 
 	// Setup JWKS if provided
 	var keyset *jwtauth.JWTAuth
@@ -164,61 +186,29 @@ func startServer() error {
 	var sm smdclient.SMDClientInterface
 	if os.Getenv("CLOUD_INIT_SMD_SIMULATOR") == "true" {
 		fmt.Printf("\n\n**********\n\n\tCLOUD_INIT_SMD_SIMULATOR is set to true in your environment.\n\n\tUsing the FakeSMDClient\n\n**********\n\n\n")
-		fakeSMDEnabled = true
-		fakeSm := smdclient.NewFakeSMDClient(clusterName, 500)
-		fakeSm.Summary()
-		sm = fakeSm
+		sm = smdclient.NewFakeSMDClient(clusterName, 500)
 	} else {
-		var err error
 		sm, err = smdclient.NewSMDClient(clusterName, smdEndpoint, tokenEndpoint, accessToken, certPath, insecure)
 		if err != nil {
-			log.Fatal().Err(err)
+			return fmt.Errorf("failed to create SMD client: %w", err)
 		}
 	}
 
-	// Initialize in-memory store
-	store = memstore.NewMemStore()
-	store.SetClusterDefaults(cistore.ClusterDefaults{
-		ClusterName:      clusterName,
-		Region:           region,
-		AvailabilityZone: availabilityZone,
-		CloudProvider:    cloudProvider,
-		BaseUrl:          baseUrl,
-	})
-
-	// Initialize the cloud-init handler
-	ciHandler := NewCiHandler(store, sm, clusterName)
-
-	// WireGuard
-	var wgInterfaceManager *wgtunnel.InterfaceManager
-	if wireguardServer != "" {
-		log.Info().Msgf("Initializing WireGuard server with %s", wireguardServer)
-		wgIp, wgNet, err := net.ParseCIDR(wireguardServer)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("Failed to parse WireGuard server IP and netmask from %s. Use format '100.97.0.1/16'", wireguardServer)
-		}
-		wgInterfaceManager = wgtunnel.NewInterfaceManager("wg0", wgIp, wgNet)
-		err = wgInterfaceManager.StartServer()
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to start the WireGuard server")
-		}
+	// Create CI handler
+	handler := &CiHandler{
+		sm:    sm,
+		store: store,
 	}
 
-	// If wireguard-only is set, only allow access within the WireGuard subnet
-	if wireguardOnly && wgInterfaceManager != nil {
-		log.Info().Msg("WireGuard middleware enabled")
+	// Setup WireGuard middleware if enabled
+	if wireguardOnly && wireguardServer != "" {
 		wireGuardMiddleware = openchami_middleware.WireGuardMiddlewareWithInterface("wg0", wireguardServer)
-	} else {
-		log.Info().Msg("WireGuard middleware disabled")
-		wireGuardMiddleware = func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
 	}
 
-	// Set up router
+	// Create router
 	router := chi.NewRouter()
+
+	// Add middleware
 	router.Use(
 		middleware.RequestID,
 		middleware.RealIP,
@@ -229,25 +219,30 @@ func startServer() error {
 		openchami_logger.OpenCHAMILogger(log.Logger),
 	)
 
-	// Client sub-router
-	router_client := chi.NewRouter()
-	initCiClientRouter(router_client, ciHandler, wgInterfaceManager)
-	router.Mount("/cloud-init", router_client)
+	// Add WireGuard middleware if enabled
+	if wireguardOnly && wireGuardMiddleware != nil {
+		router.Use(wireGuardMiddleware)
+	}
 
-	// Admin sub-router
-	router_admin := chi.NewRouter()
-	if secureRouteEnable {
-		router_admin.Use(
+	// Setup routes
+	initCiClientRouter(router, handler, nil)
+	initCiAdminRouter(router, handler)
+
+	// Add secure routes if JWKS is configured
+	if secureRouteEnable && keyset != nil {
+		secureRouter := chi.NewRouter()
+		secureRouter.Use(
 			jwtauth.Verifier(keyset),
 			openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
 		)
-	}
-	initCiAdminRouter(router_admin, ciHandler)
-	router.Mount("/cloud-init/admin", router_admin)
 
-	log.Info().Msgf("Starting server on %s", ciEndpoint)
-	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
-	return nil
+		// Add secure routes here if needed
+		router.Mount("/secure", secureRouter)
+	}
+
+	// Start server
+	fmt.Printf("Starting cloud-init server on %s\n", ciEndpoint)
+	return http.ListenAndServe(ciEndpoint, router)
 }
 
 // Utility to read optional environment variables
@@ -267,10 +262,17 @@ func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManage
 	// Add cloud-init endpoints to router
 	router.Get("/openapi.json", DocsHandler)
 	router.Get("/version", VersionHandler)
-	router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
-	router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
-	router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
-	router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+	if wireGuardMiddleware != nil {
+		router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
+		router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
+		router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
+		router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+	} else {
+		router.Get("/user-data", UserDataHandler)
+		router.Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
+		router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
+		router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+	}
 	router.Post("/phone-home/{id}", PhoneHomeHandler(wgInterfaceManager, handler.sm))
 	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
 }
