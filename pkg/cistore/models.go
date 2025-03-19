@@ -95,6 +95,9 @@ func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler
 func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
+	// Use temporary struct so json.Unmarshal does not recurse indefinitely.
+	// Also to convert Content from bytes to string so json.Unmarshal
+	// doesn't try to base64 decode the bytes.
 	type Alias CloudConfigFile
 	aux := &struct {
 		Content string `json:"content"`
