@@ -1,10 +1,8 @@
 package cistore
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	base "github.com/Cray-HPE/hms-base"
 )
@@ -14,6 +12,7 @@ type GroupData struct {
 	Description string                 `json:"description,omitempty" example:"The compute group" description:"A short description of the group"`
 	Data        map[string]interface{} `json:"meta-data,omitempty" description:"json map of a string (key) to a struct (value) representing group meta-data"`
 	File        CloudConfigFile        `json:"file,omitempty" description:"Cloud-Init configuration for group"`
+	Versions    map[string]string      `json:"versions,omitempty" description:"Map of group versions"`
 }
 
 func (g *GroupData) ParseFromJSON(body []byte) error {
@@ -90,25 +89,11 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 		Alias: (*Alias)(f),
 	}
 
-	// Unmarshal into the helper struct
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 
-	// Handle encoding
-	switch aux.Encoding {
-	case "base64":
-		decoded, err := base64.StdEncoding.DecodeString(aux.Content)
-		if err != nil {
-			return fmt.Errorf("failed to decode base64 content: %w", err)
-		}
-		f.Content = decoded
-	case "plain":
-		f.Content = []byte(aux.Content)
-	default:
-		return fmt.Errorf("unsupported encoding: %s", aux.Encoding)
-	}
-
+	f.Content = []byte(aux.Content)
 	return nil
 }
 
