@@ -72,35 +72,50 @@ type CloudConfigFile struct {
 	Encoding string `json:"encoding,omitempty" enums:"base64,plain"`
 }
 
-// Custom unmarshaler for CloudConfigFile
+// MarshalJSON implements json.Marshaler
+func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
+	type Alias CloudConfigFile
+	var content string
+	switch f.Encoding {
+	case "base64":
+		content = base64.StdEncoding.EncodeToString(f.Content)
+	case "plain", "":
+		content = string(f.Content)
+	default:
+		return nil, fmt.Errorf("unsupported encoding: %s", f.Encoding)
+	}
+	return json.Marshal(&struct {
+		Content string `json:"content"`
+		*Alias
+	}{
+		Content: content,
+		Alias:   (*Alias)(&f),
+	})
+}
+
+// UnmarshalJSON implements json.Unmarshaler
 func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
-	// Define a helper struct to match the JSON structure
 	type Alias CloudConfigFile
 	aux := &struct {
-		Content string `json:"content"` // Temporarily hold content as a string
+		Content string `json:"content"`
 		*Alias
 	}{
 		Alias: (*Alias)(f),
 	}
-
-	// Unmarshal into the helper struct
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-
-	// Handle encoding
-	switch aux.Encoding {
+	switch f.Encoding {
 	case "base64":
-		decoded, err := base64.StdEncoding.DecodeString(aux.Content)
+		content, err := base64.StdEncoding.DecodeString(aux.Content)
 		if err != nil {
-			return fmt.Errorf("failed to decode base64 content: %w", err)
+			return err
 		}
-		f.Content = decoded
-	case "plain":
+		f.Content = content
+	case "plain", "":
 		f.Content = []byte(aux.Content)
 	default:
-		return fmt.Errorf("unsupported encoding: %s", aux.Encoding)
+		return fmt.Errorf("unsupported encoding: %s", f.Encoding)
 	}
-
 	return nil
 }
