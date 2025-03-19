@@ -95,7 +95,6 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-<<<<<<< HEAD
 	// Handle encoding
 	switch aux.Encoding {
 	case "base64":
@@ -108,8 +107,8 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 		f.Content = []byte(aux.Content)
 	default:
 		return fmt.Errorf("unsupported encoding: %s", aux.Encoding)
-=======
-	f.Content = []byte(aux.Content)
+	}
+
 	return nil
 }
 
@@ -130,8 +129,7 @@ func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
 		Alias
 	}{
 		Alias: (Alias)(f),
->>>>>>> cf9a810 (chore: clarify comments in custom marshal/unmarshal funcs)
 	}
 
-	return nil
+	return json.Marshal(aux)
 }
