@@ -1,8 +1,10 @@
 package cistore
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	base "github.com/Cray-HPE/hms-base"
 )
@@ -72,6 +74,9 @@ type CloudConfigFile struct {
 
 // UnmarshalJSON implements json.Unmarshaler
 func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
+	// Use temporary struct so json.Unmarshal does not recurse indefinitely.
+	// Also to convert Content from bytes to string so json.Unmarshal
+	// doesn't try to base64 decode the bytes.
 	type Alias CloudConfigFile
 	aux := &struct {
 		Content string `json:"content"`
@@ -79,22 +84,25 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(f),
 	}
+
+	// Unmarshal into the helper struct
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	f.Content = []byte(aux.Content)
-	return nil
-}
 
-// MarshalJSON implements json.Marshaler
-func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
-	type Alias CloudConfigFile
-	aux := &struct {
-		Content string `json:"content"`
-		*Alias
-	}{
-		Content: string(f.Content),
-		Alias:   (*Alias)(&f),
+	// Handle encoding
+	switch aux.Encoding {
+	case "base64":
+		decoded, err := base64.StdEncoding.DecodeString(aux.Content)
+		if err != nil {
+			return fmt.Errorf("failed to decode base64 content: %w", err)
+		}
+		f.Content = decoded
+	case "plain":
+		f.Content = []byte(aux.Content)
+	default:
+		return fmt.Errorf("unsupported encoding: %s", aux.Encoding)
 	}
-	return json.Marshal(aux)
+
+	return nil
 }
