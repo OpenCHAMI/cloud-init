@@ -74,9 +74,14 @@ type CloudConfigFile struct {
 
 // UnmarshalJSON implements json.Unmarshaler
 func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
-	// Use temporary struct so json.Unmarshal does not recurse indefinitely.
-	// Also to convert Content from bytes to string so json.Unmarshal
-	// doesn't try to base64 decode the bytes.
+	// Use an auxiliary struct so that:
+	//
+	// 1. json.Unmarshal doesn't recurse forever and overflow the stack.
+	// 2. json.Unmarshal doesn't try to base64-decode "content" in the data
+	//    before assigning the bytes to f.Content. Content is unmarshalled
+	//    as a string instead of bytes in order to prevent this. After
+	//    unmarshalling, the string is converted back to bytes and assigned
+	//    to f.Content.
 	type Alias CloudConfigFile
 	aux := &struct {
 		Content string `json:"content"`
@@ -90,6 +95,7 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+<<<<<<< HEAD
 	// Handle encoding
 	switch aux.Encoding {
 	case "base64":
@@ -102,6 +108,29 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 		f.Content = []byte(aux.Content)
 	default:
 		return fmt.Errorf("unsupported encoding: %s", aux.Encoding)
+=======
+	f.Content = []byte(aux.Content)
+	return nil
+}
+
+// Custom marshaler for CloudConfigFile
+func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
+	// Use temporary struct to marshal so json.Marshal doesn't recurse
+	// indefinitely. Also to convert Content from bytes to string so
+	// json.Marshal doesn't try to base64 encode the bytes.
+	// Use an auxiliary struct so that:
+	//
+	// 1. json.Marshal doesn't recurse forever and overflow the stack.
+	// 2. json.Marshal doesn't try to base64-encode f.Content. f.Content is
+	//    converted from bytes to a string and then assigned to aux.Content
+	//    to prevent this. Then, aux gets marshalled instead of f.
+	type Alias CloudConfigFile
+	aux := &struct {
+		Content string `json:"content"`
+		Alias
+	}{
+		Alias: (Alias)(f),
+>>>>>>> cf9a810 (chore: clarify comments in custom marshal/unmarshal funcs)
 	}
 
 	return nil
