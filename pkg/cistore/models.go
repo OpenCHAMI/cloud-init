@@ -1,10 +1,8 @@
 package cistore
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	base "github.com/Cray-HPE/hms-base"
 )
@@ -70,27 +68,6 @@ type CloudConfigFile struct {
 	Content  []byte `json:"content" swaggertype:"string" example:"IyMgdGVtcGxhdGU6IGppbmphCiNjbG91ZC1jb25maWcKbWVyZ2VfaG93OgotIG5hbWU6IGxpc3QKICBzZXR0aW5nczogW2FwcGVuZF0KLSBuYW1lOiBkaWN0CiAgc2V0dGluZ3M6IFtub19yZXBsYWNlLCByZWN1cnNlX2xpc3RdCnVzZXJzOgogIC0gbmFtZTogcm9vdAogICAgc3NoX2F1dGhvcml6ZWRfa2V5czoge3sgZHMubWV0YV9kYXRhLmluc3RhbmNlX2RhdGEudjEucHVibGljX2tleXMgfX0KZGlzYWJsZV9yb290OiBmYWxzZQo=" description:"Cloud-Init configuration content whose encoding depends on the value of 'encoding'"`
 	Name     string `json:"filename"`
 	Encoding string `json:"encoding,omitempty" enums:"base64,plain"`
-}
-
-// MarshalJSON implements json.Marshaler
-func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
-	type Alias CloudConfigFile
-	var content string
-	switch f.Encoding {
-	case "base64":
-		content = base64.StdEncoding.EncodeToString(f.Content)
-	case "plain", "":
-		content = string(f.Content)
-	default:
-		return nil, fmt.Errorf("unsupported encoding: %s", f.Encoding)
-	}
-	return json.Marshal(&struct {
-		Content string `json:"content"`
-		*Alias
-	}{
-		Content: content,
-		Alias:   (*Alias)(&f),
-	})
 }
 
 // UnmarshalJSON implements json.Unmarshaler
