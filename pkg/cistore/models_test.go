@@ -59,10 +59,12 @@ func TestCloudConfigFile_MarshalJSON_Plain(t *testing.T) {
 }
 
 func TestCloudConfigFile_MarshalJSON_Base64(t *testing.T) {
+	originalConfig := "#cloud-config\nusers:\n  - name: test"
+	b64Config := base64.StdEncoding.EncodeToString([]byte(originalConfig))
 	f := CloudConfigFile{
 		Name:     "encodedconfig.yaml",
 		Encoding: "base64",
-		Content:  []byte("#cloud-config\nusers:\n  - name: test"),
+		Content:  []byte(b64Config),
 	}
 
 	data, err := json.Marshal(f)
@@ -73,5 +75,5 @@ func TestCloudConfigFile_MarshalJSON_Base64(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "encodedconfig.yaml", out["filename"])
 	assert.Equal(t, "base64", out["encoding"])
-	assert.Equal(t, "#cloud-config\nusers:\n  - name: test", out["content"])
+	assert.Equal(t, b64Config, out["content"])
 }
