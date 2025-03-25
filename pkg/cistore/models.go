@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 
+	"gopkg.in/yaml.v3"
+
 	base "github.com/Cray-HPE/hms-base"
 )
 
@@ -70,7 +72,7 @@ type CloudConfigFile struct {
 	Encoding string `json:"encoding,omitempty" enums:"base64,plain"`
 }
 
-// Custom unmarshaler for CloudConfigFile
+// Custom JSON unmarshaler for CloudConfigFile
 func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	// Use an auxiliary struct so that:
 	//
@@ -96,11 +98,34 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Custom marshaler for CloudConfigFile
+// Custom YAML unmarshaller for CloudConfigFile
+func (f *CloudConfigFile) UnmarshalYAML(data []byte) error {
+	// Use an auxiliary struct so that:
+	//
+	// 1. yaml.Unmarshal doesn't recurse forever and overflow the stack.
+	// 2. yaml.Unmarshal doesn't try to base64-decode "content" in the data
+	//    before assigning the bytes to f.Content. Content is unmarshalled
+	//    as a string instead of bytes in order to prevent this. After
+	//    unmarshalling, the string is converted back to bytes and assigned
+	//    to f.Content.
+	type Alias CloudConfigFile
+	aux := &struct {
+		Content string `yaml:"content"`
+		*Alias
+	}{
+		Alias: (*Alias)(f),
+	}
+
+	if err := yaml.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	f.Content = []byte(aux.Content)
+	return nil
+}
+
+// Custom JSON marshaler for CloudConfigFile
 func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
-	// Use temporary struct to marshal so json.Marshal doesn't recurse
-	// indefinitely. Also to convert Content from bytes to string so
-	// json.Marshal doesn't try to base64 encode the bytes.
 	// Use an auxiliary struct so that:
 	//
 	// 1. json.Marshal doesn't recurse forever and overflow the stack.
@@ -117,4 +142,24 @@ func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
 
 	aux.Content = string(f.Content)
 	return json.Marshal(aux)
+}
+
+// Custom YAML marshaler for CloudConfigFile
+func (f CloudConfigFile) MarshalYAML() ([]byte, error) {
+	// Use an auxiliary struct so that:
+	//
+	// 1. yaml.Marshal doesn't recurse forever and overflow the stack.
+	// 2. yaml.Marshal doesn't try to base64-encode f.Content. f.Content is
+	//    converted from bytes to a string and then assigned to aux.Content
+	//    to prevent this. Then, aux gets marshalled instead of f.
+	type Alias CloudConfigFile
+	aux := &struct {
+		Content string `yaml:"content"`
+		Alias
+	}{
+		Alias: (Alias)(f),
+	}
+
+	aux.Content = string(f.Content)
+	return yaml.Marshal(aux)
 }
