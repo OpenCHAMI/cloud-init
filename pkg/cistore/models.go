@@ -70,7 +70,7 @@ type CloudConfigFile struct {
 	Encoding string `json:"encoding,omitempty" enums:"base64,plain"`
 }
 
-// Custom unmarshaler for CloudConfigFile
+// Custom JSON unmarshaler for CloudConfigFile
 func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	// Use an auxiliary struct so that:
 	//
@@ -96,11 +96,8 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Custom marshaler for CloudConfigFile
+// Custom JSON marshaler for CloudConfigFile
 func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
-	// Use temporary struct to marshal so json.Marshal doesn't recurse
-	// indefinitely. Also to convert Content from bytes to string so
-	// json.Marshal doesn't try to base64 encode the bytes.
 	// Use an auxiliary struct so that:
 	//
 	// 1. json.Marshal doesn't recurse forever and overflow the stack.
