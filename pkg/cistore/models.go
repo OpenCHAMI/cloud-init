@@ -1,8 +1,10 @@
 package cistore
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	base "github.com/Cray-HPE/hms-base"
 )
