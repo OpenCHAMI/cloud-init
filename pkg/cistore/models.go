@@ -1,10 +1,8 @@
 package cistore
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	base "github.com/Cray-HPE/hms-base"
 )
@@ -74,14 +72,6 @@ type CloudConfigFile struct {
 
 // UnmarshalJSON implements json.Unmarshaler
 func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
-	// Use an auxiliary struct so that:
-	//
-	// 1. json.Unmarshal doesn't recurse forever and overflow the stack.
-	// 2. json.Unmarshal doesn't try to base64-decode "content" in the data
-	//    before assigning the bytes to f.Content. Content is unmarshalled
-	//    as a string instead of bytes in order to prevent this. After
-	//    unmarshalling, the string is converted back to bytes and assigned
-	//    to f.Content.
 	type Alias CloudConfigFile
 	aux := &struct {
 		Content string `json:"content"`
@@ -92,17 +82,19 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	switch f.Encoding {
-	case "base64":
-		content, err := base64.StdEncoding.DecodeString(aux.Content)
-		if err != nil {
-			return err
-		}
-		f.Content = content
-	case "plain", "":
-		f.Content = []byte(aux.Content)
-	default:
-		return fmt.Errorf("unsupported encoding: %s", f.Encoding)
-	}
+	f.Content = []byte(aux.Content)
 	return nil
+}
+
+// MarshalJSON implements json.Marshaler
+func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
+	type Alias CloudConfigFile
+	aux := &struct {
+		Content string `json:"content"`
+		*Alias
+	}{
+		Content: string(f.Content),
+		Alias:   (*Alias)(&f),
+	}
+	return json.Marshal(aux)
 }
