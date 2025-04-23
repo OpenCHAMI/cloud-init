@@ -1,6 +1,7 @@
 package quackstore
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -348,8 +349,10 @@ func (s *QuackStore) Close() error {
 	return s.db.Close()
 }
 
-// generateInstanceId generates a unique instance ID
+// generateInstanceID generates a unique instance ID in the format "i-XXXXXX",
+// where "XXXXXX" is a random 6-digit hexadecimal string.
 func generateInstanceId() string {
-	// TODO: Implement proper instance ID generation
-	return "i-1234567890abcdef"
+	randBytes := make([]byte, 3)
+	rand.Read(randBytes)
+	return fmt.Sprintf("i-%x", randBytes)
 }
