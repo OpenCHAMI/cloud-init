@@ -3,8 +3,8 @@ package main
 import (
 	"net/http"
 
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/OpenCHAMI/cloud-init/pkg/smdclient"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )

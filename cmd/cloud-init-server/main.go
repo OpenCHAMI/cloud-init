@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/OpenCHAMI/cloud-init/pkg/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"

@@ -3,12 +3,16 @@ package bss
 import (
 	"fmt"
 	"strings"
+
+	"github.com/OpenCHAMI/cloud-init/pkg/cmdline"
 )
 
-// GenerateBootScript creates an iPXE boot script from the given boot parameters
-func GenerateBootScript(params *BootParams, retry int, arch string) (string, error) {
+func GenerateIPXEScript(params *BootParams, retry int, arch string) (string, error) {
 	if params.Kernel == "" {
-		return "", fmt.Errorf("kernel must be specified to generate boot script")
+		return "", fmt.Errorf("kernel must be specified")
+	}
+	if params.Initrd == "" {
+		return "", fmt.Errorf("initrd must be specified")
 	}
 
 	var script strings.Builder
@@ -17,6 +21,11 @@ func GenerateBootScript(params *BootParams, retry int, arch string) (string, err
 	// Build kernel command line
 	kernelCmd := fmt.Sprintf("kernel --name kernel %s", params.Kernel)
 
+	cmd := cmdline.New()
+	for _, param := range strings.Split(params.Params, " ") {
+		cmd.AddFlag(param)
+	}
+
 	// Add root filesystem parameters if specified
 	if params.RootFS != nil {
 		switch params.RootFS.Type {
@@ -24,17 +33,17 @@ func GenerateBootScript(params *BootParams, retry int, arch string) (string, err
 			// NFS root requires network configuration
 			kernelCmd += " rd.neednet=1"
 			if params.RootFS.Server != "" && params.RootFS.Path != "" {
-				kernelCmd += fmt.Sprintf(" root=nfs://%s:%s", params.RootFS.Server, params.RootFS.Path)
+				cmd.AddParam("root", fmt.Sprintf("nfs://%s:%s", params.RootFS.Server, params.RootFS.Path))
 				if params.RootFS.Options != "" {
-					kernelCmd += fmt.Sprintf(" rootflags=%s", params.RootFS.Options)
+					cmd.AddParam("rootflags", params.RootFS.Options)
 				}
 			}
 		case "local":
 			// Local root filesystem
 			if params.RootFS.Path != "" {
-				kernelCmd += fmt.Sprintf(" root=%s", params.RootFS.Path)
+				cmd.AddParam("root", params.RootFS.Path)
 				if params.RootFS.Options != "" {
-					kernelCmd += fmt.Sprintf(" rootflags=%s", params.RootFS.Options)
+					cmd.AddParam("rootflags", params.RootFS.Options)
 				}
 			}
 		}
@@ -42,18 +51,14 @@ func GenerateBootScript(params *BootParams, retry int, arch string) (string, err
 
 	// Add cloud-init server configuration if specified
 	if params.CloudInit != nil && params.CloudInit.URL != "" {
-		kernelCmd += fmt.Sprintf(" ds=nocloud-net;s=%s", params.CloudInit.URL)
 		if params.CloudInit.Version != "" {
-			kernelCmd += fmt.Sprintf(";v=%s", params.CloudInit.Version)
+			cmd.AddParam("ds", fmt.Sprintf("nocloud-net;s=%s;v=%s", params.CloudInit.URL, params.CloudInit.Version))
+		} else {
+			cmd.AddParam("ds", fmt.Sprintf("nocloud-net;s=%s", params.CloudInit.URL))
 		}
 	}
 
-	// Add any additional parameters
-	if params.Params != "" {
-		kernelCmd += " " + params.Params
-	}
-
-	script.WriteString(kernelCmd + " || goto boot_retry\n")
+	script.WriteString(kernelCmd + " " + cmd.String() + " || goto boot_retry\n")
 
 	// Add initrd if specified
 	if params.Initrd != "" {

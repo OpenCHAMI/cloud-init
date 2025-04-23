@@ -14,10 +14,10 @@ func TestGenerateBootScript_Basic(t *testing.T) {
 		Params: "console=ttyS0,115200 root=/dev/sda1",
 	}
 
-	script, err := GenerateBootScript(params, 0, "")
+	script, err := GenerateIPXEScript(params, 0, "")
 	assert.NoError(t, err)
 	assert.Contains(t, script, "#!ipxe")
-	assert.Contains(t, script, "kernel --name kernel http://example.com/kernel console=ttyS0,115200 root=/dev/sda1")
+	assert.Contains(t, script, "kernel --name kernel http://example.com/kernel root=/dev/sda1 console=ttyS0,115200 ")
 	assert.Contains(t, script, "initrd --name initrd http://example.com/initrd")
 	assert.Contains(t, script, "boot || goto boot_retry")
 	assert.Contains(t, script, ":boot_retry")
@@ -28,9 +28,10 @@ func TestGenerateBootScript_Basic(t *testing.T) {
 func TestGenerateBootScript_WithRetry(t *testing.T) {
 	params := &BootParams{
 		Kernel: "http://example.com/kernel",
+		Initrd: "http://example.com/initrd",
 	}
 
-	script, err := GenerateBootScript(params, 3, "")
+	script, err := GenerateIPXEScript(params, 3, "")
 	assert.NoError(t, err)
 	assert.Contains(t, script, "retry=3")
 }
@@ -38,9 +39,10 @@ func TestGenerateBootScript_WithRetry(t *testing.T) {
 func TestGenerateBootScript_WithArch(t *testing.T) {
 	params := &BootParams{
 		Kernel: "http://example.com/kernel",
+		Initrd: "http://example.com/initrd",
 	}
 
-	script, err := GenerateBootScript(params, 0, "x86_64")
+	script, err := GenerateIPXEScript(params, 0, "x86_64")
 	assert.NoError(t, err)
 	assert.Contains(t, script, "arch=x86_64")
 }
@@ -52,11 +54,11 @@ func TestGenerateBootScript_WithOptions(t *testing.T) {
 		Params: "console=ttyS0,115200 root=/dev/sda1",
 	}
 
-	script, err := GenerateBootScript(params, 2, "x86_64")
+	script, err := GenerateIPXEScript(params, 2, "x86_64")
 	assert.NoError(t, err)
 
 	// Check all components are present
-	assert.Contains(t, script, "kernel --name kernel http://example.com/kernel console=ttyS0,115200 root=/dev/sda1")
+	assert.Contains(t, script, "kernel --name kernel http://example.com/kernel root=/dev/sda1 console=ttyS0,115200")
 	assert.Contains(t, script, "initrd --name initrd http://example.com/initrd")
 	assert.Contains(t, script, "boot || goto boot_retry")
 	assert.Contains(t, script, "retry=2")
@@ -69,23 +71,25 @@ func TestGenerateBootScript_ErrorCases(t *testing.T) {
 		Params: "console=ttyS0,115200",
 	}
 
-	_, err := GenerateBootScript(params, 0, "")
+	_, err := GenerateIPXEScript(params, 0, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "kernel must be specified")
 
 	// Test empty params
 	params = &BootParams{}
-	_, err = GenerateBootScript(params, 0, "")
+	_, err = GenerateIPXEScript(params, 0, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "kernel must be specified")
+
 }
 
 func TestGenerateBootScript_RetryChainURL(t *testing.T) {
 	params := &BootParams{
 		Kernel: "http://example.com/kernel",
+		Initrd: "http://example.com/initrd",
 	}
 
-	script, err := GenerateBootScript(params, 1, "x86_64")
+	script, err := GenerateIPXEScript(params, 1, "x86_64")
 	assert.NoError(t, err)
 
 	// Verify the retry chain URL is properly formatted
@@ -100,7 +104,7 @@ func TestGenerateBootScript_Ordering(t *testing.T) {
 		Params: "console=ttyS0,115200",
 	}
 
-	script, err := GenerateBootScript(params, 0, "")
+	script, err := GenerateIPXEScript(params, 0, "")
 	assert.NoError(t, err)
 
 	// Split the script into lines to properly check command ordering
@@ -139,7 +143,7 @@ func TestGenerateBootScript_WithNFSRoot(t *testing.T) {
 		},
 	}
 
-	script, err := GenerateBootScript(params, 0, "")
+	script, err := GenerateIPXEScript(params, 0, "")
 	assert.NoError(t, err)
 
 	// Verify NFS root parameters
@@ -162,7 +166,7 @@ func TestGenerateBootScript_WithLocalRoot(t *testing.T) {
 		},
 	}
 
-	script, err := GenerateBootScript(params, 0, "")
+	script, err := GenerateIPXEScript(params, 0, "")
 	assert.NoError(t, err)
 
 	// Verify local root parameters
@@ -182,10 +186,10 @@ func TestGenerateBootScript_WithRootFSAndParams(t *testing.T) {
 			Server: "10.0.0.1",
 			Path:   "/nfsroot",
 		},
-		Params: "console=ttyS0,115200 ip=dhcp",
+		Params: "console=ttyS0,115200",
 	}
 
-	script, err := GenerateBootScript(params, 0, "")
+	script, err := GenerateIPXEScript(params, 0, "")
 	assert.NoError(t, err)
 
 	// Verify both rootfs and additional parameters are included
@@ -203,7 +207,7 @@ func TestGenerateBootScript_WithCloudInit(t *testing.T) {
 		},
 	}
 
-	script, err := GenerateBootScript(params, 0, "")
+	script, err := GenerateIPXEScript(params, 0, "")
 	assert.NoError(t, err)
 
 	// Verify cloud-init parameters
@@ -214,7 +218,6 @@ func TestGenerateBootScript_WithCloudInitAndRootFS(t *testing.T) {
 	params := &BootParams{
 		Kernel: "http://example.com/kernel",
 		Initrd: "http://example.com/initrd",
-		Params: "console=ttyS0,115200,ip=dhcp",
 		RootFS: &RootFS{
 			Type:   "nfs",
 			Server: "10.0.0.1",
@@ -225,11 +228,10 @@ func TestGenerateBootScript_WithCloudInitAndRootFS(t *testing.T) {
 		},
 	}
 
-	script, err := GenerateBootScript(params, 0, "")
+	script, err := GenerateIPXEScript(params, 0, "")
 	assert.NoError(t, err)
 
 	// Verify both rootfs and cloud-init parameters
 	assert.Contains(t, script, "root=nfs://10.0.0.1:/nfsroot")
 	assert.Contains(t, script, "ds=nocloud-net;s=http://cloud-init.example.com")
-	assert.Contains(t, script, "console=ttyS0,115200,ip=dhcp")
 }

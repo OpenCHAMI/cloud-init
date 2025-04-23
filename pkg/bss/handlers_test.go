@@ -7,96 +7,200 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/OpenCHAMI/cloud-init/pkg/smdclient"
 )
 
-func TestBootParamsHandler(t *testing.T) {
+func TestCreateBootParamsHandler(t *testing.T) {
 	store := NewMemoryStore()
-	handler := NewBootParamsHandler(store)
+	handler := CreateBootParamsHandler(store)
 
-	// Test data
-	testParams := &BootParams{
-		Kernel: "http://example.com/kernel",
-		Initrd: "http://example.com/initrd",
+	// Test successful creation
+	params := BootParams{
+		Kernel: "vmlinuz",
+		Initrd: "initrd.img",
+		Params: "console=ttyS0",
 	}
-
-	// Test creating new parameters
-	body, _ := json.Marshal(testParams)
-	req := httptest.NewRequest("POST", "/bootparams?id=test", bytes.NewReader(body))
+	body, _ := json.Marshal(params)
+	req := httptest.NewRequest("POST", "/bootparams", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
-	handler.CreateBootParams(w, req)
+	handler(w, req)
 
-	assert.Equal(t, http.StatusCreated, w.Code)
-	var response BootParams
-	json.Unmarshal(w.Body.Bytes(), &response)
-	assert.Equal(t, testParams.Kernel, response.Kernel)
-	assert.Equal(t, testParams.Initrd, response.Initrd)
-	assert.Equal(t, 1, response.Version)
-
-	// Test retrieving parameters
-	req = httptest.NewRequest("GET", "/bootparams?id=test", nil)
-	w = httptest.NewRecorder()
-	handler.GetBootParams(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	json.Unmarshal(w.Body.Bytes(), &response)
-	assert.Equal(t, testParams.Kernel, response.Kernel)
-	assert.Equal(t, testParams.Initrd, response.Initrd)
-	assert.Equal(t, 1, response.Version)
-
-	// Test updating parameters
-	updatedParams := &BootParams{
-		Kernel: "http://example.com/new-kernel",
-		Initrd: "http://example.com/new-initrd",
+	if w.Code != http.StatusCreated {
+		t.Errorf("Expected status %d, got %d", http.StatusCreated, w.Code)
 	}
-	body, _ = json.Marshal(updatedParams)
-	req = httptest.NewRequest("PUT", "/bootparams?id=test", bytes.NewReader(body))
+
+	// Verify Location header
+	location := w.Header().Get("Location")
+	if location == "" {
+		t.Error("Expected Location header to be set")
+	}
+
+	// Test invalid JSON
+	req = httptest.NewRequest("POST", "/bootparams", bytes.NewBuffer([]byte("invalid json")))
 	w = httptest.NewRecorder()
-	handler.UpdateBootParams(w, req)
+	handler(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	json.Unmarshal(w.Body.Bytes(), &response)
-	assert.Equal(t, updatedParams.Kernel, response.Kernel)
-	assert.Equal(t, updatedParams.Initrd, response.Initrd)
-	assert.Equal(t, 2, response.Version)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
 
-	// Test generating boot script
-	req = httptest.NewRequest("GET", "/bootscript?id=test", nil)
+func TestGetBootParamsHandler(t *testing.T) {
+	store := NewMemoryStore()
+	handler := GetBootParamsHandler(store)
+
+	// Create test data
+	params := BootParams{
+		Kernel: "vmlinuz",
+		Initrd: "initrd.img",
+		Params: "console=ttyS0",
+	}
+	id := "test-id"
+	store.Set(id, &params)
+
+	// Test successful retrieval
+	req := httptest.NewRequest("GET", "/bootparams/"+id, nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	// Test missing ID
+	req = httptest.NewRequest("GET", "/bootparams/", nil)
 	w = httptest.NewRecorder()
-	handler.GenerateBootScriptHandler(w, req)
+	handler(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), updatedParams.Kernel)
-	assert.Contains(t, w.Body.String(), updatedParams.Initrd)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
 
-	// Test error cases
-	// Missing ID
-	req = httptest.NewRequest("POST", "/bootparams", bytes.NewReader(body))
+	// Test non-existent ID
+	req = httptest.NewRequest("GET", "/bootparams/nonexistent", nil)
 	w = httptest.NewRecorder()
-	handler.CreateBootParams(w, req)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	handler(w, req)
 
-	// Invalid JSON
-	req = httptest.NewRequest("POST", "/bootparams?id=test", bytes.NewReader([]byte("invalid")))
-	w = httptest.NewRecorder()
-	handler.CreateBootParams(w, req)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status %d, got %d", http.StatusNotFound, w.Code)
+	}
+}
 
-	// Non-existent parameters
-	req = httptest.NewRequest("GET", "/bootparams?id=nonexistent", nil)
-	w = httptest.NewRecorder()
-	handler.GetBootParams(w, req)
-	assert.Equal(t, http.StatusNotFound, w.Code)
+func TestUpdateBootParamsHandler(t *testing.T) {
+	store := NewMemoryStore()
+	handler := UpdateBootParamsHandler(store)
 
-	// Update non-existent parameters
-	req = httptest.NewRequest("PUT", "/bootparams?id=nonexistent", bytes.NewReader(body))
-	w = httptest.NewRecorder()
-	handler.UpdateBootParams(w, req)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	// Create test data
+	params := BootParams{
+		Kernel: "vmlinuz",
+		Initrd: "initrd.img",
+		Params: "console=ttyS0",
+	}
+	id := "test-id"
+	store.Set(id, &params)
 
-	// Create with existing ID
-	req = httptest.NewRequest("POST", "/bootparams?id=test", bytes.NewReader(body))
+	// Test successful update
+	updatedParams := BootParams{
+		Kernel: "vmlinuz-new",
+		Initrd: "initrd.img-new",
+		Params: "console=ttyS0,debug",
+	}
+	body, _ := json.Marshal(updatedParams)
+	req := httptest.NewRequest("PUT", "/bootparams/"+id, bytes.NewBuffer(body))
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	// Test missing ID
+	req = httptest.NewRequest("PUT", "/bootparams/", bytes.NewBuffer(body))
 	w = httptest.NewRecorder()
-	handler.CreateBootParams(w, req)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+
+	// Test non-existent ID
+	req = httptest.NewRequest("PUT", "/bootparams/nonexistent", bytes.NewBuffer(body))
+	w = httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+
+	// Test invalid JSON
+	req = httptest.NewRequest("PUT", "/bootparams/"+id, bytes.NewBuffer([]byte("invalid json")))
+	w = httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestGenerateBootScriptHandler(t *testing.T) {
+	store := NewMemoryStore()
+	client, err := smdclient.NewSMDClient("http://localhost:8080", "test", "test", "test", "test", false)
+	if err != nil {
+		t.Fatalf("Failed to create SMD client: %v", err)
+	}
+	handler := GenerateBootScriptHandler(store, client)
+
+	// Create test data
+	params := BootParams{
+		Kernel: "vmlinuz",
+		Initrd: "initrd.img",
+		Params: "console=ttyS0",
+	}
+	id := "test-id"
+	store.Set(id, &params)
+
+	// Test successful script generation
+	req := httptest.NewRequest("GET", "/bootscript/"+id, nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	// Test missing ID
+	req = httptest.NewRequest("GET", "/bootscript/", nil)
+	w = httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+
+	// Test non-existent ID
+	req = httptest.NewRequest("GET", "/bootscript/nonexistent", nil)
+	w = httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status %d, got %d", http.StatusNotFound, w.Code)
+	}
+
+	// Test with retry parameter
+	req = httptest.NewRequest("GET", "/bootscript/"+id+"?retry=3", nil)
+	w = httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	// Test with invalid retry parameter
+	req = httptest.NewRequest("GET", "/bootscript/"+id+"?retry=invalid", nil)
+	w = httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
 }

@@ -7,6 +7,7 @@ require (
 	github.com/OpenCHAMI/quack v0.0.0
 	github.com/OpenCHAMI/smd/v2 v2.17.7
 	github.com/go-chi/chi/v5 v5.1.0
+	github.com/google/uuid v1.6.0
 	github.com/lestrrat-go/jwx/v2 v2.1.3
 	github.com/openchami/chi-middleware/auth v0.0.0-20240812224658-b16b83c70700
 	github.com/openchami/chi-middleware/log v0.0.0-20240812224658-b16b83c70700
