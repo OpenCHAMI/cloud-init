@@ -15,6 +15,16 @@ import (
 )
 
 // CreateBootParamsHandler creates an HTTP handler for creating boot parameters
+// @Summary Create new boot parameters
+// @Description Creates a new set of boot parameters with a unique ID
+// @Tags boot-params
+// @Accept json
+// @Produce json
+// @Param bootParams body BootParams true "Boot parameters to create"
+// @Success 201 {object} BootParams "Created boot parameters. Location header will be set to the URL of the new boot parameters."
+// @Failure 400 {string} string "Invalid request body"
+// @Failure 500 {string} string "Internal server error"
+// @Router /bootparams [post]
 func CreateBootParamsHandler(store Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -63,6 +73,18 @@ func CreateBootParamsHandler(store Store) http.HandlerFunc {
 }
 
 // UpdateBootParamsHandler creates an HTTP handler for updating boot parameters
+// @Summary Update existing boot parameters
+// @Description Updates an existing set of boot parameters by ID
+// @Tags boot-params
+// @Accept json
+// @Produce json
+// @Param id path string true "Boot parameters ID"
+// @Param bootParams body BootParams true "Updated boot parameters"
+// @Success 200 {object} BootParams "Updated boot parameters"
+// @Failure 400 {string} string "Invalid request body or ID"
+// @Failure 404 {string} string "Boot parameters not found"
+// @Failure 500 {string} string "Internal server error"
+// @Router /bootparams/{id} [put]
 func UpdateBootParamsHandler(store Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
@@ -113,6 +135,15 @@ func UpdateBootParamsHandler(store Store) http.HandlerFunc {
 }
 
 // GetBootParamsHandler creates an HTTP handler for retrieving boot parameters
+// @Summary Get boot parameters
+// @Description Retrieves boot parameters by ID
+// @Tags boot-params
+// @Produce json
+// @Param id path string true "Boot parameters ID"
+// @Success 200 {object} BootParams "Boot parameters"
+// @Failure 400 {string} string "Invalid ID"
+// @Failure 404 {string} string "Boot parameters not found"
+// @Router /bootparams/{id} [get]
 func GetBootParamsHandler(store Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -139,6 +170,19 @@ func GetBootParamsHandler(store Store) http.HandlerFunc {
 }
 
 // GenerateBootScriptHandler creates an HTTP handler for generating boot scripts
+// @Summary Generate boot script
+// @Description Generates a boot script based on component ID and group membership
+// @Tags boot-scripts
+// @Produce text/plain
+// @Param id path string false "Component ID (optional, defaults to requesting IP's component)"
+// @Param retry query integer false "Retry count"
+// @Param arch query string false "Architecture"
+// @Success 200 {string} string "Generated boot script"
+// @Failure 400 {string} string "Invalid parameters"
+// @Failure 404 {string} string "No templates found"
+// @Failure 422 {string} string "Unprocessable entity"
+// @Failure 500 {string} string "Internal server error"
+// @Router /bootscript/{id} [get]
 func GenerateBootScriptHandler(store Store, smd *smdclient.SMDClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
