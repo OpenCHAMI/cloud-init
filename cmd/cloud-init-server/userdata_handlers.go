@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"fmt"
 	"net/http"
 
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
@@ -62,6 +64,18 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 			log.Err(err).Msgf("No information stored for group %s. returning an empty #cloud-config", group)
 			w.Write([]byte("#cloud-config"))
 			return
+		}
+
+		// Make sure cloud-config content is plaintext before returning
+		if data.File.Encoding == "base64" {
+			contentBytes := make([]byte, base64.StdEncoding.EncodedLen(len(data.File.Content)))
+			if n, err := base64.StdEncoding.Decode(contentBytes, data.File.Content); err != nil {
+				newErr := fmt.Errorf("failed to base64-decode cloud-config (read %d bytes): %w", n, err)
+				http.Error(w, newErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			data.File.Content = contentBytes
+			data.File.Encoding = "plain"
 		}
 
 		w.Write(data.File.Content)
