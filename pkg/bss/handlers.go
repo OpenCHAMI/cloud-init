@@ -183,7 +183,7 @@ func GetBootParamsHandler(store Store) http.HandlerFunc {
 // @Failure 422 {string} string "Unprocessable entity"
 // @Failure 500 {string} string "Internal server error"
 // @Router /bootscript/{id} [get]
-func GenerateBootScriptHandler(store Store, smd *smdclient.SMDClient) http.HandlerFunc {
+func GenerateBootScriptHandler(store Store, smd smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

@@ -1,4 +1,51 @@
 definitions:
+  bss.BootParams:
+    properties:
+      cloud-init:
+        allOf:
+        - $ref: '#/definitions/bss.CloudInitServer'
+        description: Cloud-init server configuration
+      initrd:
+        description: Initrd image URL/path
+        type: string
+      kernel:
+        description: Kernel image URL/path
+        type: string
+      params:
+        description: Kernel boot parameters
+        type: string
+      rootfs:
+        allOf:
+        - $ref: '#/definitions/bss.RootFS'
+        description: Root filesystem configuration
+      version:
+        description: Version of the boot parameters
+        type: integer
+    type: object
+  bss.CloudInitServer:
+    properties:
+      url:
+        description: URL of the cloud-init server
+        type: string
+      version:
+        description: Version of the cloud-init server
+        type: string
+    type: object
+  bss.RootFS:
+    properties:
+      options:
+        description: Mount options
+        type: string
+      path:
+        description: Path to root filesystem
+        type: string
+      server:
+        description: Server for network filesystems
+        type: string
+      type:
+        description: Type of root filesystem (nfs, local, etc.)
+        type: string
+    type: object
   cistore.CloudConfigFile:
     properties:
       content:
@@ -202,6 +249,144 @@ info:
   title: OpenCHAMI Cloud-Init Server API
   version: 1.0.0
 paths:
+  /bootparams:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new set of boot parameters with a unique ID
+      parameters:
+      - description: Boot parameters to create
+        in: body
+        name: bootParams
+        required: true
+        schema:
+          $ref: '#/definitions/bss.BootParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created boot parameters. Location header will be set to the
+            URL of the new boot parameters.
+          schema:
+            $ref: '#/definitions/bss.BootParams'
+        "400":
+          description: Invalid request body
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Create new boot parameters
+      tags:
+      - boot-params
+  /bootparams/{id}:
+    get:
+      description: Retrieves boot parameters by ID
+      parameters:
+      - description: Boot parameters ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Boot parameters
+          schema:
+            $ref: '#/definitions/bss.BootParams'
+        "400":
+          description: Invalid ID
+          schema:
+            type: string
+        "404":
+          description: Boot parameters not found
+          schema:
+            type: string
+      summary: Get boot parameters
+      tags:
+      - boot-params
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing set of boot parameters by ID
+      parameters:
+      - description: Boot parameters ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated boot parameters
+        in: body
+        name: bootParams
+        required: true
+        schema:
+          $ref: '#/definitions/bss.BootParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated boot parameters
+          schema:
+            $ref: '#/definitions/bss.BootParams'
+        "400":
+          description: Invalid request body or ID
+          schema:
+            type: string
+        "404":
+          description: Boot parameters not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Update existing boot parameters
+      tags:
+      - boot-params
+  /bootscript/{id}:
+    get:
+      description: Generates a boot script based on component ID and group membership
+      parameters:
+      - description: Component ID (optional, defaults to requesting IP's component)
+        in: path
+        name: id
+        type: string
+      - description: Retry count
+        in: query
+        name: retry
+        type: integer
+      - description: Architecture
+        in: query
+        name: arch
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Generated boot script
+          schema:
+            type: string
+        "400":
+          description: Invalid parameters
+          schema:
+            type: string
+        "404":
+          description: No templates found
+          schema:
+            type: string
+        "422":
+          description: Unprocessable entity
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Generate boot script
+      tags:
+      - boot-scripts
   /cloud-init/{group}.yaml:
     get:
       description: |-

@@ -34,7 +34,34 @@ builds:
     goamd64:
       - v3
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
+  - id: netboot
+    main: ./cmd/netboot-server
+    binary: netboot-server
+    # export GIT_STATE=$(if git diff-index --quiet HEAD --; then echo 'clean'; else echo 'dirty'; fi)
+    # export BUILD_HOST=$(hostname)
+    # export GO_VERSION=$(go version | awk '{print $3}')
+    # export BUILD_USER=$(whoami)
+    ldflags:
+      - "-X 'main.GitCommit={{.Commit}}' \
+         -X 'main.BuildTime={{.Timestamp}}' \
+         -X 'main.Version={{.Version}}' \
+         -X 'main.GitBranch={{.Branch}}' \
+         -X 'main.GitTag={{.Tag}}' \
+         -X 'main.GitState={{ .Env.GIT_STATE }}' \
+         -X 'main.BuildHost={{ .Env.BUILD_HOST }}' \
+         -X 'main.GoVersion={{ .Env.GO_VERSION }}' \
+         -X 'main.BuildUser={{ .Env.BUILD_USER }}'"
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    goamd64:
+      - v3
+    env:
+      - CGO_ENABLED=1
 
 dockers:
   - image_templates:
