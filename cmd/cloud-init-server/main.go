@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
+	"github.com/OpenCHAMI/cloud-init/internal/quackstore"
+	"github.com/OpenCHAMI/cloud-init/pkg/bss"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/OpenCHAMI/cloud-init/pkg/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
@@ -50,6 +52,9 @@ var (
 	wireguardOnly        = false
 	debug                = true
 	wireGuardMiddleware  func(http.Handler) http.Handler
+	storageBackend       = "mem"           // Default to memstore
+	dbPath               = "cloud-init.db" // Default database path for quackstore
+	bssEnabled           = false
 )
 
 func main() {
@@ -69,6 +74,9 @@ func main() {
 	flag.StringVar(&wireguardServer, "wireguard-server", wireguardServer, "Wireguard server IP address and network (e.g. 100.97.0.1/16)")
 	flag.BoolVar(&wireguardOnly, "wireguard-only", wireguardOnly, "Only allow access to the cloud-init functions from the WireGuard subnet")
 	flag.BoolVar(&debug, "debug", debug, "Enable debug logging")
+	flag.StringVar(&storageBackend, "storage-backend", storageBackend, "Storage backend to use (mem or quack)")
+	flag.StringVar(&dbPath, "db-path", dbPath, "Path to the database file for quackstore backend")
+	flag.BoolVar(&bssEnabled, "bss", bssEnabled, "Enable BSS endpoints")
 	flag.Parse()
 
 	if debug {
@@ -115,15 +123,32 @@ func main() {
 		}
 	}
 
-	// Set up our DataStore
-	store = memstore.NewMemStore()
-	store.SetClusterDefaults(cistore.ClusterDefaults{
+	// Set up our DataStore based on the selected backend
+	var err error
+	switch storageBackend {
+	case "mem":
+		store = memstore.NewMemStore()
+	case "quack":
+		store, err = quackstore.NewQuackStore(dbPath)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize QuackStore")
+		}
+		defer store.(*quackstore.QuackStore).Close()
+	default:
+		log.Fatal().Msgf("Unsupported storage backend: %s", storageBackend)
+	}
+
+	// Set cluster defaults
+	err = store.SetClusterDefaults(cistore.ClusterDefaults{
 		ClusterName:      clusterName,
 		Region:           region,
 		AvailabilityZone: availabilityZone,
 		CloudProvider:    cloudProvider,
 		BaseUrl:          baseUrl,
 	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to set cluster defaults")
+	}
 
 	// Initialize the cloud-init handler with the datastore and SMD client
 	ciHandler := NewCiHandler(store, sm, clusterName)
@@ -187,6 +212,11 @@ func main() {
 	initCiAdminRouter(router_admin, ciHandler)
 	router.Mount("/cloud-init/admin", router_admin)
 
+	if bssEnabled {
+		bssStorage := bss.NewMemoryStore()
+		initBssRouter(router, ciHandler, bssStorage)
+	}
+
 	// Serve all routes
 	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
 }
@@ -235,4 +265,28 @@ func initCiAdminRouter(router chi.Router, handler *CiHandler) {
 		}
 
 	})
+}
+
+func initBssRouter(router chi.Router, handler *CiHandler, bssStorage bss.Store) {
+	// BSS API subrouter
+	router.Route("/boot/v1/", func(r chi.Router) {
+
+		// Boot parameters endpoints
+		r.Post("/bootparams", bss.CreateBootParamsHandler(bssStorage))
+		r.Get("/bootparams/{id}", bss.GetBootParamsHandler(bssStorage))
+		r.Put("/bootparams/{id}", bss.UpdateBootParamsHandler(bssStorage))
+		r.Get("/bootparams/{id}", bss.GetBootParamsHandler(bssStorage))
+
+		// Boot script endpoint
+		r.Get("/bootscript", bss.GenerateBootScriptHandler(bssStorage, handler.sm.(*smdclient.SMDClient)))
+
+	})
+	router.Route("/boot/v2/", func(r chi.Router) {
+		r.Get("/bootparams/{id}", bss.GetBootParamsHandler(bssStorage))
+		r.Put("/bootparams/{id}", bss.UpdateBootParamsHandler(bssStorage))
+		r.Get("/bootparams/{id}", bss.GetBootParamsHandler(bssStorage))
+		// Boot script endpoint
+		r.Get("/bootscript", bss.GenerateBootScriptHandler(bssStorage, handler.sm.(*smdclient.SMDClient)))
+	})
+
 }

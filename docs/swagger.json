@@ -11,6 +11,214 @@
         "version": "1.0.0"
     },
     "paths": {
+        "/bootparams": {
+            "post": {
+                "description": "Creates a new set of boot parameters with a unique ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "boot-params"
+                ],
+                "summary": "Create new boot parameters",
+                "parameters": [
+                    {
+                        "description": "Boot parameters to create",
+                        "name": "bootParams",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/bss.BootParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created boot parameters. Location header will be set to the URL of the new boot parameters.",
+                        "schema": {
+                            "$ref": "#/definitions/bss.BootParams"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/bootparams/{id}": {
+            "get": {
+                "description": "Retrieves boot parameters by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "boot-params"
+                ],
+                "summary": "Get boot parameters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Boot parameters ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Boot parameters",
+                        "schema": {
+                            "$ref": "#/definitions/bss.BootParams"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Boot parameters not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Updates an existing set of boot parameters by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "boot-params"
+                ],
+                "summary": "Update existing boot parameters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Boot parameters ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated boot parameters",
+                        "name": "bootParams",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/bss.BootParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated boot parameters",
+                        "schema": {
+                            "$ref": "#/definitions/bss.BootParams"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Boot parameters not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/bootscript/{id}": {
+            "get": {
+                "description": "Generates a boot script based on component ID and group membership",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "boot-scripts"
+                ],
+                "summary": "Generate boot script",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID (optional, defaults to requesting IP's component)",
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Retry count",
+                        "name": "retry",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Architecture",
+                        "name": "arch",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Generated boot script",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid parameters",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "No templates found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable entity",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/cloud-init/admin/cluster-defaults": {
             "get": {
                 "description": "Get default meta-data values for cluster.",
@@ -628,6 +836,77 @@
         }
     },
     "definitions": {
+        "bss.BootParams": {
+            "type": "object",
+            "properties": {
+                "cloud-init": {
+                    "description": "Cloud-init server configuration",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/bss.CloudInitServer"
+                        }
+                    ]
+                },
+                "initrd": {
+                    "description": "Initrd image URL/path",
+                    "type": "string"
+                },
+                "kernel": {
+                    "description": "Kernel image URL/path",
+                    "type": "string"
+                },
+                "params": {
+                    "description": "Kernel boot parameters",
+                    "type": "string"
+                },
+                "rootfs": {
+                    "description": "Root filesystem configuration",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/bss.RootFS"
+                        }
+                    ]
+                },
+                "version": {
+                    "description": "Version of the boot parameters",
+                    "type": "integer"
+                }
+            }
+        },
+        "bss.CloudInitServer": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "description": "URL of the cloud-init server",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Version of the cloud-init server",
+                    "type": "string"
+                }
+            }
+        },
+        "bss.RootFS": {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "description": "Mount options",
+                    "type": "string"
+                },
+                "path": {
+                    "description": "Path to root filesystem",
+                    "type": "string"
+                },
+                "server": {
+                    "description": "Server for network filesystems",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Type of root filesystem (nfs, local, etc.)",
+                    "type": "string"
+                }
+            }
+        },
         "cistore.CloudConfigFile": {
             "type": "object",
             "properties": {
