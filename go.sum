@@ -12,6 +12,8 @@ github.com/KyleBanks/depth v1.2.1 h1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc
 github.com/KyleBanks/depth v1.2.1/go.mod h1:jzSb9d0L43HxTQfT+oSA1EEp2q+ne2uh6XgeJcm8brE=
 github.com/OpenCHAMI/jwtauth/v5 v5.0.0-20240321222802-e6cb468a2a18 h1:oBPtXp9RVm9lk5zTmDLf+Vh21yDHpulBxUqGJQjwQCk=
 github.com/OpenCHAMI/jwtauth/v5 v5.0.0-20240321222802-e6cb468a2a18/go.mod h1:ggNHWgLfW/WRXcE8ZZC4S7UwHif16HVmyowOCWdNSN8=
+github.com/OpenCHAMI/quack v0.0.1 h1:qOXyXskLiqMOZqaDSEchUJPPe1qDuC2wUG3kNyyHeDI=
+github.com/OpenCHAMI/quack v0.0.1/go.mod h1:5oWhAgheSMM+h713DIJEQlcT+ooOyYwj3z/1WSWWvyM=
 github.com/OpenCHAMI/smd/v2 v2.18.0 h1:RZ7lq+zkjZnrnc3McLJANnvoU/T7P8wcCFEukWp0FlQ=
 github.com/OpenCHAMI/smd/v2 v2.18.0/go.mod h1:RtFmMtTYmMUc74gw4FnfZKDpFMTQJeemAVXB0O+Qaa0=
 github.com/andybalholm/brotli v1.1.1 h1:PR2pgnyFznKEugtsUo0xLdDop5SKXd5Qf5ysW+7XdTA=

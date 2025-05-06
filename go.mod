@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/OpenCHAMI/jwtauth/v5 v5.0.0-20240321222802-e6cb468a2a18
-	github.com/OpenCHAMI/quack v0.0.0
+	github.com/OpenCHAMI/quack v0.0.1
 	github.com/OpenCHAMI/smd/v2 v2.18.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/lestrrat-go/jwx/v2 v2.1.5
@@ -83,5 +83,3 @@ require (
 	golang.org/x/time v0.11.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-replace github.com/OpenCHAMI/quack => ../quack
