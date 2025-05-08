@@ -15,6 +15,7 @@ type GroupData struct {
 	Description string                 `json:"description,omitempty" example:"The compute group" description:"A short description of the group"`
 	Data        map[string]interface{} `json:"meta-data,omitempty" description:"json map of a string (key) to a struct (value) representing group meta-data"`
 	File        CloudConfigFile        `json:"file,omitempty" description:"Cloud-Init configuration for group"`
+	Versions    map[string]string      `json:"versions,omitempty" description:"Map of group versions"`
 }
 
 func (g *GroupData) ParseFromJSON(body []byte) error {
