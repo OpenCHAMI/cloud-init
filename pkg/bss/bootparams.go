@@ -31,6 +31,7 @@ type BootParams struct {
 	Initrd    string           `json:"initrd,omitempty"`     // Initrd image URL/path
 	RootFS    *RootFS          `json:"rootfs,omitempty"`     // Root filesystem configuration
 	CloudInit *CloudInitServer `json:"cloud-init,omitempty"` // Cloud-init server configuration
+	CmdLine   string           `json:"cmdline,omitempty"`    // Command line for the kernel
 }
 
 // BootParamsV1 defines the boot parameters for one or more nodes
