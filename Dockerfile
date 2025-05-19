@@ -18,7 +18,7 @@ COPY cloud-init-server /usr/local/bin/
 
 ENV TOKEN_URL="http://opaal:3333/token"
 ENV SMD_URL="http://smd:27779"
-ENV LISTEN_ADDR="0.0.0.0:27777"
+ENV LISTEN="0.0.0.0:27777"
 
 
 # nobody 65534:65534

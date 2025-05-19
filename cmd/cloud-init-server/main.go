@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
@@ -259,7 +260,7 @@ func getEnv(key, fallback string) string {
 
 // parseBool is a helper to convert string "true" or "false" to bool
 func parseBool(str string) bool {
-	return str == "true" || str == "1"
+	return strings.EqualFold(str, "true") || str == "1"
 }
 
 func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
