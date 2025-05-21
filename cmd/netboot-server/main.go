@@ -28,21 +28,29 @@ var (
 	certPath       string
 	insecure       bool
 	fakeSMDEnabled bool
+	storageBackend string
+	dbPath         string
 )
 
 func main() {
-	var rootCmd = &cobra.Command{
+	// Create root command
+	rootCmd := &cobra.Command{
 		Use:   "netboot-server",
-		Short: "Starts the netboot server for OpenCHAMI",
-		Long:  `This command starts the netboot server for OpenCHAMI, providing boot parameter management and boot script generation.`,
+		Short: "OpenCHAMI netboot server",
+		Long: `OpenCHAMI netboot server provides boot parameter management and boot script generation.
+It supports both in-memory and persistent storage backends, and can integrate with SMD for inventory details.`,
+	}
+
+	// Create serve command
+	serveCmd := &cobra.Command{
+		Use:   "serve",
+		Short: "Start the netboot server",
+		Long:  `Start the netboot server with the specified configuration.`,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// Validate flags
 			if smdEndpoint == "" && !fakeSMDEnabled {
-				//cmd.Usage() // Print usage if validation fails
 				return errors.New("either --smd-endpoint or --fake-smd must be set for inventory details")
 			}
 			if clusterName == "" {
-				//cmd.Usage() // Print usage if validation fails
 				return errors.New("cluster name must be set via --cluster-name or CLUSTER_NAME")
 			}
 			return nil
@@ -52,17 +60,32 @@ func main() {
 		},
 	}
 
-	// Define CLI flags
-	rootCmd.Flags().StringVar(&clusterName, "cluster-name", os.Getenv("CLUSTER_NAME"), "Cluster name for SMD (default from CLUSTER_NAME env)")
-	rootCmd.Flags().StringVar(&jwksUrl, "jwks-url", os.Getenv("JWKS_URL"), "JWKS URL for JWT validation (default from JWKS_URL env)")
-	rootCmd.Flags().StringVar(&smdEndpoint, "smd-endpoint", os.Getenv("SMD_ENDPOINT"), "SMD endpoint (default from SMD_ENDPOINT env)")
-	rootCmd.Flags().StringVar(&tokenEndpoint, "token-endpoint", os.Getenv("TOKEN_ENDPOINT"), "Token endpoint (default from TOKEN_ENDPOINT env)")
-	rootCmd.Flags().StringVar(&accessToken, "access-token", os.Getenv("ACCESS_TOKEN"), "Access token (default from ACCESS_TOKEN env)")
-	rootCmd.Flags().StringVar(&certPath, "cert-path", os.Getenv("CERT_PATH"), "Path to certificate for secure connections (default from CERT_PATH env)")
-	rootCmd.Flags().BoolVar(&insecure, "insecure", os.Getenv("INSECURE") == "true", "Disable TLS verification (default from INSECURE env)")
-	rootCmd.Flags().BoolVar(&fakeSMDEnabled, "fake-smd", os.Getenv("CLOUD_INIT_SMD_SIMULATOR") == "true", "Enable FakeSMDClient simulation (default from CLOUD_INIT_SMD_SIMULATOR env)")
+	// Add flags to serve command
+	serveCmd.Flags().StringVar(&clusterName, "cluster-name", os.Getenv("CLUSTER_NAME"), "Cluster name for SMD (default from CLUSTER_NAME env)")
+	serveCmd.Flags().StringVar(&jwksUrl, "jwks-url", os.Getenv("JWKS_URL"), "JWKS URL for JWT validation (default from JWKS_URL env)")
+	serveCmd.Flags().StringVar(&smdEndpoint, "smd-endpoint", os.Getenv("SMD_ENDPOINT"), "SMD endpoint (default from SMD_ENDPOINT env)")
+	serveCmd.Flags().StringVar(&tokenEndpoint, "token-endpoint", os.Getenv("TOKEN_ENDPOINT"), "Token endpoint (default from TOKEN_ENDPOINT env)")
+	serveCmd.Flags().StringVar(&accessToken, "access-token", os.Getenv("ACCESS_TOKEN"), "Access token (default from ACCESS_TOKEN env)")
+	serveCmd.Flags().StringVar(&certPath, "cert-path", os.Getenv("CERT_PATH"), "Path to certificate for secure connections (default from CERT_PATH env)")
+	serveCmd.Flags().BoolVar(&insecure, "insecure", os.Getenv("INSECURE") == "true", "Disable TLS verification (default from INSECURE env)")
+	serveCmd.Flags().BoolVar(&fakeSMDEnabled, "fake-smd", os.Getenv("CLOUD_INIT_SMD_SIMULATOR") == "true", "Enable FakeSMDClient simulation (default from CLOUD_INIT_SMD_SIMULATOR env)")
+	serveCmd.Flags().StringVar(&storageBackend, "storage-backend", "mem", "Storage backend to use (mem or quack)")
+	serveCmd.Flags().StringVar(&dbPath, "db-path", "netboot.db", "Path to the database file for quackstore backend")
 
-	// Execute Cobra command
+	// Create version command
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print version information",
+		Run: func(cmd *cobra.Command, args []string) {
+			PrintVersionInfo()
+		},
+	}
+
+	// Add commands to root
+	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(versionCmd)
+
+	// Execute root command
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -90,8 +113,21 @@ func startServer() error {
 		}
 	}
 
-	// Initialize BSS storage
-	bssStorage := bss.NewMemoryStore()
+	// Initialize BSS storage based on the selected backend
+	var bssStorage bss.Store
+	var err error
+	switch storageBackend {
+	case "mem":
+		bssStorage = bss.NewMemoryStore()
+	case "quack":
+		bssStorage, err = bss.NewQuackStore(dbPath)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize QuackStore")
+		}
+		defer bssStorage.(*bss.QuackStore).Close()
+	default:
+		log.Fatal().Msgf("Unsupported storage backend: %s", storageBackend)
+	}
 
 	// Set up router
 	router := chi.NewRouter()
@@ -117,6 +153,10 @@ func startServer() error {
 		Str("accessToken", accessToken).
 		Str("certPath", certPath).
 		Bool("insecure", insecure).
+		Str("storageBackend", storageBackend).
+		Str("dbPath", dbPath).
+		Str("version", Version).
+		Str("commit", GitCommit).
 		Msgf("Starting netboot server on port 8080")
 
 	if err := http.ListenAndServe(":8080", router); err != nil {
@@ -127,6 +167,7 @@ func startServer() error {
 
 // initBssRouter sets up bootparam routes
 func initBssRouter(router chi.Router, sm smdclient.SMDClientInterface, bssStorage bss.Store) {
+	router.Get("/version", VersionHandler)
 	router.Route("/boot/v1/", func(r chi.Router) {
 		r.Post("/bootparams", bss.CreateBootParamsHandler(bssStorage))
 		r.Get("/bootparams/{id}", bss.GetBootParamsHandler(bssStorage))

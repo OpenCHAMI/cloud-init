@@ -5,6 +5,9 @@ definitions:
         allOf:
         - $ref: '#/definitions/bss.CloudInitServer'
         description: Cloud-init server configuration
+      cmdline:
+        description: Command line for the kernel
+        type: string
       initrd:
         description: Initrd image URL/path
         type: string

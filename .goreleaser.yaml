@@ -123,7 +123,9 @@ docker_manifests:
       - *arm64v8_linux_image
 
 archives:
-  - format: tar.gz
+  - formats:
+      - tar.gz
+      - zip
     # this name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
       {{ .ProjectName }}_
@@ -142,6 +144,7 @@ checksum:
   name_template: 'checksums.txt'
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
+
 changelog:
   sort: asc
   filters:

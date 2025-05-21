@@ -847,6 +847,10 @@
                         }
                     ]
                 },
+                "cmdline": {
+                    "description": "Command line for the kernel",
+                    "type": "string"
+                },
                 "initrd": {
                     "description": "Initrd image URL/path",
                     "type": "string"

@@ -16,7 +16,6 @@ import (
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
 	"github.com/OpenCHAMI/cloud-init/internal/quackstore"
-	"github.com/OpenCHAMI/cloud-init/pkg/bss"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/OpenCHAMI/cloud-init/pkg/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
@@ -54,7 +53,6 @@ var (
 	wireGuardMiddleware  func(http.Handler) http.Handler
 	storageBackend       = "mem"           // Default to memstore
 	dbPath               = "cloud-init.db" // Default database path for quackstore
-	bssEnabled           = false
 )
 
 func main() {
@@ -76,7 +74,6 @@ func main() {
 	flag.BoolVar(&debug, "debug", debug, "Enable debug logging")
 	flag.StringVar(&storageBackend, "storage-backend", storageBackend, "Storage backend to use (mem or quack)")
 	flag.StringVar(&dbPath, "db-path", dbPath, "Path to the database file for quackstore backend")
-	flag.BoolVar(&bssEnabled, "bss", bssEnabled, "Enable BSS endpoints")
 	flag.Parse()
 
 	if debug {
@@ -212,11 +209,6 @@ func main() {
 	initCiAdminRouter(router_admin, ciHandler)
 	router.Mount("/cloud-init/admin", router_admin)
 
-	if bssEnabled {
-		bssStorage := bss.NewMemoryStore()
-		initBssRouter(router, ciHandler, bssStorage)
-	}
-
 	// Serve all routes
 	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
 }
@@ -265,28 +257,4 @@ func initCiAdminRouter(router chi.Router, handler *CiHandler) {
 		}
 
 	})
-}
-
-func initBssRouter(router chi.Router, handler *CiHandler, bssStorage bss.Store) {
-	// BSS API subrouter
-	router.Route("/boot/v1/", func(r chi.Router) {
-
-		// Boot parameters endpoints
-		r.Post("/bootparams", bss.CreateBootParamsHandler(bssStorage))
-		r.Get("/bootparams/{id}", bss.GetBootParamsHandler(bssStorage))
-		r.Put("/bootparams/{id}", bss.UpdateBootParamsHandler(bssStorage))
-		r.Get("/bootparams/{id}", bss.GetBootParamsHandler(bssStorage))
-
-		// Boot script endpoint
-		r.Get("/bootscript", bss.GenerateBootScriptHandler(bssStorage, handler.sm.(*smdclient.SMDClient)))
-
-	})
-	router.Route("/boot/v2/", func(r chi.Router) {
-		r.Get("/bootparams/{id}", bss.GetBootParamsHandler(bssStorage))
-		r.Put("/bootparams/{id}", bss.UpdateBootParamsHandler(bssStorage))
-		r.Get("/bootparams/{id}", bss.GetBootParamsHandler(bssStorage))
-		// Boot script endpoint
-		r.Get("/bootscript", bss.GenerateBootScriptHandler(bssStorage, handler.sm.(*smdclient.SMDClient)))
-	})
-
 }
