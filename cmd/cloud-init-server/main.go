@@ -15,8 +15,9 @@ import (
 	"time"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
+	"github.com/OpenCHAMI/cloud-init/internal/quackstore"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/OpenCHAMI/cloud-init/pkg/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
@@ -50,6 +51,8 @@ var (
 	wireguardOnly        = false
 	debug                = true
 	wireGuardMiddleware  func(http.Handler) http.Handler
+	storageBackend       = "mem"           // Default to memstore
+	dbPath               = "cloud-init.db" // Default database path for quackstore
 )
 
 func main() {
@@ -69,6 +72,8 @@ func main() {
 	flag.StringVar(&wireguardServer, "wireguard-server", wireguardServer, "Wireguard server IP address and network (e.g. 100.97.0.1/16)")
 	flag.BoolVar(&wireguardOnly, "wireguard-only", wireguardOnly, "Only allow access to the cloud-init functions from the WireGuard subnet")
 	flag.BoolVar(&debug, "debug", debug, "Enable debug logging")
+	flag.StringVar(&storageBackend, "storage-backend", storageBackend, "Storage backend to use (mem or quack)")
+	flag.StringVar(&dbPath, "db-path", dbPath, "Path to the database file for quackstore backend")
 	flag.Parse()
 
 	if debug {
@@ -115,15 +120,32 @@ func main() {
 		}
 	}
 
-	// Set up our DataStore
-	store = memstore.NewMemStore()
-	store.SetClusterDefaults(cistore.ClusterDefaults{
+	// Set up our DataStore based on the selected backend
+	var err error
+	switch storageBackend {
+	case "mem":
+		store = memstore.NewMemStore()
+	case "quack":
+		store, err = quackstore.NewQuackStore(dbPath)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize QuackStore")
+		}
+		defer store.(*quackstore.QuackStore).Close()
+	default:
+		log.Fatal().Msgf("Unsupported storage backend: %s", storageBackend)
+	}
+
+	// Set cluster defaults
+	err = store.SetClusterDefaults(cistore.ClusterDefaults{
 		ClusterName:      clusterName,
 		Region:           region,
 		AvailabilityZone: availabilityZone,
 		CloudProvider:    cloudProvider,
 		BaseUrl:          baseUrl,
 	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to set cluster defaults")
+	}
 
 	// Initialize the cloud-init handler with the datastore and SMD client
 	ciHandler := NewCiHandler(store, sm, clusterName)

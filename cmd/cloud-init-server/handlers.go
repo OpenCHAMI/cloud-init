@@ -7,8 +7,8 @@ import (
 
 	// Import to run swag.Register() to generated docs
 	_ "github.com/OpenCHAMI/cloud-init/docs"
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/OpenCHAMI/cloud-init/pkg/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"

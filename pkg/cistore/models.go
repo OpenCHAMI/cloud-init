@@ -1,6 +1,7 @@
 package cistore
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -73,7 +74,7 @@ type CloudConfigFile struct {
 	Encoding string `json:"encoding,omitempty" yaml:"encoding,omitempty" enums:"base64,plain"`
 }
 
-// Custom JSON unmarshaler for CloudConfigFile
+// UnmarshalJSON implements json.Unmarshaler
 func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	// Use an auxiliary struct so that:
 	//
@@ -91,11 +92,25 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 		Alias: (*Alias)(f),
 	}
 
+	// Unmarshal into the helper struct
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 
-	f.Content = []byte(aux.Content)
+	// Handle encoding
+	switch aux.Encoding {
+	case "base64":
+		decoded, err := base64.StdEncoding.DecodeString(aux.Content)
+		if err != nil {
+			return fmt.Errorf("failed to decode base64 content: %w", err)
+		}
+		f.Content = decoded
+	case "plain":
+		f.Content = []byte(aux.Content)
+	default:
+		return fmt.Errorf("unsupported encoding: %s", aux.Encoding)
+	}
+
 	return nil
 }
 
@@ -164,7 +179,6 @@ func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
 		Alias: (Alias)(f),
 	}
 
-	aux.Content = string(f.Content)
 	return json.Marshal(aux)
 }
 
