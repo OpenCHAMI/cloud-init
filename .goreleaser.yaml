@@ -123,9 +123,7 @@ docker_manifests:
       - *arm64v8_linux_image
 
 archives:
-  - formats:
-      - tar.gz
-      - zip
+  - format : "tar.gz"
     # this name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
       {{ .ProjectName }}_

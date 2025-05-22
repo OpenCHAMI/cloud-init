@@ -69,7 +69,7 @@ export BUILD_USER=$(whoami)
 2. Run in snapshot mode to build locally without releasing:
 
    ```bash
-   goreleaser release --snapshot --clean
+   goreleaser release --snapshot --clean --single-target
    ```
 3. Check the `dist/` directory for compiled binaries, which will include the injected metadata.
 
