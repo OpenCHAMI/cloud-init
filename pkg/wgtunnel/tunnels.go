@@ -13,14 +13,14 @@ import (
 )
 
 type PeerConfig struct {
-	PublicKey string     `json:"public_key"`
-	IP        net.IPAddr `json:"ip"`
+	PublicKey string     `json:"public_key" yaml:"public_key"`
+	IP        net.IPAddr `json:"ip" yaml:"ip"`
 }
 
 type ServerConfig struct {
-	PublicKey string `json:"public_key"`
-	IP        string `json:"ip"`
-	Port      string `json:"port"`
+	PublicKey string `json:"public_key" yaml:"public_key"`
+	IP        string `json:"ip" yaml:"ip"`
+	Port      string `json:"port" yaml:"port"`
 }
 
 type Store interface {
