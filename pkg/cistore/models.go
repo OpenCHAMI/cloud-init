@@ -11,10 +11,10 @@ import (
 )
 
 type GroupData struct {
-	Name        string                 `json:"name" example:"compute" description:"Group name"`
-	Description string                 `json:"description,omitempty" example:"The compute group" description:"A short description of the group"`
-	Data        map[string]interface{} `json:"meta-data,omitempty" description:"json map of a string (key) to a struct (value) representing group meta-data"`
-	File        CloudConfigFile        `json:"file,omitempty" description:"Cloud-Init configuration for group"`
+	Name        string                 `json:"name" yaml:"name" example:"compute" description:"Group name"`
+	Description string                 `json:"description,omitempty" yaml:"description,omitempty" example:"The compute group" description:"A short description of the group"`
+	Data        map[string]interface{} `json:"meta-data,omitempty" yaml:"meta-data,omitempty" description:"json map of a string (key) to a struct (value) representing group meta-data"`
+	File        CloudConfigFile        `json:"file,omitempty" yaml:"file,omitempty" description:"Cloud-Init configuration for group"`
 }
 
 func (g *GroupData) ParseFromJSON(body []byte) error {
@@ -33,13 +33,13 @@ func (g *GroupData) ParseFromJSON(body []byte) error {
 
 type OpenCHAMIComponent struct {
 	base.Component
-	MAC  string `json:"mac"`            // MAC address of the inteface used to boot the component
-	IP   string `json:"ip"`             // IP address of the interface used to boot the component
-	WGIP string `json:"wgip,omitempty"` // Wireguard IP address of the interface used for cloud-init
+	MAC  string `json:"mac" yaml:"mac"`                       // MAC address of the inteface used to boot the component
+	IP   string `json:"ip" yaml:"ip"`                         // IP address of the interface used to boot the component
+	WGIP string `json:"wgip,omitempty" yaml:"wgip,omitempty"` // Wireguard IP address of the interface used for cloud-init
 }
 
 type OpenCHAMIInstanceInfo struct {
-	ID               string   `json:"id" example:"x3000c1b1n1" description:"Node unique identifier, on systems that support xnames, this will be an xname which includes location information"`
+	ID               string   `json:"id" yaml:"id" example:"x3000c1b1n1" description:"Node unique identifier, on systems that support xnames, this will be an xname which includes location information"`
 	InstanceID       string   `json:"instance-id" yaml:"instance-id"`
 	LocalHostname    string   `json:"local-hostname,omitempty" yaml:"local-hostname" example:"compute-1" description:"Node-specific hostname"`
 	Hostname         string   `json:"hostname,omitempty" yaml:"hostname"`
@@ -85,7 +85,7 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	//    to f.Content.
 	type Alias CloudConfigFile
 	aux := &struct {
-		Content string `json:"content"`
+		Content string `json:"content" yaml:"content"`
 		*Alias
 	}{
 		Alias: (*Alias)(f),
@@ -116,7 +116,7 @@ func (f *CloudConfigFile) UnmarshalYAML(n *yaml.Node) error {
 	// to f, so we have to use json.Unmarshal.
 	type Alias CloudConfigFile
 	aux := &struct {
-		Content string `json:"content"`
+		Content string `json:"content" yaml:"content"`
 		*Alias
 	}{
 		Alias: (*Alias)(f),
@@ -158,7 +158,7 @@ func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
 	//    to prevent this. Then, aux gets marshalled instead of f.
 	type Alias CloudConfigFile
 	aux := &struct {
-		Content string `json:"content"`
+		Content string `json:"content" yaml:"content"`
 		Alias
 	}{
 		Alias: (Alias)(f),

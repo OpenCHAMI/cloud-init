@@ -11,7 +11,7 @@ import (
 
 type OpenCHAMINodeWithGroups struct {
 	cistore.OpenCHAMIComponent
-	Groups []string `json:"groups,omitempty"`
+	Groups []string `json:"groups,omitempty" yaml:"groups,omitempty"`
 }
 
 func AddNodeToInventoryHandler(f *FakeSMDClient) http.HandlerFunc {

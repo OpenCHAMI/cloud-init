@@ -8,10 +8,10 @@ import (
 
 // Structure of a token reponse from OIDC server
 type oidcTokenData struct {
-	Access_token string `json:"access_token"`
-	Expires_in   int    `json:"expires_in"`
-	Scope        string `json:"scope"`
-	Token_type   string `json:"token_type"`
+	Access_token string `json:"access_token" yaml:"access_token"`
+	Expires_in   int    `json:"expires_in" yaml:"expires_in"`
+	Scope        string `json:"scope" yaml:"scope"`
+	Token_type   string `json:"token_type" yaml:"token_type"`
 }
 
 // Refresh the cached access token, using the provided JWT server

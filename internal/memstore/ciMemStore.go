@@ -11,7 +11,7 @@ import (
 )
 
 type MemStore struct {
-	Groups               map[string]cistore.GroupData `json:"groups,omitempty"`
+	Groups               map[string]cistore.GroupData `json:"groups,omitempty" yaml:"groups,omitempty"`
 	GroupsMutex          sync.RWMutex
 	Instances            map[string]cistore.OpenCHAMIInstanceInfo
 	InstancesMutex       sync.RWMutex

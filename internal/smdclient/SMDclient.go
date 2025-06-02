@@ -57,15 +57,15 @@ type SMDClient struct {
 }
 
 type NodeInterface struct {
-	MAC  string `json:"mac"`
-	IP   string `json:"ip"`
-	WGIP string `json:"wgip"`
-	Desc string `json:"description"`
+	MAC  string `json:"mac" yaml:"mac"`
+	IP   string `json:"ip" yaml:"ip"`
+	WGIP string `json:"wgip" yaml:"wgip"`
+	Desc string `json:"description" yaml:"description"`
 }
 
 type NodeMapping struct {
-	Xname      string          `json:"xname"`
-	Interfaces []NodeInterface `json:"interfaces"`
+	Xname      string          `json:"xname" yaml:"xname"`
+	Interfaces []NodeInterface `json:"interfaces" yaml:"interfaces"`
 }
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl

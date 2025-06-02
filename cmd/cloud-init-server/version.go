@@ -91,11 +91,11 @@ func VersionHandler(w http.ResponseWriter, r *http.Request) {
 	runtime.ReadMemStats(memstats)
 
 	response := struct {
-		ProcessName    string `json:"process_name"`
-		BuildInfo      string `json:"build_info"`
-		Uptime         string `json:"uptime"`
-		RuntimeHost    string `json:"runtime_host"`
-		BytesAllocated uint64 `json:"bytes_allocated"`
+		ProcessName    string `json:"process_name" yaml:"process_name"`
+		BuildInfo      string `json:"build_info" yaml:"build_info"`
+		Uptime         string `json:"uptime" yaml:"uptime"`
+		RuntimeHost    string `json:"runtime_host" yaml:"runtime_host"`
+		BytesAllocated uint64 `json:"bytes_allocated" yaml:"bytes_allocated"`
 	}{
 		ProcessName:    processName,
 		BuildInfo:      info,
