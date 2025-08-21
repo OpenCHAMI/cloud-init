@@ -6,11 +6,13 @@ on:
     tags:
       - v*
 
+permissions: write-all # Necessary for the generate-build-provenance action with containers
+
 jobs:
   release:
     uses: OpenCHAMI/github-actions/workflows/go-build-release.yml@v2
     with:
-      cgo-enabled: "0"
+      cgo-enabled: "1"
       pre-build-commands: |
         go install github.com/swaggo/swag/cmd/swag@latest
       attestation-binary-path: "dist/cloud-init*"
