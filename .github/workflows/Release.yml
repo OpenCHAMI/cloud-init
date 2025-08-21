@@ -10,7 +10,7 @@ permissions: write-all # Necessary for the generate-build-provenance action with
 
 jobs:
   release:
-    uses: OpenCHAMI/github-actions/.github/workflows/go-build-release.yml@v3.1
+    uses: OpenCHAMI/github-actions/.github/workflows/go-build-release.yml@v3.2
     with:
       cgo-enabled: "1"
       pre-build-commands: |
