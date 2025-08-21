@@ -1,0 +1,41 @@
+# Example Release Workflow
+# Copy this file to .github/workflows/Release.yml in your Go project
+# to use the OpenCHAMI centralized release workflow
+
+name: Release with goreleaser
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - v*
+
+permissions: write-all # Necessary for the generate-build-provenance action with containers
+
+jobs:
+  release:
+    uses: OpenCHAMI/github-actions/workflows/go-build-release.yml@v2
+    with:
+      # Configure these parameters for your project:
+      
+      # Registry where container images will be pushed
+      registry-name: ghcr.io/yourusername/yourproject
+      
+      # Enable CGO if your project has C dependencies (default: "0")
+      cgo-enabled: "0"
+      
+      # Commands to run before building (optional)
+      # Example: code generation, installing tools, etc.
+      pre-build-commands: |
+        echo "Add your pre-build commands here"
+        # go install github.com/swaggo/swag/cmd/swag@latest
+        # swag init -g cmd/yourapp/main.go
+      
+      # Pattern for binaries to create attestations for (optional)
+      attestation-binary-path: "dist/yourapp*"
+
+# Additional configuration notes:
+# 1. Replace "yourusername/yourproject" with your actual registry path
+# 2. Ensure you have a .goreleaser.yaml file in your repository root
+# 3. Your repository needs write permissions for packages and contents
+# 4. For private registries, you may need additional authentication setup

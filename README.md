@@ -24,7 +24,8 @@ The **OpenCHAMI cloud-init service** retrieves detailed inventory information fr
    - [Cluster Defaults and Instance Overrides](#cluster-defaults-and-instance-overrides)
      - [Set Cluster Defaults](#set-cluster-defaults)
      - [Override Instance Data](#override-instance-data)
-6. [More Reading](#more-reading)
+6. [CI/CD and Workflow Reuse](#cicd-and-workflow-reuse)
+7. [More Reading](#more-reading)
 
 ---
 
@@ -75,6 +76,54 @@ export BUILD_USER=$(whoami)
 
 > [!NOTE]
 > If you encounter errors, ensure your GoReleaser version matches the one used in the [Release Action](.github/workflows/Release.yml).
+
+---
+
+## CI/CD and Workflow Reuse
+
+This project uses a centralized, reusable GitHub Actions workflow for building and releasing Go applications. The workflow is defined in the [OpenCHAMI/github-actions](https://github.com/OpenCHAMI/github-actions) repository and can be used by other projects.
+
+### Using This Workflow in Your Project
+
+You can reuse the same release workflow in your own Go projects. The workflow provides:
+- Multi-architecture builds (amd64, arm64)
+- Container image creation and publishing
+- Release artifact generation with GoReleaser
+- Security scanning and build attestation
+
+**Quick example** for your own repository's `.github/workflows/Release.yml`:
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions: write-all
+
+jobs:
+  release:
+    uses: OpenCHAMI/github-actions/workflows/go-build-release.yml@v2
+    with:
+      registry-name: ghcr.io/yourusername/yourproject
+```
+
+### Detailed Documentation
+
+For complete instructions, configuration options, and examples, see:
+**[📖 Workflow Reuse Guide](docs/WORKFLOW_REUSE.md)**
+
+This guide covers:
+- Configuration options and parameters
+- GoReleaser setup requirements  
+- Container registry configuration
+- Troubleshooting and debugging
+- Security considerations
+
+**Quick start files:**
+- [📋 Example Release Workflow](docs/example-release-workflow.yml) - Copy this to your project's `.github/workflows/Release.yml`
 
 ---
 
@@ -226,7 +275,9 @@ curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
 
 ## More Reading
 
+- [Workflow Reuse Guide](docs/WORKFLOW_REUSE.md) - How to use this project's CI/CD workflow in other repositories
 - [Official cloud-init documentation](https://cloud-init.io/)  
 - [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager)  
 - [GoReleaser Documentation](https://goreleaser.com/)  
 - [SMD Documentation](https://github.com/OpenCHAMI/smd)  
+- [OpenCHAMI GitHub Actions](https://github.com/OpenCHAMI/github-actions) - Centralized reusable workflows  
