@@ -279,7 +279,7 @@ func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManage
 
 func initCiAdminRouter(router chi.Router, handler *CiHandler) {
 	// admin API subrouter
-	router.Route("/", func(r chi.Router) {
+	router.Route("/admin/", func(r chi.Router) {
 
 		// Cluster Defaults
 		r.Get("/cluster-defaults", GetClusterDataHandler(handler.store))

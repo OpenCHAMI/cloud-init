@@ -13,7 +13,7 @@ ENV SMD_URL="http://smd:27779"
 ENV LISTEN="0.0.0.0:27777"
 
 # Set non-root user
-USER 10001
+USER 65534:65534
 
 # Tini for proper signal forwarding
 ENTRYPOINT ["/usr/bin/tini", "--"]
