@@ -1,14 +1,14 @@
-
-version: 2.4
+version: 2
 project_name: cloud-init
 before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
+    - go install github.com/swaggo/swag/cmd/swag@latest
     - swag init -g cmd/cloud-init-server/main.go
 
 builds:
-  - id: cloud-init
+  - id: linux
     main: ./cmd/cloud-init-server
     binary: cloud-init-server
     # export GIT_STATE=$(if git diff-index --quiet HEAD --; then echo 'clean'; else echo 'dirty'; fi)
@@ -27,14 +27,17 @@ builds:
          -X 'main.BuildUser={{ .Env.BUILD_USER }}'"
     goos:
       - linux
-      - darwin
     goarch:
       - amd64
       - arm64
     goamd64:
       - v3
+      - v1
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
+      - CC={{ if eq .Arch "arm64" }}aarch64-linux-gnu-gcc{{ else }}gcc{{ end }}
+      - CXX={{ if eq .Arch "arm64" }}aarch64-linux-gnu-g++{{ else }}g++{{ end }}
+
 
 dockers:
   - image_templates:
@@ -125,5 +128,5 @@ changelog:
 
 # The lines beneath this are called `modelines`. See `:help modeline`
 # Feel free to remove those if you don't want/use them.
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.11.2/www/docs/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj

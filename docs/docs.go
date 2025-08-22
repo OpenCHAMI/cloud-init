@@ -718,6 +718,12 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "compute"
+                },
+                "versions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },

@@ -1,30 +1,20 @@
+FROM ubuntu:24.04
 
+# Optional: slim this down a bit
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wireguard-tools tini\
+  && rm -rf /var/lib/apt/lists/*
 
-FROM chainguard/wolfi-base:latest
+# Copy binary from builder
+COPY cloud-init-server /usr/local/bin/cloud-init-server
 
-RUN apk add --no-cache tini
-
-# Include curl in the final image.
-RUN set -ex \
-    && apk update \
-    && apk add --no-cache curl tini wireguard-tools iputils iproute2 \
-    && rm -rf /var/cache/apk/*  \
-    && rm -rf /tmp/*
-
-STOPSIGNAL SIGTERM
-
-# Get the boot-script-service from the builder stage.
-COPY cloud-init-server /usr/local/bin/
-
+# Configuration via environment variables
 ENV TOKEN_URL="http://opaal:3333/token"
 ENV SMD_URL="http://smd:27779"
 ENV LISTEN="0.0.0.0:27777"
 
-
-# nobody 65534:65534
+# Set non-root user
 USER 65534:65534
 
-# Set up the command to start the service.
-CMD /usr/local/bin/cloud-init-server 
-
-ENTRYPOINT ["/sbin/tini", "--"]
+# Tini for proper signal forwarding
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/usr/local/bin/cloud-init-server"]

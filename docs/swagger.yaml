@@ -59,6 +59,10 @@ definitions:
       name:
         example: compute
         type: string
+      versions:
+        additionalProperties:
+          type: string
+        type: object
     type: object
   cistore.OpenCHAMIInstanceInfo:
     properties:
