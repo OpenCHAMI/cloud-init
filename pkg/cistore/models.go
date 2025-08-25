@@ -115,6 +115,7 @@ func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
 	}{
 		Alias: (Alias)(f),
 	}
+	aux.Content = string(f.Content)
 
 	return json.Marshal(aux)
 }
