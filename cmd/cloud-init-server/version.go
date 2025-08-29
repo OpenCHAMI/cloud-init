@@ -104,5 +104,5 @@ func VersionHandler(w http.ResponseWriter, r *http.Request) {
 		BytesAllocated: memstats.HeapAlloc,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

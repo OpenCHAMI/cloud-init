@@ -54,7 +54,9 @@ func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterfa
 		}
 
 		var req PublicKeyRequest
-		defer r.Body.Close()
+		defer func() {
+			_ = r.Body.Close()
+		}()
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return

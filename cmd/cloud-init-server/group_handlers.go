@@ -94,11 +94,12 @@ func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Router			/cloud-init/admin/groups/{id} [get]
 func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		id    string = chi.URLParam(r, "id")
+		id    string
 		data  cistore.GroupData
 		bytes []byte
 		err   error
 	)
+	id = chi.URLParam(r, "id")
 
 	data, err = h.store.GetGroupData(id)
 	if err != nil {
@@ -111,7 +112,10 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(bytes)
+	if _, err := w.Write(bytes); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 // UpdateGroupHandler godoc
@@ -135,10 +139,12 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Router			/cloud-init/admin/groups/{name} [put]
 func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		groupName string = chi.URLParam(r, "name")
+		groupName string
 		data      cistore.GroupData
 		err       error
 	)
+
+	groupName = chi.URLParam(r, "name")
 
 	data, err = parseData(r)
 	if err != nil {
@@ -167,9 +173,10 @@ func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Router			/cloud-init/admin/groups/{id} [delete]
 func (h CiHandler) RemoveGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		id  string = chi.URLParam(r, "id")
+		id  string
 		err error
 	)
+	id = chi.URLParam(r, "id")
 	err = h.store.RemoveGroupData(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

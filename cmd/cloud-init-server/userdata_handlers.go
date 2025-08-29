@@ -27,7 +27,7 @@ import (
 //	@Router			/cloud-init/admin/impersonation/{id}/user-data [get]
 func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 	payload := `#cloud-config`
-	w.Write([]byte(payload))
+	_, _ = w.Write([]byte(payload))
 }
 
 // GroupUserDataHandler godoc
@@ -62,7 +62,7 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 		data, err := store.GetGroupData(group)
 		if err != nil {
 			log.Err(err).Msgf("No information stored for group %s. returning an empty #cloud-config", group)
-			w.Write([]byte("#cloud-config"))
+			_, _ = w.Write([]byte("#cloud-config"))
 			return
 		}
 
@@ -78,7 +78,7 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 			data.File.Encoding = "plain"
 		}
 
-		w.Write(data.File.Content)
+		_, _ = w.Write(data.File.Content)
 	}
 }
 

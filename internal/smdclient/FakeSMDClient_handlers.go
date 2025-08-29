@@ -46,7 +46,7 @@ func ListNodesHandler(f *FakeSMDClient) http.HandlerFunc {
 		nodes := f.ListNodes()
 		w.WriteHeader(http.StatusOK)
 		w.Header().Add("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(nodes)
+		_ = json.NewEncoder(w).Encode(nodes)
 	}
 }
 

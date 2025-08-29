@@ -46,8 +46,8 @@ func getActualRequestIP(r *http.Request) string {
 //	@Router			/cloud-init/admin/impersonation/{id}/meta-data [get]
 func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var urlId string = chi.URLParam(r, "id")
-		var id = urlId
+		urlId := chi.URLParam(r, "id")
+		var id string
 		var err error
 		// If this request includes an id, it can be interrpreted as an impersonation request
 		if urlId == "" {
@@ -100,6 +100,6 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http
 			http.Error(w, "Failed to encode metadata to YAML", http.StatusInternalServerError)
 			return
 		}
-		w.Write(yamlData)
+		_, _ = w.Write(yamlData)
 	}
 }

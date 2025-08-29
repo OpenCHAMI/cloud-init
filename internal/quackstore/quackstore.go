@@ -68,7 +68,9 @@ func (s *QuackStore) GetGroups() map[string]cistore.GroupData {
 		fmt.Printf("Error querying groups: %v\n", err)
 		return groups
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	for rows.Next() {
 		var name string
@@ -353,6 +355,6 @@ func (s *QuackStore) Close() error {
 // where "XXXXXX" is a random 6-digit hexadecimal string.
 func generateInstanceId() string {
 	randBytes := make([]byte, 3)
-	rand.Read(randBytes)
+	_, _ = rand.Read(randBytes)
 	return fmt.Sprintf("i-%x", randBytes)
 }

@@ -26,7 +26,7 @@ import (
 //	@Router			/cloud-init/admin/impersonation/{id}/vendor-data [get]
 func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var urlId string = chi.URLParam(r, "id")
+		urlId := chi.URLParam(r, "id")
 		var baseUrl string
 		var id = urlId
 		var err error
@@ -70,6 +70,6 @@ func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) ht
 		for _, group_name := range groups {
 			payload += fmt.Sprintf("%s/%s.yaml\n", baseUrl, group_name)
 		}
-		w.Write([]byte(payload))
+		_, _ = w.Write([]byte(payload))
 	}
 }

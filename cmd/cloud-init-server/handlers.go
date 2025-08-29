@@ -62,7 +62,11 @@ func DocsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bDoc := []byte(doc)
-	w.Write(bDoc)
+	if _, err := w.Write(bDoc); err != nil {
+		log.Error().Msgf("Error writing OpenAPI docs: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 // SetClusterDataHandler godoc
@@ -132,7 +136,7 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(jsonData)
+		_, _ = w.Write(jsonData)
 	}
 }
 
@@ -155,7 +159,7 @@ func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) h
 			return
 		}
 
-		var id string = chi.URLParam(r, "id")
+		id := chi.URLParam(r, "id")
 		var info cistore.OpenCHAMIInstanceInfo
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -245,7 +249,7 @@ func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInter
 
 		if wg != nil {
 			go func() {
-				wg.RemovePeer(peerName)
+				_ = wg.RemovePeer(peerName) // Explicitly ignoring the error here.  There's nothing to do with it within the goroutine.
 			}()
 
 			w.WriteHeader(http.StatusOK)

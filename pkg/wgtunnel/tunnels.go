@@ -76,7 +76,7 @@ func NewInterfaceManager(name string, localIp net.IP, network *net.IPNet) *Inter
 		log.Fatal().Err(err).Msg("Failed to get usable IP")
 	}
 	im.ipAddress = net.IPAddr{IP: wgIp, Zone: ""}
-	im.ipManager.Reserve(im.ipAddress)
+	_ = im.ipManager.Reserve(im.ipAddress)
 
 	return &im
 }
@@ -190,7 +190,9 @@ func (m *InterfaceManager) StartServer() error {
 	if err != nil {
 		return fmt.Errorf("failed to create temporary file for private key: %v", err)
 	}
-	defer os.Remove(tmpfile.Name()) // Clean up the file afterwards
+	defer func() {
+		_ = os.Remove(tmpfile.Name())
+	}()
 
 	if _, err := tmpfile.WriteString(m.privateKey); err != nil {
 		return fmt.Errorf("failed to write private key to temporary file: %v", err)

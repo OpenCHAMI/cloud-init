@@ -23,14 +23,16 @@ func NewDuckDBStore(dsn string) (*DuckDBStore, error) {
 	return &DuckDBStore{db: db}, nil
 }
 
-func (d *DuckDBStore) GetGroups() map[string]cistore.GroupData {
+func (d *DuckDBStore) GetGroups() (map[string]cistore.GroupData, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	rows, err := d.db.Query("SELECT name, description, data, file, versions FROM groups")
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	groups := make(map[string]cistore.GroupData)
 	for rows.Next() {
@@ -39,12 +41,18 @@ func (d *DuckDBStore) GetGroups() map[string]cistore.GroupData {
 		if err := rows.Scan(&group.Name, &group.Description, &data, &file, &versions); err != nil {
 			continue
 		}
-		json.Unmarshal(data, &group.Data)
+		err := json.Unmarshal(data, &group.Data)
+		if err != nil {
+			return nil, err
+		}
 		group.File.Content = file
-		json.Unmarshal(versions, &group.Versions)
+		err = json.Unmarshal(versions, &group.Versions)
+		if err != nil {
+			return nil, err
+		}
 		groups[group.Name] = group
 	}
-	return groups
+	return groups, nil
 }
 
 func (d *DuckDBStore) AddGroupData(groupName string, groupData cistore.GroupData) error {
@@ -67,9 +75,15 @@ func (d *DuckDBStore) GetGroupData(groupName string) (cistore.GroupData, error) 
 	if err != nil {
 		return group, err
 	}
-	json.Unmarshal(data, &group.Data)
+	err = json.Unmarshal(data, &group.Data)
+	if err != nil {
+		return group, err
+	}
 	group.File.Content = file
-	json.Unmarshal(versions, &group.Versions)
+	err = json.Unmarshal(versions, &group.Versions)
+	if err != nil {
+		return group, err
+	}
 	return group, nil
 }
 
