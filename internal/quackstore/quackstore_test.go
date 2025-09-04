@@ -17,7 +17,7 @@ func TestQuackStore(t *testing.T) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer func() {
-		_ = os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir) // Clean up the temp directory.  Ignoring error on RemoveAll
 	}()
 
 	// Create the database file path
@@ -28,7 +28,7 @@ func TestQuackStore(t *testing.T) {
 		store, err := NewQuackStore(dbPath)
 		assert.NoError(t, err)
 		defer func() {
-			_ = store.Close()
+			_ = store.Close() // Ignoring error on deferred Close
 		}()
 
 		// Verify database file was created
@@ -49,12 +49,12 @@ func TestQuackStore(t *testing.T) {
 	// Test database cleanup
 	t.Run("Database Cleanup", func(t *testing.T) {
 		// Remove the existing database file to start fresh
-		_ = os.Remove(dbPath)
+		_ = os.Remove(dbPath) // Ignoring error on Remove
 
 		store, err := NewQuackStore(dbPath)
 		assert.NoError(t, err)
 		defer func() {
-			_ = store.Close()
+			_ = store.Close() // Ignoring error on deferred Close
 		}()
 
 		// Insert some test data
@@ -69,7 +69,7 @@ func TestQuackStore(t *testing.T) {
 		store, err = NewQuackStore(dbPath)
 		assert.NoError(t, err)
 		defer func() {
-			_ = store.Close()
+			_ = store.Close() // Ignoring error on deferred Close
 		}()
 
 		var count int
@@ -79,7 +79,7 @@ func TestQuackStore(t *testing.T) {
 	})
 
 	// Remove the database file before running the standard test suite
-	_ = os.Remove(dbPath)
+	_ = os.Remove(dbPath) // Ignoring error on Remove
 
 	// Create a new QuackStore instance for the standard test suite
 	store, err := NewQuackStore(dbPath)
@@ -87,13 +87,13 @@ func TestQuackStore(t *testing.T) {
 		t.Fatalf("Failed to create QuackStore: %v", err)
 	}
 	defer func() {
-		_ = store.Close()
+		_ = store.Close() // Ignoring error on deferred Close
 	}()
 
 	// Create a cleanup function that will be called in all cases
 	cleanup := func() {
-		_ = store.Close()
-		_ = os.RemoveAll(tmpDir)
+		_ = store.Close()        // Ignoring error on deferred Close
+		_ = os.RemoveAll(tmpDir) // Ignoring error on RemoveAll
 	}
 	defer cleanup()
 

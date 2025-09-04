@@ -14,7 +14,7 @@ func TestNewIPAllocator(t *testing.T) {
 }
 
 func TestReserve(t *testing.T) {
-	allocator, _ := NewIPAllocator("192.168.1.0/24")
+	allocator, _ := NewIPAllocator("192.168.1.0/24") // ignoring error on NewIPAllocator.  We'll catch it on use anyway.
 	ip := net.IPAddr{IP: net.ParseIP("192.168.1.10")}
 	err := allocator.Reserve(ip)
 	if err != nil {
@@ -29,7 +29,7 @@ func TestReserve(t *testing.T) {
 }
 
 func TestNextAvailable(t *testing.T) {
-	allocator, _ := NewIPAllocator("192.168.1.0/24")
+	allocator, _ := NewIPAllocator("192.168.1.0/24") // ignoring error on NewIPAllocator.  We'll catch it on use anyway.
 
 	// Reserve the first few IPs to test allocation
 	for i := 0; i <= 253; i++ {
@@ -55,9 +55,9 @@ func TestNextAvailable(t *testing.T) {
 }
 
 func TestIsAllocated(t *testing.T) {
-	allocator, _ := NewIPAllocator("192.168.1.0/24")
+	allocator, _ := NewIPAllocator("192.168.1.0/24") // ignoring error on NewIPAllocator.  We'll catch it on use anyway.
 	ip := net.IPAddr{IP: net.ParseIP("192.168.1.10")}
-	_ = allocator.Reserve(ip)
+	_ = allocator.Reserve(ip) // ignoring error on Reserve.  We'll catch it on use anyway.
 
 	if !allocator.IsAllocated(ip) {
 		t.Fatalf("Expected IP to be allocated")
@@ -72,7 +72,7 @@ func TestIsAllocated(t *testing.T) {
 func TestRelease(t *testing.T) {
 	allocator, _ := NewIPAllocator("192.168.1.0/24")
 	ip := net.IPAddr{IP: net.ParseIP("192.168.1.10")}
-	_ = allocator.Reserve(ip)
+	_ = allocator.Reserve(ip) // ignoring error on Reserve.  We'll catch it on use anyway.
 
 	err := allocator.Release(ip)
 	if err != nil {

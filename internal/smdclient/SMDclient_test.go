@@ -17,6 +17,7 @@ func TestPopulateNodes(t *testing.T) {
 		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		// ignoring error on Write
 		_, _ = w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
@@ -104,6 +105,7 @@ func TestIPfromID(t *testing.T) {
 		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		// ignoring error on Write
 		_, _ = w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
@@ -183,6 +185,7 @@ func TestIDfromIP(t *testing.T) {
 		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		// ignoring error on Write
 		_, _ = w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
@@ -262,6 +265,7 @@ func TestIDfromMAC(t *testing.T) {
 		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		// ignoring error on Write
 		_, _ = w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",

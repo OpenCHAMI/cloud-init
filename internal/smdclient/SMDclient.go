@@ -182,7 +182,8 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 			log.Info().Msg("Cached JWT was rejected by SMD")
 			if !freshToken {
 				log.Info().Msg("Fetching new JWT and retrying...")
-				_ = s.RefreshToken()
+				// Try to refresh the token and retry once
+				_ = s.RefreshToken(). // ignoring error because we will try again and fail if it doesn't work
 				freshToken = true
 			} else {
 				log.Info().Msg("SMD authentication failed, even with a fresh" +
@@ -196,7 +197,7 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 		}
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		_ = resp.Body.Close() // ignoring error on deferred Close
 	}()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

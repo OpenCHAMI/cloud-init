@@ -136,7 +136,7 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(jsonData)
+		_, _ = w.Write(jsonData) // Not checking error on Write because we're wouldn't do anything about it anyway
 	}
 }
 

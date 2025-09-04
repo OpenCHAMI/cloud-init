@@ -69,7 +69,7 @@ func (s *QuackStore) GetGroups() map[string]cistore.GroupData {
 		return groups
 	}
 	defer func() {
-		_ = rows.Close()
+		_ = rows.Close() // Ignoring error on deferred Close
 	}()
 
 	for rows.Next() {
@@ -355,6 +355,6 @@ func (s *QuackStore) Close() error {
 // where "XXXXXX" is a random 6-digit hexadecimal string.
 func generateInstanceId() string {
 	randBytes := make([]byte, 3)
-	_, _ = rand.Read(randBytes)
+	_, _ = rand.Read(randBytes) // Read fills randBytes with cryptographically secure random bytes. It never returns an error, and always fills randBytes entirely
 	return fmt.Sprintf("i-%x", randBytes)
 }

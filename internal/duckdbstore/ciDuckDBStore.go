@@ -31,7 +31,7 @@ func (d *DuckDBStore) GetGroups() (map[string]cistore.GroupData, error) {
 		return nil, err
 	}
 	defer func() {
-		_ = rows.Close()
+		_ = rows.Close() // Ignoring error on deferred Close
 	}()
 
 	groups := make(map[string]cistore.GroupData)
@@ -46,8 +46,7 @@ func (d *DuckDBStore) GetGroups() (map[string]cistore.GroupData, error) {
 			return nil, err
 		}
 		group.File.Content = file
-		err = json.Unmarshal(versions, &group.Versions)
-		if err != nil {
+		if err = json.Unmarshal(versions, &group.Versions); err != nil {
 			return nil, err
 		}
 		groups[group.Name] = group
@@ -58,8 +57,8 @@ func (d *DuckDBStore) GetGroups() (map[string]cistore.GroupData, error) {
 func (d *DuckDBStore) AddGroupData(groupName string, groupData cistore.GroupData) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	data, _ := json.Marshal(groupData.Data)
-	versions, _ := json.Marshal(groupData.Versions)
+	data, _ := json.Marshal(groupData.Data)         // Ignoring error because Data is always serializable
+	versions, _ := json.Marshal(groupData.Versions) // Ignoring error because Versions is always serializable
 	_, err := d.db.Exec("INSERT INTO groups (name, description, data, file, versions) VALUES (?, ?, ?, ?, ?)",
 		groupName, groupData.Description, data, groupData.File.Content, versions)
 	return err
@@ -90,8 +89,8 @@ func (d *DuckDBStore) GetGroupData(groupName string) (cistore.GroupData, error) 
 func (d *DuckDBStore) UpdateGroupData(groupName string, groupData cistore.GroupData, create bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	data, _ := json.Marshal(groupData.Data)
-	versions, _ := json.Marshal(groupData.Versions)
+	data, _ := json.Marshal(groupData.Data)         // Ignoring error because Data is always serializable
+	versions, _ := json.Marshal(groupData.Versions) // Ignoring error because Versions is always serializable
 	if create {
 		_, err := d.db.Exec("INSERT INTO groups (name, description, data, file, versions) VALUES (?, ?, ?, ?, ?)",
 			groupName, groupData.Description, data, groupData.File.Content, versions)
@@ -121,7 +120,7 @@ func (d *DuckDBStore) GetInstanceInfo(nodeName string) (cistore.OpenCHAMIInstanc
 func (d *DuckDBStore) SetInstanceInfo(nodeName string, instanceInfo cistore.OpenCHAMIInstanceInfo) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	publicKeys, _ := json.Marshal(instanceInfo.PublicKeys)
+	publicKeys, _ := json.Marshal(instanceInfo.PublicKeys) // Not checking error because PublicKeys is always serializable
 	_, err := d.db.Exec("INSERT INTO instances (id, instance_id, local_hostname, hostname, cluster_name, region, availability_zone, cloud_provider, instance_type, cloud_init_base_url, public_keys) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET instance_id = ?, local_hostname = ?, hostname = ?, cluster_name = ?, region = ?, availability_zone = ?, cloud_provider = ?, instance_type = ?, cloud_init_base_url = ?, public_keys = ?",
 		nodeName, instanceInfo.InstanceID, instanceInfo.LocalHostname, instanceInfo.Hostname, instanceInfo.ClusterName, instanceInfo.Region, instanceInfo.AvailabilityZone, instanceInfo.CloudProvider, instanceInfo.InstanceType, instanceInfo.CloudInitBaseURL, publicKeys,
 		instanceInfo.InstanceID, instanceInfo.LocalHostname, instanceInfo.Hostname, instanceInfo.ClusterName, instanceInfo.Region, instanceInfo.AvailabilityZone, instanceInfo.CloudProvider, instanceInfo.InstanceType, instanceInfo.CloudInitBaseURL, publicKeys)
@@ -147,7 +146,7 @@ func (d *DuckDBStore) GetClusterDefaults() (cistore.ClusterDefaults, error) {
 func (d *DuckDBStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	publicKeys, _ := json.Marshal(clusterDefaults.PublicKeys)
+	publicKeys, _ := json.Marshal(clusterDefaults.PublicKeys) // Not checking error on Marshall because PublicKeys is always serializable
 	_, err := d.db.Exec("INSERT INTO cluster_defaults (cloud_provider, region, availability_zone, cluster_name, public_keys, base_url, boot_subnet, wg_subnet, short_name, nid_length) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET cloud_provider = ?, region = ?, availability_zone = ?, cluster_name = ?, public_keys = ?, base_url = ?, boot_subnet = ?, wg_subnet = ?, short_name = ?, nid_length = ?",
 		clusterDefaults.CloudProvider, clusterDefaults.Region, clusterDefaults.AvailabilityZone, clusterDefaults.ClusterName, publicKeys, clusterDefaults.BaseUrl, clusterDefaults.BootSubnet, clusterDefaults.WGSubnet, clusterDefaults.ShortName, clusterDefaults.NidLength,
 		clusterDefaults.CloudProvider, clusterDefaults.Region, clusterDefaults.AvailabilityZone, clusterDefaults.ClusterName, publicKeys, clusterDefaults.BaseUrl, clusterDefaults.BootSubnet, clusterDefaults.WGSubnet, clusterDefaults.ShortName, clusterDefaults.NidLength)

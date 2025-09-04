@@ -102,6 +102,8 @@ func setupFlags(flags *pflag.FlagSet) {
 // bindViperToFlags binds each flag to Viper so environment variables work seamlessly.
 func bindViperToFlags() {
 	viper.AutomaticEnv()
+	// Bind each flag to its corresponding environment variable
+	// Not checking errors because these always succeed
 	_ = viper.BindEnv("listen")
 	_ = viper.BindEnv("token_url")
 	_ = viper.BindEnv("smd_url")
