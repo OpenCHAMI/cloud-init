@@ -12,6 +12,11 @@ ENV TOKEN_URL="http://opaal:3333/token"
 ENV SMD_URL="http://smd:27779"
 ENV LISTEN="0.0.0.0:27777"
 
+RUN mkdir -p /tmp/duckdbhome && chown 65534:65534 /tmp/duckdbhome
+VOLUME /tmp/duckdbhome
+ENV DUCKDB_HOME="/tmp/duckdbhome"
+
+
 # Set non-root user
 USER 65534:65534
 
