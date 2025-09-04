@@ -39,7 +39,7 @@ func RunStoreTests(t *testing.T, store cistore.Store, cleanup func()) {
 		// Clear existing data
 		groups := store.GetGroups()
 		for name := range groups {
-			_ = store.RemoveGroupData(name). // Ignoring error on RemoveGroupData as the test will catch any issues
+			_ = store.RemoveGroupData(name) // Ignoring error on RemoveGroupData as the test will catch any issues
 		}
 		testClusterDefaultsOperations(t, store)
 	})
