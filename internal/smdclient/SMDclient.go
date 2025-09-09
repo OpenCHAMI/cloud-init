@@ -183,7 +183,14 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 			if !freshToken {
 				log.Info().Msg("Fetching new JWT and retrying...")
 				// Try to refresh the token and retry once
-				_ = s.RefreshToken() // ignoring error because we will try again and fail if it doesn't work
+				if err2 := s.RefreshToken(); err2 != nil {
+					// If token refresh fails, refresh will attempt again.
+					// While effectively we could ignore the error, it helps
+					// to see why the failure is occurring in case the error
+					// is unusual (RefreshToken() has a few different failure
+					// modes).
+					log.Debug().Err(err).Msg("failed to refresh token")
+				}
 				freshToken = true
 			} else {
 				log.Info().Msg("SMD authentication failed, even with a fresh" +

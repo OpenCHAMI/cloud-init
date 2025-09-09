@@ -46,8 +46,7 @@ func ListNodesHandler(f *FakeSMDClient) http.HandlerFunc {
 		nodes := f.ListNodes()
 		w.WriteHeader(http.StatusOK)
 		w.Header().Add("Content-Type", "application/json")
-		err := json.NewEncoder(w).Encode(nodes)
-		if err != nil {
+		if err := json.NewEncoder(w).Encode(nodes); err != nil {
 			log.Error().Err(err).Msg("Failed to encode nodes")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

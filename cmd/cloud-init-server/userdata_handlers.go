@@ -27,7 +27,9 @@ import (
 //	@Router			/cloud-init/admin/impersonation/{id}/user-data [get]
 func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 	payload := `#cloud-config`
-	_, _ = w.Write([]byte(payload)) // Not checking error on Write because we're wouldn't do anything about it anyway
+	if _, err := w.Write([]byte(payload)); err != nil {
+		log.Error().Err(err).Msg("failed to write response")
+	}
 }
 
 // GroupUserDataHandler godoc
@@ -62,7 +64,9 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 		data, err := store.GetGroupData(group)
 		if err != nil {
 			log.Err(err).Msgf("No information stored for group %s. returning an empty #cloud-config", group)
-			_, _ = w.Write([]byte("#cloud-config")) // Not checking error on Write because we're wouldn't do anything about it anyway
+			if _, err2 := w.Write([]byte("#cloud-config")); err2 != nil {
+				log.Error().Err(err).Msg("failed to write response")
+			}
 			return
 		}
 
@@ -78,7 +82,9 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 			data.File.Encoding = "plain"
 		}
 
-		_, _ = w.Write(data.File.Content) // Not checking error on Write because we're wouldn't do anything about it anyway
+		if _, err = w.Write(data.File.Content); err != nil {
+			log.Error().Err(err).Msg("failed to write response")
+		}
 	}
 }
 

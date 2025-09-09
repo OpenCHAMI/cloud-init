@@ -100,6 +100,8 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http
 			http.Error(w, "Failed to encode metadata to YAML", http.StatusInternalServerError)
 			return
 		}
-		_, _ = w.Write(yamlData) // Not checking error on Write because we're wouldn't do anything about it anyway
+		if _, err = w.Write(yamlData); err != nil {
+			log.Error().Err(err).Msg("failed to write response")
+		}
 	}
 }

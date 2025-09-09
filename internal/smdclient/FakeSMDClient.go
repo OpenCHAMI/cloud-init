@@ -123,7 +123,10 @@ func (f *FakeSMDClient) ComponentInformation(id string) (base.Component, error) 
 	log.Debug().Msgf("FakeSMDClient: %d components from %s to %s", len(f.components), f.rosetta_mapping[0].ComponentID, f.rosetta_mapping[len(f.rosetta_mapping)-1].ComponentID)
 	if c, ok := f.components[id]; ok {
 		log.Debug().Msgf("FakeSMDClient: ComponentInformation(%s) found", id)
-		groups, _ := f.GroupMembership(id) // ignoring error because it can't really happen
+		groups, err := f.GroupMembership(id)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get group membership by ID")
+		}
 		log.Debug().Msgf("FakeSMDClient: Groups for %s found: %v", id, groups)
 		return c, nil
 	}

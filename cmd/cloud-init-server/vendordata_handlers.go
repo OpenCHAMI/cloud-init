@@ -70,6 +70,8 @@ func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) ht
 		for _, group_name := range groups {
 			payload += fmt.Sprintf("%s/%s.yaml\n", baseUrl, group_name)
 		}
-		_, _ = w.Write([]byte(payload)) // Not checking error on Write because we're wouldn't do anything about it anyway
+		if _, err = w.Write([]byte(payload)); err != nil {
+			log.Error().Err(err).Msg("failed to write response")
+		}
 	}
 }

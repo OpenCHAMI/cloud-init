@@ -17,8 +17,7 @@ func TestPopulateNodes(t *testing.T) {
 		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		// ignoring error on Write
-		_, _ = w.Write([]byte(`[
+		if _, err := w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -49,7 +48,10 @@ func TestPopulateNodes(t *testing.T) {
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
 			}
-		]`))
+		]`)); err != nil {
+			// If an error occurs here, something is very wrong.
+			t.Errorf("Write(): unexpected error: %v", err)
+		}
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -105,8 +107,7 @@ func TestIPfromID(t *testing.T) {
 		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		// ignoring error on Write
-		_, _ = w.Write([]byte(`[
+		if _, err := w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -137,7 +138,10 @@ func TestIPfromID(t *testing.T) {
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
 			}
-		]`))
+		]`)); err != nil {
+			// If an error occurs here, something is very wrong.
+			t.Errorf("Write(): unexpected error: %v", err)
+		}
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -185,8 +189,7 @@ func TestIDfromIP(t *testing.T) {
 		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		// ignoring error on Write
-		_, _ = w.Write([]byte(`[
+		if _, err := w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -217,7 +220,10 @@ func TestIDfromIP(t *testing.T) {
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
 			}
-		]`))
+		]`)); err != nil {
+			// If an error occurs here, something is very wrong.
+			t.Errorf("Write(): unexpected error: %v", err)
+		}
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -265,8 +271,7 @@ func TestIDfromMAC(t *testing.T) {
 		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		// ignoring error on Write
-		_, _ = w.Write([]byte(`[
+		if _, err := w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -297,7 +302,10 @@ func TestIDfromMAC(t *testing.T) {
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
 			}
-		]`))
+		]`)); err != nil {
+			// If an error occurs here, something is very wrong.
+			t.Errorf("Write(): unexpected error: %v", err)
+		}
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()

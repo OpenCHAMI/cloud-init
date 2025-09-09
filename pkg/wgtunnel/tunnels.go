@@ -178,7 +178,7 @@ func (m *InterfaceManager) StartServer() error {
 
 	// Step 2: Assign IP address to the WireGuard interface
 	wgIp := m.ipAddress.IP.String()
-	ones, _ := m.network.Mask.Size() // ignoring error on Mask.Size() as we know it's valid
+	ones, _ := m.network.Mask.Size() // we don't care about the number of bits in the mask
 	wgCidr := fmt.Sprintf("%s/%d", wgIp, ones)
 
 	if out, err := exec.Command("ip", "address", "add", "dev", m.interfaceName, wgCidr).CombinedOutput(); err != nil {
