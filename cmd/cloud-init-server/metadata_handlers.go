@@ -42,8 +42,8 @@ func getActualRequestIP(r *http.Request) string {
 //	@Failure		422	{object}	nil
 //	@Failure		500	{object}	nil
 //	@Param			id	path		string	false	"Node ID"
-//	@Router			/cloud-init/meta-data [get]
-//	@Router			/cloud-init/admin/impersonation/{id}/meta-data [get]
+//	@Router			/meta-data [get]
+//	@Router			/admin/impersonation/{id}/meta-data [get]
 func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		urlId := chi.URLParam(r, "id")

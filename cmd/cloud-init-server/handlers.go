@@ -53,7 +53,7 @@ func parseData(r *http.Request) (cistore.GroupData, error) {
 //	@Produce	json
 //	@Success	200	{object}	string
 //	@Failure	500	{object}	nil
-//	@Router		/cloud-init/openapi.json [get]
+//	@Router		/openapi.json [get]
 func DocsHandler(w http.ResponseWriter, r *http.Request) {
 	doc, err := swag.ReadDoc()
 	if err != nil {
@@ -79,7 +79,7 @@ func DocsHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400		{object}	nil
 //	@Failure		500		{object}	nil
 //	@Param			data	body		cistore.ClusterDefaults	true	"Cluster defaults data"
-//	@Router			/cloud-init/admin/cluster-defaults [post]
+//	@Router			/admin/cluster-defaults [post]
 func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -117,7 +117,7 @@ func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 //	@Produce		json
 //	@Success		200	{object}	cistore.ClusterDefaults
 //	@Failure		500	{object}	nil
-//	@Router			/cloud-init/admin/cluster-defaults [get]
+//	@Router			/admin/cluster-defaults [get]
 func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := store.GetClusterDefaults()
@@ -153,7 +153,7 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 //	@Failure		500				{object}	nil
 //	@Param			id				path		string							true	"Node ID"
 //	@Param			instance-info	body		cistore.OpenCHAMIInstanceInfo	true	"Instance info data"
-//	@Router			/cloud-init/admin/instance-info/{id} [put]
+//	@Router			/admin/instance-info/{id} [put]
 func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
@@ -206,7 +206,7 @@ func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) h
 //	@Param			instance_id		formData	string	true	"Node's given instance ID"
 //	@Param			hostname		formData	string	true	"Node's given hostname"
 //	@Param			fqdn			formData	string	true	"Node's given fully-qualified domain name"
-//	@Router			/cloud-init/phone-home/{id} [post]
+//	@Router			/phone-home/{id} [post]
 func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

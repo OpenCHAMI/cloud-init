@@ -22,8 +22,8 @@ import (
 //	@Produce		plain
 //	@Success		200	{string}	string
 //	@Param			id	path		string	false	"Node ID"
-//	@Router			/cloud-init/vendor-data [get]
-//	@Router			/cloud-init/admin/impersonation/{id}/vendor-data [get]
+//	@Router			/vendor-data [get]
+//	@Router			/admin/impersonation/{id}/vendor-data [get]
 func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		urlId := chi.URLParam(r, "id")

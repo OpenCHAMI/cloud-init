@@ -23,8 +23,8 @@ import (
 //	@Produce		plain
 //	@Success		200	{object}	string
 //	@Param			id	path		string	false	"Node ID"
-//	@Router			/cloud-init/user-data [get]
-//	@Router			/cloud-init/admin/impersonation/{id}/user-data [get]
+//	@Router			/user-data [get]
+//	@Router			/admin/impersonation/{id}/user-data [get]
 func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 	payload := `#cloud-config`
 	if _, err := w.Write([]byte(payload)); err != nil {
@@ -46,8 +46,8 @@ func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		500		{object}	nil
 //	@Param			id		path		string	false	"Node ID"
 //	@Param			group	path		string	true	"Group name"
-//	@Router			/cloud-init/{group}.yaml [get]
-//	@Router			/cloud-init/admin/impersonation/{id}/{group}.yaml [get]
+//	@Router			/{group}.yaml [get]
+//	@Router			/admin/impersonation/{id}/{group}.yaml [get]
 func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, group, err := getIDAndGroup(r, smd)

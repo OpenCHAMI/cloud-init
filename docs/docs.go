@@ -19,7 +19,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/cloud-init/admin/cluster-defaults": {
+        "/admin/cluster-defaults": {
             "get": {
                 "description": "Get default meta-data values for cluster.",
                 "produces": [
@@ -76,7 +76,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/admin/groups": {
+        "/admin/groups": {
             "get": {
                 "description": "Get meta-data and cloud-init config for all groups known to\ncloud-init.  Note that group membership is managed outside of\nthe cloud-init service, normally in SMD.",
                 "produces": [
@@ -142,7 +142,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/admin/groups/{id}": {
+        "/admin/groups/{id}": {
             "get": {
                 "description": "Get meta-data and cloud-init config for a single group known to\ncloud-init.",
                 "produces": [
@@ -200,7 +200,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/admin/groups/{name}": {
+        "/admin/groups/{name}": {
             "put": {
                 "description": "Set meta-data or cloud-init configuration for a specific group,\noverwriting any previous values.\n\nIf successful, a 201 Created status is returned and the\n` + "`" + `Location` + "`" + ` header is set to the new group's groups endpoint,\n` + "`" + `/groups/{group}` + "`" + `. This operation is idempotent and replaces\nany existing content.",
                 "consumes": [
@@ -248,7 +248,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/admin/impersonation/{id}/meta-data": {
+        "/admin/impersonation/{id}/meta-data": {
             "get": {
                 "description": "Get meta-data for requesting node based on the requesting IP.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using ` + "`" + `/admin/impersonation` + "`" + `. In this case, the\nmeta-data will be retrieved for the requested ID.",
                 "produces": [
@@ -282,7 +282,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/admin/impersonation/{id}/user-data": {
+        "/admin/impersonation/{id}/user-data": {
             "get": {
                 "description": "Get user-data for requesting node base on the requesting IP. For\nOpenCHAMI, this will always be ` + "`" + `#cloud-config` + "`" + `.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using ` + "`" + `/admin/impersonation` + "`" + `. In this case, the\nuser-data will be retrieved for the requested ID.",
                 "produces": [
@@ -307,7 +307,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/admin/impersonation/{id}/vendor-data": {
+        "/admin/impersonation/{id}/vendor-data": {
             "get": {
                 "description": "For OpenCHAMI, the vendor-data will always be a list of other\n` + "`" + `#cloud-config` + "`" + ` URLs to download and merge.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using ` + "`" + `/admin/impersonation` + "`" + `. In this case, the\nvendor-data will be retrieved for the requested ID.",
                 "produces": [
@@ -332,7 +332,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/admin/impersonation/{id}/{group}.yaml": {
+        "/admin/impersonation/{id}/{group}.yaml": {
             "get": {
                 "description": "Get user-data for a particular group based on its name.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using ` + "`" + `/admin/impersonation` + "`" + `. In this case, the\ngroup user-data will be retrieved for the requested ID.",
                 "produces": [
@@ -370,7 +370,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/admin/instance-info/{id}": {
+        "/admin/instance-info/{id}": {
             "put": {
                 "description": "Set meta-data for a specific node ID, overwriting relevant group meta-data.",
                 "consumes": [
@@ -412,7 +412,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/meta-data": {
+        "/meta-data": {
             "get": {
                 "description": "Get meta-data for requesting node based on the requesting IP.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using ` + "`" + `/admin/impersonation` + "`" + `. In this case, the\nmeta-data will be retrieved for the requested ID.",
                 "produces": [
@@ -438,7 +438,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/openapi.json": {
+        "/openapi.json": {
             "get": {
                 "produces": [
                     "application/json"
@@ -457,7 +457,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/phone-home/{id}": {
+        "/phone-home/{id}": {
             "post": {
                 "description": "Signal to the cloud-init server that the specific host has completed running\nthe cloud-init configuration tasks so that, if a WireGuard tunnel is being used,\nit can be torn down. This endpoint should not be manually requested by a user\nbut is only meant to be used by a cloud-init client that has received its\nconfig from an OpenCHAMI cloud-init server.",
                 "tags": [
@@ -525,7 +525,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/user-data": {
+        "/user-data": {
             "get": {
                 "description": "Get user-data for requesting node base on the requesting IP. For\nOpenCHAMI, this will always be ` + "`" + `#cloud-config` + "`" + `.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using ` + "`" + `/admin/impersonation` + "`" + `. In this case, the\nuser-data will be retrieved for the requested ID.",
                 "produces": [
@@ -542,7 +542,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/vendor-data": {
+        "/vendor-data": {
             "get": {
                 "description": "For OpenCHAMI, the vendor-data will always be a list of other\n` + "`" + `#cloud-config` + "`" + ` URLs to download and merge.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using ` + "`" + `/admin/impersonation` + "`" + `. In this case, the\nvendor-data will be retrieved for the requested ID.",
                 "produces": [
@@ -559,7 +559,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/wg-init": {
+        "/wg-init": {
             "post": {
                 "description": "Initiate a WireGuard tunnel from a client using its public key\nand peer name (IP address).\n\nThe source IP of the request is read and is used as the peer\nname along with the public key to authenticate unless the\n` + "`" + `X-Forward-For` + "`" + ` header is set. In that case, the value of the\nheader is used as the peer name. If the peer exists in the\ninternal tunnel manager, the IP presented is the one used.\nOtherwise, the next available IP in range is assigned.",
                 "consumes": [
@@ -602,7 +602,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/cloud-init/{group}.yaml": {
+        "/{group}.yaml": {
             "get": {
                 "description": "Get user-data for a particular group based on its name.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using ` + "`" + `/admin/impersonation` + "`" + `. In this case, the\ngroup user-data will be retrieved for the requested ID.",
                 "produces": [
