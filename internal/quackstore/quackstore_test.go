@@ -16,7 +16,9 @@ func TestQuackStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) // Clean up the temp directory.  Ignoring error on RemoveAll
+	}()
 
 	// Create the database file path
 	dbPath := filepath.Join(tmpDir, "test.db")
@@ -25,7 +27,9 @@ func TestQuackStore(t *testing.T) {
 	t.Run("Database Initialization", func(t *testing.T) {
 		store, err := NewQuackStore(dbPath)
 		assert.NoError(t, err)
-		defer store.Close()
+		defer func() {
+			_ = store.Close() // Ignoring error on deferred Close
+		}()
 
 		// Verify database file was created
 		_, err = os.Stat(dbPath)
@@ -45,11 +49,13 @@ func TestQuackStore(t *testing.T) {
 	// Test database cleanup
 	t.Run("Database Cleanup", func(t *testing.T) {
 		// Remove the existing database file to start fresh
-		os.Remove(dbPath)
+		_ = os.Remove(dbPath) // Ignoring error on Remove
 
 		store, err := NewQuackStore(dbPath)
 		assert.NoError(t, err)
-		defer store.Close()
+		defer func() {
+			_ = store.Close() // Ignoring error on deferred Close
+		}()
 
 		// Insert some test data
 		_, err = store.db.Exec("INSERT INTO groups (name, data) VALUES (?, ?)", "cleanup-test", "{}")
@@ -62,7 +68,9 @@ func TestQuackStore(t *testing.T) {
 		// Reopen the database and verify data persists
 		store, err = NewQuackStore(dbPath)
 		assert.NoError(t, err)
-		defer store.Close()
+		defer func() {
+			_ = store.Close() // Ignoring error on deferred Close
+		}()
 
 		var count int
 		err = store.db.QueryRow("SELECT COUNT(*) FROM groups").Scan(&count)
@@ -71,19 +79,21 @@ func TestQuackStore(t *testing.T) {
 	})
 
 	// Remove the database file before running the standard test suite
-	os.Remove(dbPath)
+	_ = os.Remove(dbPath) // Ignoring error on Remove
 
 	// Create a new QuackStore instance for the standard test suite
 	store, err := NewQuackStore(dbPath)
 	if err != nil {
 		t.Fatalf("Failed to create QuackStore: %v", err)
 	}
-	defer store.Close()
+	defer func() {
+		_ = store.Close() // Ignoring error on deferred Close
+	}()
 
 	// Create a cleanup function that will be called in all cases
 	cleanup := func() {
-		store.Close()
-		os.RemoveAll(tmpDir)
+		_ = store.Close()        // Ignoring error on deferred Close
+		_ = os.RemoveAll(tmpDir) // Ignoring error on RemoveAll
 	}
 	defer cleanup()
 

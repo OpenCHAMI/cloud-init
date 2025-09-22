@@ -76,8 +76,10 @@ func NewInterfaceManager(name string, localIp net.IP, network *net.IPNet) *Inter
 		log.Fatal().Err(err).Msg("Failed to get usable IP")
 	}
 	im.ipAddress = net.IPAddr{IP: wgIp, Zone: ""}
-	im.ipManager.Reserve(im.ipAddress)
-
+	err = im.ipManager.Reserve(im.ipAddress)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to reserve IP address")
+	}
 	return &im
 }
 
@@ -176,7 +178,7 @@ func (m *InterfaceManager) StartServer() error {
 
 	// Step 2: Assign IP address to the WireGuard interface
 	wgIp := m.ipAddress.IP.String()
-	ones, _ := m.network.Mask.Size()
+	ones, _ := m.network.Mask.Size() // we don't care about the number of bits in the mask
 	wgCidr := fmt.Sprintf("%s/%d", wgIp, ones)
 
 	if out, err := exec.Command("ip", "address", "add", "dev", m.interfaceName, wgCidr).CombinedOutput(); err != nil {
@@ -190,7 +192,9 @@ func (m *InterfaceManager) StartServer() error {
 	if err != nil {
 		return fmt.Errorf("failed to create temporary file for private key: %v", err)
 	}
-	defer os.Remove(tmpfile.Name()) // Clean up the file afterwards
+	defer func() {
+		_ = os.Remove(tmpfile.Name()) // ignoring error on Remove as there's nothing we can do about it anyway
+	}()
 
 	if _, err := tmpfile.WriteString(m.privateKey); err != nil {
 		return fmt.Errorf("failed to write private key to temporary file: %v", err)

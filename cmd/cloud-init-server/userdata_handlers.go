@@ -23,11 +23,13 @@ import (
 //	@Produce		plain
 //	@Success		200	{object}	string
 //	@Param			id	path		string	false	"Node ID"
-//	@Router			/cloud-init/user-data [get]
-//	@Router			/cloud-init/admin/impersonation/{id}/user-data [get]
+//	@Router			/user-data [get]
+//	@Router			/admin/impersonation/{id}/user-data [get]
 func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 	payload := `#cloud-config`
-	w.Write([]byte(payload))
+	if _, err := w.Write([]byte(payload)); err != nil {
+		log.Error().Err(err).Msg("failed to write response")
+	}
 }
 
 // GroupUserDataHandler godoc
@@ -44,8 +46,8 @@ func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		500		{object}	nil
 //	@Param			id		path		string	false	"Node ID"
 //	@Param			group	path		string	true	"Group name"
-//	@Router			/cloud-init/{group}.yaml [get]
-//	@Router			/cloud-init/admin/impersonation/{id}/{group}.yaml [get]
+//	@Router			/{group}.yaml [get]
+//	@Router			/admin/impersonation/{id}/{group}.yaml [get]
 func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, group, err := getIDAndGroup(r, smd)
@@ -62,7 +64,9 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 		data, err := store.GetGroupData(group)
 		if err != nil {
 			log.Err(err).Msgf("No information stored for group %s. returning an empty #cloud-config", group)
-			w.Write([]byte("#cloud-config"))
+			if _, err2 := w.Write([]byte("#cloud-config")); err2 != nil {
+				log.Error().Err(err).Msg("failed to write response")
+			}
 			return
 		}
 
@@ -78,7 +82,9 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 			data.File.Encoding = "plain"
 		}
 
-		w.Write(data.File.Content)
+		if _, err = w.Write(data.File.Content); err != nil {
+			log.Error().Err(err).Msg("failed to write response")
+		}
 	}
 }
 

@@ -53,7 +53,7 @@ func parseData(r *http.Request) (cistore.GroupData, error) {
 //	@Produce	json
 //	@Success	200	{object}	string
 //	@Failure	500	{object}	nil
-//	@Router		/cloud-init/openapi.json [get]
+//	@Router		/openapi.json [get]
 func DocsHandler(w http.ResponseWriter, r *http.Request) {
 	doc, err := swag.ReadDoc()
 	if err != nil {
@@ -62,7 +62,11 @@ func DocsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bDoc := []byte(doc)
-	w.Write(bDoc)
+	if _, err := w.Write(bDoc); err != nil {
+		log.Error().Msgf("Error writing OpenAPI docs: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 // SetClusterDataHandler godoc
@@ -75,7 +79,7 @@ func DocsHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400		{object}	nil
 //	@Failure		500		{object}	nil
 //	@Param			data	body		cistore.ClusterDefaults	true	"Cluster defaults data"
-//	@Router			/cloud-init/admin/cluster-defaults [post]
+//	@Router			/admin/cluster-defaults [post]
 func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -113,7 +117,7 @@ func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 //	@Produce		json
 //	@Success		200	{object}	cistore.ClusterDefaults
 //	@Failure		500	{object}	nil
-//	@Router			/cloud-init/admin/cluster-defaults [get]
+//	@Router			/admin/cluster-defaults [get]
 func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := store.GetClusterDefaults()
@@ -132,7 +136,9 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(jsonData)
+		if _, err = w.Write(jsonData); err != nil {
+			log.Error().Err(err).Msg("failed to write response")
+		}
 	}
 }
 
@@ -147,7 +153,7 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 //	@Failure		500				{object}	nil
 //	@Param			id				path		string							true	"Node ID"
 //	@Param			instance-info	body		cistore.OpenCHAMIInstanceInfo	true	"Instance info data"
-//	@Router			/cloud-init/admin/instance-info/{id} [put]
+//	@Router			/admin/instance-info/{id} [put]
 func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
@@ -155,7 +161,7 @@ func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) h
 			return
 		}
 
-		var id string = chi.URLParam(r, "id")
+		id := chi.URLParam(r, "id")
 		var info cistore.OpenCHAMIInstanceInfo
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -200,7 +206,7 @@ func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) h
 //	@Param			instance_id		formData	string	true	"Node's given instance ID"
 //	@Param			hostname		formData	string	true	"Node's given hostname"
 //	@Param			fqdn			formData	string	true	"Node's given fully-qualified domain name"
-//	@Router			/cloud-init/phone-home/{id} [post]
+//	@Router			/phone-home/{id} [post]
 func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -245,7 +251,7 @@ func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInter
 
 		if wg != nil {
 			go func() {
-				wg.RemovePeer(peerName)
+				_ = wg.RemovePeer(peerName) // Explicitly ignoring the error here.  There's nothing to do with it within the goroutine.
 			}()
 
 			w.WriteHeader(http.StatusOK)

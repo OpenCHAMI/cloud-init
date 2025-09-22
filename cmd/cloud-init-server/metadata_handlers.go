@@ -42,12 +42,12 @@ func getActualRequestIP(r *http.Request) string {
 //	@Failure		422	{object}	nil
 //	@Failure		500	{object}	nil
 //	@Param			id	path		string	false	"Node ID"
-//	@Router			/cloud-init/meta-data [get]
-//	@Router			/cloud-init/admin/impersonation/{id}/meta-data [get]
+//	@Router			/meta-data [get]
+//	@Router			/admin/impersonation/{id}/meta-data [get]
 func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var urlId string = chi.URLParam(r, "id")
-		var id = urlId
+		urlId := chi.URLParam(r, "id")
+		var id string
 		var err error
 		// If this request includes an id, it can be interrpreted as an impersonation request
 		if urlId == "" {
@@ -100,6 +100,8 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http
 			http.Error(w, "Failed to encode metadata to YAML", http.StatusInternalServerError)
 			return
 		}
-		w.Write(yamlData)
+		if _, err = w.Write(yamlData); err != nil {
+			log.Error().Err(err).Msg("failed to write response")
+		}
 	}
 }

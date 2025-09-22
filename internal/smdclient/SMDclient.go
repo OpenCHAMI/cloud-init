@@ -72,9 +72,11 @@ type NodeMapping struct {
 // and uses the provided JWT server for authentication
 func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, insecure bool) (*SMDClient, error) {
 	var (
-		c        *http.Client = &http.Client{Timeout: 2 * time.Second}
+		c        *http.Client
 		certPool *x509.CertPool
 	)
+
+	c = &http.Client{Timeout: 2 * time.Second}
 
 	// try and load the cert if path is provided first
 	if certPath != "" {
@@ -180,7 +182,15 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 			log.Info().Msg("Cached JWT was rejected by SMD")
 			if !freshToken {
 				log.Info().Msg("Fetching new JWT and retrying...")
-				s.RefreshToken()
+				// Try to refresh the token and retry once
+				if err2 := s.RefreshToken(); err2 != nil {
+					// If token refresh fails, refresh will attempt again.
+					// While effectively we could ignore the error, it helps
+					// to see why the failure is occurring in case the error
+					// is unusual (RefreshToken() has a few different failure
+					// modes).
+					log.Debug().Err(err).Msg("failed to refresh token")
+				}
 				freshToken = true
 			} else {
 				log.Info().Msg("SMD authentication failed, even with a fresh" +
@@ -193,7 +203,9 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 			break
 		}
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() // ignoring error on deferred Close
+	}()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to read response body")

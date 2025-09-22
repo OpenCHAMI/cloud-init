@@ -180,6 +180,6 @@ func generateInstanceId() string {
 
 func generateUniqueID(prefix string) string {
 	b := make([]byte, 4)
-	rand.Read(b)
+	_, _ = rand.Read(b) // Read fills b with cryptographically secure random bytes. It never returns an error, and always fills b entirely
 	return fmt.Sprintf("%s-%x", prefix, b)
 }

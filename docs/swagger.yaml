@@ -59,6 +59,10 @@ definitions:
       name:
         example: compute
         type: string
+      versions:
+        additionalProperties:
+          type: string
+        type: object
     type: object
   cistore.OpenCHAMIInstanceInfo:
     properties:
@@ -202,7 +206,7 @@ info:
   title: OpenCHAMI Cloud-Init Server API
   version: 1.0.0
 paths:
-  /cloud-init/{group}.yaml:
+  /{group}.yaml:
     get:
       description: |-
         Get user-data for a particular group based on its name.
@@ -228,7 +232,7 @@ paths:
         "500":
           description: Internal Server Error
       summary: Get user-data for a particular group
-  /cloud-init/admin/cluster-defaults:
+  /admin/cluster-defaults:
     get:
       description: Get default meta-data values for cluster.
       produces:
@@ -266,7 +270,7 @@ paths:
       tags:
       - admin
       - cluster-defaults
-  /cloud-init/admin/groups:
+  /admin/groups:
     get:
       description: |-
         Get meta-data and cloud-init config for all groups known to
@@ -324,7 +328,7 @@ paths:
       tags:
       - admin
       - groups
-  /cloud-init/admin/groups/{id}:
+  /admin/groups/{id}:
     delete:
       description: Delete a group with its meta-data and cloud-init config.
       parameters:
@@ -365,7 +369,7 @@ paths:
       tags:
       - admin
       - groups
-  /cloud-init/admin/groups/{name}:
+  /admin/groups/{name}:
     put:
       consumes:
       - application/json
@@ -404,7 +408,7 @@ paths:
       tags:
       - admin
       - groups
-  /cloud-init/admin/impersonation/{id}/{group}.yaml:
+  /admin/impersonation/{id}/{group}.yaml:
     get:
       description: |-
         Get user-data for a particular group based on its name.
@@ -434,7 +438,7 @@ paths:
         "500":
           description: Internal Server Error
       summary: Get user-data for a particular group
-  /cloud-init/admin/impersonation/{id}/meta-data:
+  /admin/impersonation/{id}/meta-data:
     get:
       description: |-
         Get meta-data for requesting node based on the requesting IP.
@@ -461,7 +465,7 @@ paths:
         "500":
           description: Internal Server Error
       summary: Get meta-data for requesting node
-  /cloud-init/admin/impersonation/{id}/user-data:
+  /admin/impersonation/{id}/user-data:
     get:
       description: |-
         Get user-data for requesting node base on the requesting IP. For
@@ -483,7 +487,7 @@ paths:
           schema:
             type: string
       summary: Get user-data for requesting node
-  /cloud-init/admin/impersonation/{id}/vendor-data:
+  /admin/impersonation/{id}/vendor-data:
     get:
       description: |-
         For OpenCHAMI, the vendor-data will always be a list of other
@@ -505,7 +509,7 @@ paths:
           schema:
             type: string
       summary: Get vendor data
-  /cloud-init/admin/instance-info/{id}:
+  /admin/instance-info/{id}:
     put:
       consumes:
       - application/json
@@ -534,7 +538,7 @@ paths:
       tags:
       - admin
       - instance-data
-  /cloud-init/meta-data:
+  /meta-data:
     get:
       description: |-
         Get meta-data for requesting node based on the requesting IP.
@@ -556,7 +560,7 @@ paths:
         "500":
           description: Internal Server Error
       summary: Get meta-data for requesting node
-  /cloud-init/openapi.json:
+  /openapi.json:
     get:
       produces:
       - application/json
@@ -568,7 +572,7 @@ paths:
         "500":
           description: Internal Server Error
       summary: Return JSON-formatted OpenAPI documentation
-  /cloud-init/phone-home/{id}:
+  /phone-home/{id}:
     post:
       description: |-
         Signal to the cloud-init server that the specific host has completed running
@@ -621,7 +625,7 @@ paths:
         configuration
       tags:
       - phone-home
-  /cloud-init/user-data:
+  /user-data:
     get:
       description: |-
         Get user-data for requesting node base on the requesting IP. For
@@ -638,7 +642,7 @@ paths:
           schema:
             type: string
       summary: Get user-data for requesting node
-  /cloud-init/vendor-data:
+  /vendor-data:
     get:
       description: |-
         For OpenCHAMI, the vendor-data will always be a list of other
@@ -655,7 +659,7 @@ paths:
           schema:
             type: string
       summary: Get vendor data
-  /cloud-init/wg-init:
+  /wg-init:
     post:
       consumes:
       - application/json

@@ -45,7 +45,7 @@ type WGResponse struct {
 //	@Failure		500				{object}	nil
 //	@Param			pubkey			body		PublicKeyRequest	true	"WireGuard public key of client"
 //	@Param			X-Forwarded-For	header		string				false	"Override source IP"
-//	@Router			/cloud-init/wg-init [post]
+//	@Router			/wg-init [post]
 func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -54,7 +54,9 @@ func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterfa
 		}
 
 		var req PublicKeyRequest
-		defer r.Body.Close()
+		defer func() {
+			_ = r.Body.Close() // ignoring error on deferred Close
+		}()
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return

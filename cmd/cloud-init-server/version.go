@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // GitCommit stores the latest Git commit hash.
@@ -104,5 +106,7 @@ func VersionHandler(w http.ResponseWriter, r *http.Request) {
 		BytesAllocated: memstats.HeapAlloc,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Error().Err(err).Msg("failed to encode response")
+	}
 }
