@@ -31,6 +31,7 @@ type SMDClientInterface interface {
 	ClusterName() string
 	AddWGIP(id string, wgip string) error
 	WGIPfromID(id string) (string, error)
+	GetNodeInterfaces(id string) (NodeMapping, bool)
 }
 
 // Add client usage examples
@@ -385,4 +386,14 @@ func (s *SMDClient) WGIPfromID(id string) (string, error) {
 		}
 	}
 	return "", errors.New("ID " + id + " not found in nodes")
+}
+
+// GetNodeInterfaces returns all network interfaces for a given node ID
+func (s *SMDClient) GetNodeInterfaces(id string) (NodeMapping, bool) {
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
+	if node, found := s.nodes[id]; found {
+		return node, true
+	}
+	return NodeMapping{}, false
 }

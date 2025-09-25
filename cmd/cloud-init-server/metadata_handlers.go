@@ -91,7 +91,7 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http
 			MAC:       bootMAC,
 		}
 
-		metadata := generateMetaData(component, groups, store)
+		metadata := generateMetaData(component, groups, store, smd)
 
 		w.Header().Set("Content-Type", "application/x-yaml")
 		w.WriteHeader(http.StatusOK)
