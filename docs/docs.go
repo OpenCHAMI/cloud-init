@@ -169,6 +169,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/cistore.GroupData"
                         }
                     },
+                    "404": {
+                        "description": "Not Found"
+                    },
                     "500": {
                         "description": "Internal Server Error"
                     }

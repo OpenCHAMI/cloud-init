@@ -363,6 +363,8 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/cistore.GroupData'
+        "404":
+          description: Not Found
         "500":
           description: Internal Server Error
       summary: Get data for single group

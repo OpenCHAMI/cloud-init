@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
@@ -89,6 +90,7 @@ func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Tags			admin,groups
 //	@Produce		json
 //	@Success		200	{object}	cistore.GroupData
+//	@Failure		404	{object}	nil
 //	@Failure		500	{object}	nil
 //	@Param			id	path		string	true	"Group ID"
 //	@Router			/admin/groups/{id} [get]
@@ -103,7 +105,11 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 
 	data, err = h.store.GetGroupData(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if reflect.DeepEqual(data, cistore.GroupData{}) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
