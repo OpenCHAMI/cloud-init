@@ -249,8 +249,10 @@ func (s *SMDClient) PopulateNodes() {
 				// This is a new interface.  Add it to the map
 				newInterface := NodeInterface{
 					MAC:  ep.MACAddr,
-					IP:   ep.IPAddrs[0].IPAddr,
 					Desc: ep.Desc,
+				}
+				if len(ep.IPAddrs) > 0 {
+					newInterface.IP = ep.IPAddrs[0].IPAddr
 				}
 				existingNode.Interfaces = append(existingNode.Interfaces, newInterface)
 				s.nodes[ep.CompID] = existingNode
