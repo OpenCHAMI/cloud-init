@@ -56,7 +56,7 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http
 			id, err = smd.IDfromIP(ip)
 			if err != nil {
 				log.Print(err)
-				w.WriteHeader(http.StatusUnprocessableEntity)
+				http.Error(w, "Failed to retrieve node ID from IP address", http.StatusUnprocessableEntity)
 				return
 			} else {
 				log.Printf("xname %s with ip %s found\n", id, ip)

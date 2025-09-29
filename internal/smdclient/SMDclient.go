@@ -194,6 +194,10 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 		}
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Error().Msgf("Failed to get SMD data: %s", resp.Status)
+		return fmt.Errorf("failed to get SMD data: %s", resp.Status)
+	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to read response body")
