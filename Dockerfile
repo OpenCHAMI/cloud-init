@@ -31,7 +31,7 @@ RUN duckdb -c "INSTALL 'json';" \
 # -------- runtime image --------
 FROM ubuntu:24.04
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates wireguard-tools tini \
+ && apt-get install -y --no-install-recommends ca-certificates iproute2 wireguard-tools tini \
  && rm -rf /var/lib/apt/lists/*
 
 COPY cloud-init-server /usr/local/bin/cloud-init-server

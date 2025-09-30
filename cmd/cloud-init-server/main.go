@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -202,8 +203,25 @@ func startServer() error {
 		store: store,
 	}
 
+	// Initialize WireGuard server if configured
+	var wgInterfaceManager *wgtunnel.InterfaceManager
+	if wireguardServer != "" {
+		log.Info().Msgf("Initializing WireGuard server with %s", wireguardServer)
+		wgIp, wgNet, err := net.ParseCIDR(wireguardServer)
+		if err != nil {
+			return fmt.Errorf("failed to parse WireGuard server IP and netmask from %s. Use format '100.97.0.1/16': %w", wireguardServer, err)
+		}
+		wgInterfaceManager = wgtunnel.NewInterfaceManager("wg0", wgIp, wgNet)
+		err = wgInterfaceManager.StartServer()
+		if err != nil {
+			return fmt.Errorf("failed to start the WireGuard server: %w", err)
+		}
+		log.Info().Msg("WireGuard server started successfully")
+	}
+
 	// Setup WireGuard middleware if enabled
 	if wireguardOnly && wireguardServer != "" {
+		log.Info().Msg("WireGuard middleware enabled")
 		wireGuardMiddleware = openchami_middleware.WireGuardMiddlewareWithInterface("wg0", wireguardServer)
 	}
 
@@ -227,7 +245,7 @@ func startServer() error {
 	}
 
 	// Setup routes
-	initCiClientRouter(router, handler, nil)
+	initCiClientRouter(router, handler, wgInterfaceManager)
 	initCiAdminRouter(router, handler)
 
 	// Add secure routes if JWKS is configured
