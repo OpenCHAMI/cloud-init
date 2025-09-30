@@ -119,7 +119,7 @@ func generateMetaData(component cistore.OpenCHAMIComponent, groups []string, s c
 
 func generateHostname(clusterName string, shortName string, nidLength int, comp cistore.OpenCHAMIComponent) string {
 	// in the future, we might want to map the hostname to an xname or something else.
-	nid, _ := comp.NID.Int64()
+	nid, _ := comp.NID.Int64() // We can ignore the error because NID is always set
 	var sname string
 	var nlen int
 

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
@@ -18,7 +19,7 @@ import (
 //	@Produce		json
 //	@Success		200	{object}	map[string]cistore.ClusterDefaults
 //	@Failure		500	{object}	nil
-//	@Router			/cloud-init/admin/groups [get]
+//	@Router			/admin/groups [get]
 func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
 		groups map[string]cistore.GroupData
@@ -58,7 +59,7 @@ func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 //	@Failure		422		{object}	nil
 //	@Header			201		{string}	Location			"/groups/{id}"
 //	@Param			group	body		cistore.GroupData	true	"Group data"
-//	@Router			/cloud-init/admin/groups [post]
+//	@Router			/admin/groups [post]
 func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		data cistore.GroupData
@@ -89,20 +90,26 @@ func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Tags			admin,groups
 //	@Produce		json
 //	@Success		200	{object}	cistore.GroupData
+//	@Failure		404	{object}	nil
 //	@Failure		500	{object}	nil
 //	@Param			id	path		string	true	"Group ID"
-//	@Router			/cloud-init/admin/groups/{id} [get]
+//	@Router			/admin/groups/{id} [get]
 func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		id    string = chi.URLParam(r, "id")
+		id    string
 		data  cistore.GroupData
 		bytes []byte
 		err   error
 	)
+	id = chi.URLParam(r, "id")
 
 	data, err = h.store.GetGroupData(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if reflect.DeepEqual(data, cistore.GroupData{}) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -111,7 +118,10 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(bytes)
+	if _, err := w.Write(bytes); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 // UpdateGroupHandler godoc
@@ -132,13 +142,15 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Header			201			{string}	Location			"/groups/{name}"
 //	@Param			name		path		string				true	"Group name"
 //	@Param			group_data	body		cistore.GroupData	true	"Group data"
-//	@Router			/cloud-init/admin/groups/{name} [put]
+//	@Router			/admin/groups/{name} [put]
 func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		groupName string = chi.URLParam(r, "name")
+		groupName string
 		data      cistore.GroupData
 		err       error
 	)
+
+	groupName = chi.URLParam(r, "name")
 
 	data, err = parseData(r)
 	if err != nil {
@@ -164,12 +176,13 @@ func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	nil
 //	@Failure		500	{object}	nil
 //	@Param			id	path		string	true	"Group ID"
-//	@Router			/cloud-init/admin/groups/{id} [delete]
+//	@Router			/admin/groups/{id} [delete]
 func (h CiHandler) RemoveGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
-		id  string = chi.URLParam(r, "id")
+		id  string
 		err error
 	)
+	id = chi.URLParam(r, "id")
 	err = h.store.RemoveGroupData(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -1,6 +1,7 @@
 package quackstore
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -67,7 +68,9 @@ func (s *QuackStore) GetGroups() map[string]cistore.GroupData {
 		fmt.Printf("Error querying groups: %v\n", err)
 		return groups
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // Ignoring error on deferred Close
+	}()
 
 	for rows.Next() {
 		var name string
@@ -348,8 +351,10 @@ func (s *QuackStore) Close() error {
 	return s.db.Close()
 }
 
-// generateInstanceId generates a unique instance ID
+// generateInstanceID generates a unique instance ID in the format "i-XXXXXX",
+// where "XXXXXX" is a random 6-digit hexadecimal string.
 func generateInstanceId() string {
-	// TODO: Implement proper instance ID generation
-	return "i-1234567890abcdef"
+	randBytes := make([]byte, 3)
+	_, _ = rand.Read(randBytes) // Read fills randBytes with cryptographically secure random bytes. It never returns an error, and always fills randBytes entirely
+	return fmt.Sprintf("i-%x", randBytes)
 }

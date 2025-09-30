@@ -3,9 +3,6 @@ package cistore
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-
-	"gopkg.in/yaml.v3"
 
 	base "github.com/Cray-HPE/hms-base"
 )
@@ -15,6 +12,7 @@ type GroupData struct {
 	Description string                 `json:"description,omitempty" example:"The compute group" description:"A short description of the group"`
 	Data        map[string]interface{} `json:"meta-data,omitempty" description:"json map of a string (key) to a struct (value) representing group meta-data"`
 	File        CloudConfigFile        `json:"file,omitempty" description:"Cloud-Init configuration for group"`
+	Versions    map[string]string      `json:"versions,omitempty" description:"Map of group versions"`
 }
 
 func (g *GroupData) ParseFromJSON(body []byte) error {
@@ -68,12 +66,12 @@ type ClusterDefaults struct {
 }
 
 type CloudConfigFile struct {
-	Content  []byte `json:"content" yaml:"content" swaggertype:"string" example:"IyMgdGVtcGxhdGU6IGppbmphCiNjbG91ZC1jb25maWcKbWVyZ2VfaG93OgotIG5hbWU6IGxpc3QKICBzZXR0aW5nczogW2FwcGVuZF0KLSBuYW1lOiBkaWN0CiAgc2V0dGluZ3M6IFtub19yZXBsYWNlLCByZWN1cnNlX2xpc3RdCnVzZXJzOgogIC0gbmFtZTogcm9vdAogICAgc3NoX2F1dGhvcml6ZWRfa2V5czoge3sgZHMubWV0YV9kYXRhLmluc3RhbmNlX2RhdGEudjEucHVibGljX2tleXMgfX0KZGlzYWJsZV9yb290OiBmYWxzZQo=" description:"Cloud-Init configuration content whose encoding depends on the value of 'encoding'"`
-	Name     string `json:"filename" yaml:"filename"`
-	Encoding string `json:"encoding,omitempty" yaml:"encoding,omitempty" enums:"base64,plain"`
+	Content  []byte `json:"content" swaggertype:"string" example:"IyMgdGVtcGxhdGU6IGppbmphCiNjbG91ZC1jb25maWcKbWVyZ2VfaG93OgotIG5hbWU6IGxpc3QKICBzZXR0aW5nczogW2FwcGVuZF0KLSBuYW1lOiBkaWN0CiAgc2V0dGluZ3M6IFtub19yZXBsYWNlLCByZWN1cnNlX2xpc3RdCnVzZXJzOgogIC0gbmFtZTogcm9vdAogICAgc3NoX2F1dGhvcml6ZWRfa2V5czoge3sgZHMubWV0YV9kYXRhLmluc3RhbmNlX2RhdGEudjEucHVibGljX2tleXMgfX0KZGlzYWJsZV9yb290OiBmYWxzZQo=" description:"Cloud-Init configuration content whose encoding depends on the value of 'encoding'"`
+	Name     string `json:"filename"`
+	Encoding string `json:"encoding,omitempty" enums:"base64,plain"`
 }
 
-// Custom JSON unmarshaler for CloudConfigFile
+// UnmarshalJSON implements json.Unmarshaler
 func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	// Use an auxiliary struct so that:
 	//
@@ -99,57 +97,11 @@ func (f *CloudConfigFile) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Custom YAML unmarshaller for CloudConfigFile. This is needed because the yaml
-// library cannot unmarshal string to []byte like json can, so it needs to be
-// told how to do so.
-func (f *CloudConfigFile) UnmarshalYAML(n *yaml.Node) error {
-	// Use an auxiliary struct so that:
-	//
-	// 1. json.Unmarshal doesn't recurse forever and overflow the stack.
-	// 2. json.Unmarshal doesn't try to base64-decode "content" in the data
-	//    before assigning the bytes to f.Content. Content is unmarshalled
-	//    as a string instead of bytes in order to prevent this. After
-	//    unmarshalling, the string is converted back to bytes and assigned
-	//    to f.Content.
-	//
-	// Interestingly, yaml.Unmarshal will not unmarshal into aux's pointer
-	// to f, so we have to use json.Unmarshal.
-	type Alias CloudConfigFile
-	aux := &struct {
-		Content string `json:"content"`
-		*Alias
-	}{
-		Alias: (*Alias)(f),
-	}
-
-	// Decode YAML document (n) into aux struct, using a map as an
-	// intermediary (since n.Decode() cannot decode into a []byte). We have
-	// to use JSON for the unmarshalling (and, by consequence, the
-	// marshalling) so that f will get written via aux's pointer to it. For
-	// some reason, the yaml unmarshaller will not do that.
-	//
-	// 1. Decode YAML document (n) into map.
-	// 2. JSON marshal map into bytes.
-	// 3. JSON unmarshal bytes into aux struct.
-	// 4. Set f.Content to byte-ified aux.Content.
-	var mAux map[string]interface{}
-	if err := n.Decode(&mAux); err != nil {
-		return err
-	}
-	t, err := json.Marshal(mAux)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(t, &aux); err != nil {
-		return err
-	}
-	f.Content = []byte(aux.Content)
-
-	return nil
-}
-
-// Custom JSON marshaler for CloudConfigFile
+// Custom marshaler for CloudConfigFile
 func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
+	// Use temporary struct to marshal so json.Marshal doesn't recurse
+	// indefinitely. Also to convert Content from bytes to string so
+	// json.Marshal doesn't try to base64 encode the bytes.
 	// Use an auxiliary struct so that:
 	//
 	// 1. json.Marshal doesn't recurse forever and overflow the stack.
@@ -163,55 +115,7 @@ func (f CloudConfigFile) MarshalJSON() ([]byte, error) {
 	}{
 		Alias: (Alias)(f),
 	}
-
 	aux.Content = string(f.Content)
+
 	return json.Marshal(aux)
-}
-
-// Custom YAML marshaler for CloudConfigFile. This is needed because the yaml
-// library will not marshal []byte into string like json will, so it needs to be
-// told how to do so.
-func (f CloudConfigFile) MarshalYAML() (interface{}, error) {
-	// Use an auxiliary struct so that:
-	//
-	// 1. yaml.Marshal doesn't recurse forever and overflow the stack.
-	// 2. yaml.Marshal doesn't try to base64-encode f.Content. f.Content is
-	//    converted from bytes to a string and then assigned to aux.Content
-	//    to prevent this. Then, aux gets marshalled instead of f.
-	//
-	// aux is set to the values of f, but has its own string Content, set to
-	// the stringified f.Content.
-	type Alias CloudConfigFile
-	aux := &struct {
-		Content string `yaml:"content"`
-		Alias
-	}{
-		Content: string(f.Content),
-		Alias:   (Alias)(f),
-	}
-
-	// Convert aux into map, which has an "alias" key containing the
-	// "content" that will be set to the actual string value. The map that
-	// is mapped to "alias" is what is returned.
-	//
-	// 1. YAML marshal aux to bytes.
-	// 2. YAML unmarshal bytes into map.
-	// 3. Set content in "alias" to aux.Content.
-	// 4. Return "alias" map.
-	t, err := yaml.Marshal(aux)
-	if err != nil {
-		return nil, err
-	}
-	var nMap map[string]interface{}
-	if err := yaml.Unmarshal(t, &nMap); err != nil {
-		return nil, err
-	}
-	switch c := (nMap["alias"]).(type) {
-	case map[string]interface{}:
-		c["content"] = aux.Content
-	default:
-		return nil, fmt.Errorf("cloud config file in map is unknown type: wanted=(map[string]interface{}) actual=(%v)", c)
-	}
-
-	return nMap["alias"], nil
 }

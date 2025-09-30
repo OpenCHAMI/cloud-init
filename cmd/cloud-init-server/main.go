@@ -7,76 +7,169 @@ package main
 //	@License.url	https://github.com/OpenCHAMI/.github/blob/main/LICENSE
 
 import (
-	"flag"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/OpenCHAMI/cloud-init/internal/memstore"
+	openchami_middleware "github.com/OpenCHAMI/cloud-init/internal/middleware"
+	"github.com/OpenCHAMI/cloud-init/internal/quackstore"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	openchami_authenticator "github.com/openchami/chi-middleware/auth"
+	openchami_logger "github.com/openchami/chi-middleware/log"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 
-	openchami_middleware "github.com/OpenCHAMI/cloud-init/internal/middleware"
-	openchami_authenticator "github.com/openchami/chi-middleware/auth"
-	openchami_logger "github.com/openchami/chi-middleware/log"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 var (
-	ciEndpoint           = ":27777"
-	tokenEndpoint        = "http://opaal:3333/token" // jwt for smd access obtained from here
-	smdEndpoint          = "http://smd:27779"
-	jwksUrl              = "" // jwt keyserver URL for secure-route token validation
-	insecure             = false
-	accessToken          = ""
-	certPath             = ""
-	store                cistore.Store
+	ciEndpoint           string
+	tokenEndpoint        string
+	smdEndpoint          string
+	jwksUrl              string
+	insecure             bool
+	accessToken          string
+	certPath             string
 	clusterName          string
 	region               string
 	availabilityZone     string
 	cloudProvider        string
 	baseUrl              string
-	fakeSMDEnabled       = false
-	impersonationEnabled = false
+	fakeSMDEnabled       bool
+	impersonationEnabled bool
 	wireguardServer      string
-	wireguardOnly        = false
-	debug                = true
+	wireguardOnly        bool
+	debug                bool
 	wireGuardMiddleware  func(http.Handler) http.Handler
+	storageBackend       = "mem"           // Default to memstore
+	dbPath               = "cloud-init.db" // Default database path for quackstore
+	store                cistore.Store
 )
 
 func main() {
-	flag.StringVar(&ciEndpoint, "listen", ciEndpoint, "Server IP and port for cloud-init-server to listen on")
-	flag.StringVar(&tokenEndpoint, "token-url", tokenEndpoint, "OIDC server URL (endpoint) to fetch new tokens from (for SMD access)")
-	flag.StringVar(&smdEndpoint, "smd-url", smdEndpoint, "Server host and port only for running SMD (do not include /hsm/v2)")
-	flag.StringVar(&jwksUrl, "jwks-url", jwksUrl, "JWT keyserver URL, required to enable secure route")
-	flag.StringVar(&accessToken, "access-token", accessToken, "encoded JWT access token")
-	flag.StringVar(&clusterName, "cluster-name", clusterName, "Name of the cluster")
-	flag.StringVar(&region, "region", region, "Region of the cluster")
-	flag.StringVar(&availabilityZone, "az", availabilityZone, "Availability zone of the cluster")
-	flag.StringVar(&cloudProvider, "cloud-provider", cloudProvider, "Cloud provider of the cluster")
-	flag.StringVar(&baseUrl, "base-url", baseUrl, "Base URL for cloud-init-server including protocol and port (http://localhost:27777)")
-	flag.StringVar(&certPath, "cacert", certPath, "Path to CA cert. (defaults to system CAs)")
-	flag.BoolVar(&insecure, "insecure", insecure, "Set to bypass TLS verification for requests")
-	flag.BoolVar(&impersonationEnabled, "impersonation", impersonationEnabled, "Enable impersonation feature")
-	flag.StringVar(&wireguardServer, "wireguard-server", wireguardServer, "Wireguard server IP address and network (e.g. 100.97.0.1/16)")
-	flag.BoolVar(&wireguardOnly, "wireguard-only", wireguardOnly, "Only allow access to the cloud-init functions from the WireGuard subnet")
-	flag.BoolVar(&debug, "debug", debug, "Enable debug logging")
-	flag.Parse()
-
-	if debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	rootCmd := &cobra.Command{
+		Use:   "cloud-init-server",
+		Short: "Starts the cloud-init server",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return startServer()
+		},
 	}
 
-	// TODO: Add admin middleware to require JWT for all admin routes
-	// Set up JWT verification via the specified URL, if any
+	// Use Viper to read environment variables.
+	// Bind each flag to an env var using Viper conventions.
+	// Example: CLI flag --listen → environment var LISTEN
+	setupFlags(rootCmd.Flags())
+	bindViperToFlags()
+
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+// setupFlags defines all CLI flags with defaults reading from environment vars.
+func setupFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&ciEndpoint, "listen", getEnv("LISTEN", "0.0.0.0:27777"), "Server IP and port for cloud-init-server to listen on")
+	flags.StringVar(&tokenEndpoint, "token-url", getEnv("TOKEN_URL", "http://opaal:3333/token"), "OIDC server endpoint to fetch new tokens from (for SMD access)")
+	flags.StringVar(&smdEndpoint, "smd-url", getEnv("SMD_URL", "http://smd:27779"), "Server host and port for running SMD (do not include /hsm/v2)")
+	flags.StringVar(&jwksUrl, "jwks-url", getEnv("JWKS_URL", ""), "JWT keyserver URL, required to enable secure route")
+	flags.StringVar(&accessToken, "access-token", getEnv("ACCESS_TOKEN", ""), "Encoded JWT access token")
+	flags.StringVar(&clusterName, "cluster-name", getEnv("CLUSTER_NAME", ""), "Name of the cluster")
+	flags.StringVar(&region, "region", getEnv("REGION", ""), "Region of the cluster")
+	flags.StringVar(&availabilityZone, "az", getEnv("AZ", ""), "Availability zone of the cluster")
+	flags.StringVar(&cloudProvider, "cloud-provider", getEnv("CLOUD_PROVIDER", ""), "Cloud provider of the cluster")
+	flags.StringVar(&baseUrl, "base-url", getEnv("BASE_URL", ""), "Base URL for cloud-init-server including protocol and port (e.g. http://localhost:27777)")
+	flags.StringVar(&certPath, "cacert", getEnv("CACERT", ""), "Path to CA cert (defaults to system CAs)")
+	flags.BoolVar(&insecure, "insecure", parseBool(getEnv("INSECURE", "false")), "Set to bypass TLS verification for requests")
+	flags.BoolVar(&impersonationEnabled, "impersonation", parseBool(getEnv("IMPERSONATION", "false")), "Enable impersonation feature")
+	flags.StringVar(&wireguardServer, "wireguard-server", getEnv("WIREGUARD_SERVER", ""), "WireGuard server IP address and network (e.g. 100.97.0.1/16)")
+	flags.BoolVar(&wireguardOnly, "wireguard-only", parseBool(getEnv("WIREGUARD_ONLY", "false")), "Only allow access to the cloud-init functions from the WireGuard subnet")
+	flags.BoolVar(&debug, "debug", parseBool(getEnv("DEBUG", "false")), "Enable debug logging")
+	flags.StringVar(&storageBackend, "storage-backend", getEnv("STORAGE_BACKEND", "mem"), "Storage backend to use (mem or quack)")
+	flags.StringVar(&dbPath, "db-path", getEnv("DB_PATH", "cloud-init.db"), "Path to the database file for quackstore backend")
+}
+
+// bindViperToFlags binds each flag to Viper so environment variables work seamlessly.
+func bindViperToFlags() {
+	viper.AutomaticEnv()
+	// Bind each flag to its corresponding environment variable
+	// Not checking errors because these always succeed
+	_ = viper.BindEnv("listen")
+	_ = viper.BindEnv("token_url")
+	_ = viper.BindEnv("smd_url")
+	_ = viper.BindEnv("jwks_url")
+	_ = viper.BindEnv("access_token")
+	_ = viper.BindEnv("cluster_name")
+	_ = viper.BindEnv("region")
+	_ = viper.BindEnv("az")
+	_ = viper.BindEnv("cloud_provider")
+	_ = viper.BindEnv("base_url")
+	_ = viper.BindEnv("cacert")
+	_ = viper.BindEnv("insecure")
+	_ = viper.BindEnv("impersonation")
+	_ = viper.BindEnv("wireguard_server")
+	_ = viper.BindEnv("wireguard_only")
+	_ = viper.BindEnv("debug")
+	_ = viper.BindEnv("storage_backend")
+	_ = viper.BindEnv("db_path")
+}
+
+// startServer is where we run our main program logic
+func startServer() error {
+	if debug {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		log.Debug().
+			Str("listen", ciEndpoint).
+			Str("token-url", tokenEndpoint).
+			Str("smd-url", smdEndpoint).
+			Str("jwks-url", jwksUrl).
+			Str("access-token", accessToken).
+			Str("cluster-name", clusterName).
+			Str("region", region).
+			Str("az", availabilityZone).
+			Str("cloud-provider", cloudProvider).
+			Str("base-url", baseUrl).
+			Str("cacert", certPath).
+			Bool("insecure", insecure).
+			Bool("impersonation", impersonationEnabled).
+			Str("wireguard-server", wireguardServer).
+			Bool("wireguard-only", wireguardOnly).
+			Bool("debug", debug).
+			Str("storage-backend", storageBackend).
+			Str("db-path", dbPath).
+			Msg("Resolved configuration")
+	}
+
+	// Setup logger
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	// Initialize storage backend
+	var err error
+	switch storageBackend {
+	case "mem":
+		store = memstore.NewMemStore()
+	case "quack":
+		store, err = quackstore.NewQuackStore(dbPath)
+		if err != nil {
+			return fmt.Errorf("failed to initialize quackstore: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported storage backend: %s", storageBackend)
+	}
+
+	// Setup JWKS if provided
 	var keyset *jwtauth.JWTAuth
 	secureRouteEnable := false
 	if jwksUrl != "" {
@@ -85,83 +178,39 @@ func main() {
 		if err != nil {
 			fmt.Printf("JWKS initialization failed: %s\n", err)
 		} else {
-			// JWKS init SUCCEEDED, secure route supported
 			secureRouteEnable = true
 		}
 	} else {
 		fmt.Println("No JWKS URL provided; secure route will be disabled")
 	}
 
-	// Setup logger
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
 	// Create SMD client
 	var sm smdclient.SMDClientInterface
-	// if the CLOUD-INIT_SMD_SIMULATOR environment variable is set, use the simulator
 	if os.Getenv("CLOUD_INIT_SMD_SIMULATOR") == "true" {
-		fmt.Printf("\n\n**********\n\n\tCLOUD_INIT_SMD_SIMULATOR is set to true in your environment.\n\n\tUsing the FakeSMDClient to simulate SMD\n\n**********\n\n\n")
-		fakeSMDEnabled = true
-		fakeSm := smdclient.NewFakeSMDClient(clusterName, 500)
-		fakeSm.Summary()
-		sm = fakeSm
+		fmt.Printf("\n\n**********\n\n\tCLOUD_INIT_SMD_SIMULATOR is set to true in your environment.\n\n\tUsing the FakeSMDClient\n\n**********\n\n\n")
+		sm = smdclient.NewFakeSMDClient(clusterName, 500)
 	} else {
-		var err error
 		sm, err = smdclient.NewSMDClient(clusterName, smdEndpoint, tokenEndpoint, accessToken, certPath, insecure)
 		if err != nil {
-			// Could not create SMD client, so exit with error saying why
-			log.Fatal().Err(err)
+			return fmt.Errorf("failed to create SMD client: %w", err)
 		}
 	}
 
-	// Set up our DataStore
-	store = memstore.NewMemStore()
-	store.SetClusterDefaults(cistore.ClusterDefaults{
-		ClusterName:      clusterName,
-		Region:           region,
-		AvailabilityZone: availabilityZone,
-		CloudProvider:    cloudProvider,
-		BaseUrl:          baseUrl,
-	})
-
-	// Initialize the cloud-init handler with the datastore and SMD client
-	ciHandler := NewCiHandler(store, sm, clusterName)
-
-	// WireGuard
-	var wgInterfaceManager *wgtunnel.InterfaceManager
-	if wireguardServer != "" {
-		// Initialize WireGuard server
-		log.Info().Msgf("Initializing Wireguard Server with %s", wireguardServer)
-		wgIp, wgNet, err := net.ParseCIDR(wireguardServer)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("Failed to parse WireGuard server IP and netmask from %s.  Use the format '100.97.0.1/16'", wireguardServer)
-		}
-		wgInterfaceManager = wgtunnel.NewInterfaceManager("wg0", wgIp, wgNet)
-		err = wgInterfaceManager.StartServer()
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to start the wireguard server")
-		}
+	// Create CI handler
+	handler := &CiHandler{
+		sm:    sm,
+		store: store,
 	}
 
-	// If wireguard-only is set, only allow access to the cloud-init functions from the WireGuard subnet
-
-	if wireguardOnly && wgInterfaceManager != nil {
-		// Create the middleware
-		log.Info().Msg("WireGuard middleware enabled")
+	// Setup WireGuard middleware if enabled
+	if wireguardOnly && wireguardServer != "" {
 		wireGuardMiddleware = openchami_middleware.WireGuardMiddlewareWithInterface("wg0", wireguardServer)
-	} else {
-		log.Info().Msg("WireGuard middleware disabled")
-		// No-op middleware if disabled
-		wireGuardMiddleware = func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		}
 	}
 
-	// Initialize router and subrouter
+	// Create router
 	router := chi.NewRouter()
+
+	// Add middleware
 	router.Use(
 		middleware.RequestID,
 		middleware.RealIP,
@@ -172,39 +221,67 @@ func main() {
 		openchami_logger.OpenCHAMILogger(log.Logger),
 	)
 
-	router_client := chi.NewRouter()
-	initCiClientRouter(router_client, ciHandler, wgInterfaceManager)
-	router.Mount("/cloud-init", router_client)
+	// Add WireGuard middleware if enabled
+	if wireguardOnly && wireGuardMiddleware != nil {
+		router.Use(wireGuardMiddleware)
+	}
 
-	router_admin := chi.NewRouter()
-	if secureRouteEnable {
-		// Secured routes
-		router_admin.Use(
+	// Setup routes
+	initCiClientRouter(router, handler, nil)
+	initCiAdminRouter(router, handler)
+
+	// Add secure routes if JWKS is configured
+	if secureRouteEnable && keyset != nil {
+		secureRouter := chi.NewRouter()
+		secureRouter.Use(
 			jwtauth.Verifier(keyset),
 			openchami_authenticator.AuthenticatorWithRequiredClaims(keyset, []string{"sub", "iss", "aud"}),
 		)
-	}
-	initCiAdminRouter(router_admin, ciHandler)
-	router.Mount("/cloud-init/admin", router_admin)
 
-	// Serve all routes
-	log.Fatal().Err(http.ListenAndServe(ciEndpoint, router)).Msg("Server closed")
+		// Add secure routes here if needed
+		router.Mount("/secure", secureRouter)
+	}
+
+	// Start server
+	fmt.Printf("Starting cloud-init server on %s\n", ciEndpoint)
+	return http.ListenAndServe(ciEndpoint, router)
+}
+
+// Utility to read optional environment variables
+func getEnv(key, fallback string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return fallback
+}
+
+// parseBool is a helper to convert string "true" or "false" to bool
+func parseBool(str string) bool {
+	return strings.EqualFold(str, "true") || str == "1"
 }
 
 func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
 	// Add cloud-init endpoints to router
 	router.Get("/openapi.json", DocsHandler)
-	router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
-	router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
-	router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
-	router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+	router.Get("/version", VersionHandler)
+	if wireGuardMiddleware != nil {
+		router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
+		router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
+		router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
+		router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+	} else {
+		router.Get("/user-data", UserDataHandler)
+		router.Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
+		router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
+		router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
+	}
 	router.Post("/phone-home/{id}", PhoneHomeHandler(wgInterfaceManager, handler.sm))
 	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
 }
 
 func initCiAdminRouter(router chi.Router, handler *CiHandler) {
 	// admin API subrouter
-	router.Route("/", func(r chi.Router) {
+	router.Route("/admin/", func(r chi.Router) {
 
 		// Cluster Defaults
 		r.Get("/cluster-defaults", GetClusterDataHandler(handler.store))

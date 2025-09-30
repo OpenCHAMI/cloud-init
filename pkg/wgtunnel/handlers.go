@@ -13,17 +13,17 @@ import (
 
 // PublicKeyRequest represents the JSON payload for a WireGuard public key.
 type PublicKeyRequest struct {
-	PublicKey string `json:"public_key" example:"9NS6+NR0J38SZ9IlY9hBDLs6aBpNDhxHUHL8OTlNEDU=" description:"WireGuard public key content"`
+	PublicKey string `json:"public_key" yaml:"public_key" example:"9NS6+NR0J38SZ9IlY9hBDLs6aBpNDhxHUHL8OTlNEDU=" description:"WireGuard public key content"`
 }
 
 // WGResponse represents the JSON payload for a response from the WireGuard
 // server.
 type WGResponse struct {
-	Message      string `json:"message" example:"WireGuard tunnel created successfully"`
-	ClientVPNIP  string `json:"client-vpn-ip" example:"10.89.0.7" description:"Assigned WireGuard VPN IP address"`
-	ServerPubKey string `json:"server-public-key" example:"dHMOGL8vTGhTgqXyYdu6cLGXEPmTcWm+vS18GcQseyg="`
-	ServerIP     string `json:"server-ip" example:"10.87.0.1" description:"WireGuard server IP"`
-	ServerPort   string `json:"server-port" example:"51820" description:"WireGuard server port"`
+	Message      string `json:"message" yaml:"message" example:"WireGuard tunnel created successfully"`
+	ClientVPNIP  string `json:"client-vpn-ip" yaml:"client-vpn-ip" example:"10.89.0.7" description:"Assigned WireGuard VPN IP address"`
+	ServerPubKey string `json:"server-public-key" yaml:"server-public-key" example:"dHMOGL8vTGhTgqXyYdu6cLGXEPmTcWm+vS18GcQseyg="`
+	ServerIP     string `json:"server-ip" yaml:"server-ip" example:"10.87.0.1" description:"WireGuard server IP"`
+	ServerPort   string `json:"server-port" yaml:"server-port" example:"51820" description:"WireGuard server port"`
 }
 
 // AddClientHandler godoc
@@ -45,7 +45,7 @@ type WGResponse struct {
 //	@Failure		500				{object}	nil
 //	@Param			pubkey			body		PublicKeyRequest	true	"WireGuard public key of client"
 //	@Param			X-Forwarded-For	header		string				false	"Override source IP"
-//	@Router			/cloud-init/wg-init [post]
+//	@Router			/wg-init [post]
 func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -54,7 +54,9 @@ func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterfa
 		}
 
 		var req PublicKeyRequest
-		defer r.Body.Close()
+		defer func() {
+			_ = r.Body.Close() // ignoring error on deferred Close
+		}()
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return

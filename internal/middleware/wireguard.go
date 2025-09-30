@@ -157,7 +157,7 @@ func WireGuardMiddlewareWithInterface(wireGuardInterface string, wireGuardCIDR s
 				return
 			}
 			for _, iface := range interfaces {
-				addrs, _ := iface.Addrs()
+				addrs, _ := iface.Addrs() // Ignoring error on Addrs() as we can still check other interfaces
 				for _, ifaceAddr := range addrs {
 					if ipNet, ok := ifaceAddr.(*net.IPNet); ok && ipNet.IP.Equal(ip) {
 						recievedInterface = iface

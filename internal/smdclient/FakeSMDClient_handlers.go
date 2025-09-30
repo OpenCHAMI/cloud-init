@@ -11,7 +11,7 @@ import (
 
 type OpenCHAMINodeWithGroups struct {
 	cistore.OpenCHAMIComponent
-	Groups []string `json:"groups,omitempty"`
+	Groups []string `json:"groups,omitempty" yaml:"groups,omitempty"`
 }
 
 func AddNodeToInventoryHandler(f *FakeSMDClient) http.HandlerFunc {
@@ -46,7 +46,11 @@ func ListNodesHandler(f *FakeSMDClient) http.HandlerFunc {
 		nodes := f.ListNodes()
 		w.WriteHeader(http.StatusOK)
 		w.Header().Add("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(nodes)
+		if err := json.NewEncoder(w).Encode(nodes); err != nil {
+			log.Error().Err(err).Msg("Failed to encode nodes")
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
