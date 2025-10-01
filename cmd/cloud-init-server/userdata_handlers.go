@@ -72,13 +72,13 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 
 		// Make sure cloud-config content is plaintext before returning
 		if data.File.Encoding == "base64" {
-			contentBytes := make([]byte, base64.StdEncoding.EncodedLen(len(data.File.Content)))
-			if n, err := base64.StdEncoding.Decode(contentBytes, data.File.Content); err != nil {
-				newErr := fmt.Errorf("failed to base64-decode cloud-config (read %d bytes): %w", n, err)
+			decodedContent, err := base64.StdEncoding.DecodeString(string(data.File.Content))
+			if err != nil {
+				newErr := fmt.Errorf("failed to base64-decode cloud-config: %w", err)
 				http.Error(w, newErr.Error(), http.StatusInternalServerError)
 				return
 			}
-			data.File.Content = contentBytes
+			data.File.Content = decodedContent
 			data.File.Encoding = "plain"
 		}
 
