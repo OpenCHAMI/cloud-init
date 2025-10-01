@@ -339,7 +339,9 @@ func (s *SMDClient) MACfromID(id string) (string, error) {
 // GroupMembership returns the group labels for the xname with the given ID
 func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 	if id == "" {
-		log.Err(errors.New("ID is empty")).Msg("ID is empty")
+		err := errors.New("ID is empty")
+		log.Err(err).Msg("failed to get group membership")
+		return []string{}, err
 	}
 	ml := new(sm.Membership)
 	ep := "/hsm/v2/memberships/" + id
