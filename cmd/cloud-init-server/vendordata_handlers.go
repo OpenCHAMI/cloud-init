@@ -32,11 +32,13 @@ func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) ht
 		var err error
 		// If this request includes an id, it can be interrpreted as an impersonation request
 		if urlId == "" {
+			log.Debug().Msg("no id specified in request, attempting to identify based on requesting IP")
 			ip := getActualRequestIP(r)
+			log.Debug().Msgf("requesting IP is: %s", ip)
 			// Get the component information from the SMD client
 			id, err = smd.IDfromIP(ip)
 			if err != nil {
-				log.Print(err)
+				log.Printf("did not find id from ip %s: %v", ip, err)
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				return
 			} else {
@@ -45,7 +47,18 @@ func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) ht
 		}
 		groups, err := smd.GroupMembership(id)
 		if err != nil {
-			log.Debug().Msgf("Error getting group membership: %s", err)
+			if esr, ok := err.(smdclient.ErrSMDResponse); ok {
+				switch esr.HTTPResponse.StatusCode {
+				case http.StatusNotFound:
+					log.Warn().Msgf("node %s not found in SMD, include list will be empty", id)
+				case http.StatusBadRequest:
+					log.Warn().Msgf("node %s is an invalid xname in SMD, include list will be empty", id)
+				default:
+					log.Error().Err(err).Msg("unhandled HTTP response from SMD, include list will be empty")
+				}
+			} else {
+				log.Error().Err(err).Msgf("failed to get group membership for id %s, include list will be empty", id)
+			}
 		}
 
 		clusterDefaults, err := store.GetClusterDefaults()
@@ -57,7 +70,7 @@ func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) ht
 		}
 		extendedInstanceData, err := store.GetInstanceInfo(id)
 		if err != nil {
-			log.Err(err).Msg("Error getting instance info")
+			log.Err(err).Msgf("Error getting instance info for id %s", id)
 		}
 		if extendedInstanceData.CloudInitBaseURL != "" {
 			baseUrl = extendedInstanceData.CloudInitBaseURL
