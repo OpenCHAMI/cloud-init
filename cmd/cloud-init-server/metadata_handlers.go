@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -51,29 +52,54 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http
 		var err error
 		// If this request includes an id, it can be interrpreted as an impersonation request
 		if urlId == "" {
+			log.Debug().Msg("no id specified in request, attempting to identify based on requesting IP")
 			ip := getActualRequestIP(r)
+			log.Debug().Msgf("requesting IP is: %s", ip)
 			// Get the component information from the SMD client
 			id, err = smd.IDfromIP(ip)
 			if err != nil {
-				log.Print(err)
-				http.Error(w, "Failed to retrieve node ID from IP address", http.StatusUnprocessableEntity)
+				log.Printf("did not find id from ip %s: %v", ip, err)
+				w.WriteHeader(http.StatusUnprocessableEntity)
 				return
 			} else {
 				log.Printf("xname %s with ip %s found\n", id, ip)
 			}
+		} else {
+			id = urlId
 		}
 		log.Debug().Msgf("Getting metadata for id: %s", id)
 		smdComponent, err := smd.ComponentInformation(id)
 		if err != nil {
-			log.Debug().Msgf("Failed to get component information for %s: %s", id, err)
-			// If the component information is not available, return a 404
-			http.Error(w, "Node not found in SMD. Instance-data not available", http.StatusNotFound)
+			if esr, ok := err.(smdclient.ErrSMDResponse); ok {
+				var msg string
+				var status int
+				switch esr.HTTPResponse.StatusCode {
+				case http.StatusNotFound:
+					msg = fmt.Sprintf("node %s not found in SMD", id)
+					status = http.StatusNotFound
+				default:
+					msg = fmt.Sprintf("failed to get component information for node %s: %v", id, err)
+					status = http.StatusInternalServerError
+				}
+				http.Error(w, msg, status)
+			} else {
+				log.Debug().Msgf("failed to get component information for node %s: %s", id, err)
+				http.Error(w, fmt.Sprintf("internal error occurred fetching component information for node %s", id), http.StatusInternalServerError)
+			}
 			return
 		}
 		groups, err := smd.GroupMembership(id)
 		if err != nil {
-			// If the group information is not available, return an empty list
-			groups = []string{}
+			if esr, ok := err.(smdclient.ErrSMDResponse); ok {
+				switch esr.HTTPResponse.StatusCode {
+				case http.StatusBadRequest:
+					http.Error(w, fmt.Sprintf("%s is not a valid xname for SMD", id), http.StatusBadRequest)
+					return
+				default:
+					// If the group information is not available, return an empty list
+					groups = []string{}
+				}
+			}
 		}
 		bootIP, err := smd.IPfromID(id)
 		if err != nil {

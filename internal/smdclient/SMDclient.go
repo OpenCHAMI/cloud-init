@@ -38,10 +38,6 @@ type SMDClientInterface interface {
 // golang lint
 // Expand this client to handle more of the SMD API and work more directly with the resources it manages
 
-var (
-	ErrUnmarshal = errors.New("cannot unmarshal JSON")
-)
-
 // SMDClient is a client for SMD
 type SMDClient struct {
 	clusterName       string
@@ -206,6 +202,10 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 	defer func() {
 		_ = resp.Body.Close() // ignoring error on deferred Close
 	}()
+	if resp.StatusCode >= 400 {
+		log.Error().Msgf("SMD GET request went through, but returned unsuccessful HTTP response (HTTP %d)", resp.StatusCode)
+		return ErrSMDResponse{HTTPResponse: resp}
+	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to read response body")
@@ -339,7 +339,9 @@ func (s *SMDClient) MACfromID(id string) (string, error) {
 // GroupMembership returns the group labels for the xname with the given ID
 func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 	if id == "" {
-		log.Err(errors.New("ID is empty")).Msg("ID is empty")
+		err := errors.New("ID is empty")
+		log.Err(err).Msg("failed to get group membership")
+		return []string{}, err
 	}
 	ml := new(sm.Membership)
 	ep := "/hsm/v2/memberships/" + id
@@ -352,6 +354,9 @@ func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 
 func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
 	var node base.Component
+	if strings.Trim(id, " \t") == "" {
+		return node, ErrEmptyID
+	}
 	ep := "/hsm/v2/State/Components/" + id
 	err := s.getSMD(ep, &node)
 	if err != nil {
