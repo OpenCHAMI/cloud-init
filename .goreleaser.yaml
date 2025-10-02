@@ -108,6 +108,7 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- if .Amd64 }}v{{ .Amd64 }}{{ end }}
     files:
       - LICENSE
       - CHANGELOG.md
