@@ -15,5 +15,6 @@ jobs:
       cgo-enabled: "1"
       pre-build-commands: |
         go install github.com/swaggo/swag/cmd/swag@latest
+        apt update && apt install -y git gcc g++ make ca-certificates curl gnupg gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev-arm64-cross software-properties-common clang-tools libstdc++-13-dev-arm64-cross
       attestation-binary-path: "dist/cloud-init*"
       registry-name: ghcr.io/openchami/cloud-init
