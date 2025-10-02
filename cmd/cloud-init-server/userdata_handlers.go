@@ -57,7 +57,7 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 		}
 
 		if !isUserInGroup(id, group, smd) {
-			http.Error(w, "Group not found", http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("node %s is not a member of group %s (node and/or group may not exist in SMD)", id, group), http.StatusNotFound)
 			return
 		}
 
