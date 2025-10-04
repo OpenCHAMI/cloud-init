@@ -89,10 +89,11 @@ func setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&region, "region", getEnv("REGION", ""), "Region of the cluster")
 	flags.StringVar(&availabilityZone, "az", getEnv("AZ", ""), "Availability zone of the cluster")
 	flags.StringVar(&cloudProvider, "cloud-provider", getEnv("CLOUD_PROVIDER", ""), "Cloud provider of the cluster")
-	flags.StringVar(&baseUrl, "base-url", getEnv("BASE_URL", ""), "Base URL for cloud-init-server including protocol and port (e.g. http://localhost:27777)")
+	flags.StringVar(&baseUrl, "base-url", getEnv("BASE_URL", "http://cloud-init:27777"), "Base URL for cloud-init-server including protocol and port (e.g. http://localhost:27777)")
 	flags.StringVar(&certPath, "cacert", getEnv("CACERT", ""), "Path to CA cert (defaults to system CAs)")
 	flags.BoolVar(&insecure, "insecure", parseBool(getEnv("INSECURE", "false")), "Set to bypass TLS verification for requests")
 	flags.BoolVar(&impersonationEnabled, "impersonation", parseBool(getEnv("IMPERSONATION", "false")), "Enable impersonation feature")
+	flags.BoolVar(&fakeSMDEnabled, "smd-simulator", parseBool(getEnv("CLOUD_INIT_SMD_SIMULATOR", "false")), "Enable fake SMD")
 	flags.StringVar(&wireguardServer, "wireguard-server", getEnv("WIREGUARD_SERVER", ""), "WireGuard server IP address and network (e.g. 100.97.0.1/16)")
 	flags.BoolVar(&wireguardOnly, "wireguard-only", parseBool(getEnv("WIREGUARD_ONLY", "false")), "Only allow access to the cloud-init functions from the WireGuard subnet")
 	flags.BoolVar(&debug, "debug", parseBool(getEnv("DEBUG", "false")), "Enable debug logging")
@@ -187,7 +188,7 @@ func startServer() error {
 
 	// Create SMD client
 	var sm smdclient.SMDClientInterface
-	if os.Getenv("CLOUD_INIT_SMD_SIMULATOR") == "true" {
+	if fakeSMDEnabled {
 		fmt.Printf("\n\n**********\n\n\tCLOUD_INIT_SMD_SIMULATOR is set to true in your environment.\n\n\tUsing the FakeSMDClient\n\n**********\n\n\n")
 		sm = smdclient.NewFakeSMDClient(clusterName, 500)
 	} else {
@@ -285,12 +286,12 @@ func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManage
 	if wireGuardMiddleware != nil {
 		router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
 		router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
-		router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
+		router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store, baseUrl))
 		router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 	} else {
 		router.Get("/user-data", UserDataHandler)
 		router.Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
-		router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store))
+		router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store, baseUrl))
 		router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 	}
 	router.Post("/phone-home/{id}", PhoneHomeHandler(wgInterfaceManager, handler.sm))
@@ -319,7 +320,7 @@ func initCiAdminRouter(router chi.Router, handler *CiHandler) {
 			// impersonation API endpoints
 			r.Get("/impersonation/{id}/user-data", UserDataHandler)
 			r.Get("/impersonation/{id}/meta-data", MetaDataHandler(handler.sm, handler.store))
-			r.Get("/impersonation/{id}/vendor-data", VendorDataHandler(handler.sm, handler.store))
+			r.Get("/impersonation/{id}/vendor-data", VendorDataHandler(handler.sm, handler.store, baseUrl))
 			r.Get("/impersonation/{id}/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 		}
 
