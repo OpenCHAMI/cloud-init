@@ -24,10 +24,9 @@ import (
 //	@Param			id	path		string	false	"Node ID"
 //	@Router			/vendor-data [get]
 //	@Router			/admin/impersonation/{id}/vendor-data [get]
-func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
+func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store, baseUrl string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		urlId := chi.URLParam(r, "id")
-		var baseUrl string
 		var id = urlId
 		var err error
 		// If this request includes an id, it can be interrpreted as an impersonation request
@@ -74,9 +73,6 @@ func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) ht
 		}
 		if extendedInstanceData.CloudInitBaseURL != "" {
 			baseUrl = extendedInstanceData.CloudInitBaseURL
-		}
-		if baseUrl == "" {
-			baseUrl = "http://cloud-init:27777"
 		}
 
 		payload := "#include\n"
