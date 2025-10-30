@@ -38,7 +38,7 @@ var (
 	ciEndpoint           string
 	tokenEndpoint        string
 	smdEndpoint          string
-	jwksUrl              string
+	jwksURL              string
 	insecure             bool
 	accessToken          string
 	certPath             string
@@ -46,11 +46,13 @@ var (
 	region               string
 	availabilityZone     string
 	cloudProvider        string
-	baseUrl              string
+	baseURL              string
 	fakeSMDEnabled       bool
 	impersonationEnabled bool
 	wireguardServer      string
 	wireguardOnly        bool
+	wgEngine             string
+	fipsMode             bool
 	debug                bool
 	wireGuardMiddleware  func(http.Handler) http.Handler
 	storageBackend       = "mem"           // Default to memstore
@@ -62,7 +64,7 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:   "cloud-init-server",
 		Short: "Starts the cloud-init server",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return startServer()
 		},
 	}
@@ -83,19 +85,21 @@ func setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&ciEndpoint, "listen", getEnv("LISTEN", "0.0.0.0:27777"), "Server IP and port for cloud-init-server to listen on")
 	flags.StringVar(&tokenEndpoint, "token-url", getEnv("TOKEN_URL", "http://opaal:3333/token"), "OIDC server endpoint to fetch new tokens from (for SMD access)")
 	flags.StringVar(&smdEndpoint, "smd-url", getEnv("SMD_URL", "http://smd:27779"), "Server host and port for running SMD (do not include /hsm/v2)")
-	flags.StringVar(&jwksUrl, "jwks-url", getEnv("JWKS_URL", ""), "JWT keyserver URL, required to enable secure route")
+	flags.StringVar(&jwksURL, "jwks-url", getEnv("JWKS_URL", ""), "JWT keyserver URL, required to enable secure route")
 	flags.StringVar(&accessToken, "access-token", getEnv("ACCESS_TOKEN", ""), "Encoded JWT access token")
 	flags.StringVar(&clusterName, "cluster-name", getEnv("CLUSTER_NAME", ""), "Name of the cluster")
 	flags.StringVar(&region, "region", getEnv("REGION", ""), "Region of the cluster")
 	flags.StringVar(&availabilityZone, "az", getEnv("AZ", ""), "Availability zone of the cluster")
 	flags.StringVar(&cloudProvider, "cloud-provider", getEnv("CLOUD_PROVIDER", ""), "Cloud provider of the cluster")
-	flags.StringVar(&baseUrl, "base-url", getEnv("BASE_URL", "http://cloud-init:27777"), "Base URL for cloud-init-server including protocol and port (e.g. http://localhost:27777)")
+	flags.StringVar(&baseURL, "base-url", getEnv("BASE_URL", "http://cloud-init:27777"), "Base URL for cloud-init-server including protocol and port (e.g. http://localhost:27777)")
 	flags.StringVar(&certPath, "cacert", getEnv("CACERT", ""), "Path to CA cert (defaults to system CAs)")
 	flags.BoolVar(&insecure, "insecure", parseBool(getEnv("INSECURE", "false")), "Set to bypass TLS verification for requests")
 	flags.BoolVar(&impersonationEnabled, "impersonation", parseBool(getEnv("IMPERSONATION", "false")), "Enable impersonation feature")
 	flags.BoolVar(&fakeSMDEnabled, "smd-simulator", parseBool(getEnv("CLOUD_INIT_SMD_SIMULATOR", "false")), "Enable fake SMD")
 	flags.StringVar(&wireguardServer, "wireguard-server", getEnv("WIREGUARD_SERVER", ""), "WireGuard server IP address and network (e.g. 100.97.0.1/16)")
 	flags.BoolVar(&wireguardOnly, "wireguard-only", parseBool(getEnv("WIREGUARD_ONLY", "false")), "Only allow access to the cloud-init functions from the WireGuard subnet")
+	flags.StringVar(&wgEngine, "wg-engine", getEnv("WG_ENGINE", "auto"), "WireGuard engine: kernel|userspace|auto")
+	flags.BoolVar(&fipsMode, "fips-mode", parseBool(getEnv("FIPS_MODE", "false")), "Force userspace engine in auto mode to keep kernel in FIPS compliance")
 	flags.BoolVar(&debug, "debug", parseBool(getEnv("DEBUG", "false")), "Enable debug logging")
 	flags.StringVar(&storageBackend, "storage-backend", getEnv("STORAGE_BACKEND", "mem"), "Storage backend to use (mem or quack)")
 	flags.StringVar(&dbPath, "db-path", getEnv("DB_PATH", "cloud-init.db"), "Path to the database file for quackstore backend")
@@ -121,6 +125,8 @@ func bindViperToFlags() {
 	_ = viper.BindEnv("impersonation")
 	_ = viper.BindEnv("wireguard_server")
 	_ = viper.BindEnv("wireguard_only")
+	_ = viper.BindEnv("wg_engine")
+	_ = viper.BindEnv("fips_mode")
 	_ = viper.BindEnv("debug")
 	_ = viper.BindEnv("storage_backend")
 	_ = viper.BindEnv("db_path")
@@ -134,13 +140,13 @@ func startServer() error {
 			Str("listen", ciEndpoint).
 			Str("token-url", tokenEndpoint).
 			Str("smd-url", smdEndpoint).
-			Str("jwks-url", jwksUrl).
+			Str("jwks-url", jwksURL).
 			Str("access-token", accessToken).
 			Str("cluster-name", clusterName).
 			Str("region", region).
 			Str("az", availabilityZone).
 			Str("cloud-provider", cloudProvider).
-			Str("base-url", baseUrl).
+			Str("base-url", baseURL).
 			Str("cacert", certPath).
 			Bool("insecure", insecure).
 			Bool("impersonation", impersonationEnabled).
@@ -174,9 +180,9 @@ func startServer() error {
 	// Setup JWKS if provided
 	var keyset *jwtauth.JWTAuth
 	secureRouteEnable := false
-	if jwksUrl != "" {
+	if jwksURL != "" {
 		var err error
-		keyset, err = fetchPublicKeyFromURL(jwksUrl)
+		keyset, err = fetchPublicKeyFromURL(jwksURL)
 		if err != nil {
 			fmt.Printf("JWKS initialization failed: %s\n", err)
 		} else {
@@ -187,7 +193,7 @@ func startServer() error {
 	}
 
 	// Create SMD client
-	var sm smdclient.SMDClientInterface
+	var sm smdclient.Interface
 	if fakeSMDEnabled {
 		fmt.Printf("\n\n**********\n\n\tCLOUD_INIT_SMD_SIMULATOR is set to true in your environment.\n\n\tUsing the FakeSMDClient\n\n**********\n\n\n")
 		sm = smdclient.NewFakeSMDClient(clusterName, 500)
@@ -208,11 +214,16 @@ func startServer() error {
 	var wgInterfaceManager *wgtunnel.InterfaceManager
 	if wireguardServer != "" {
 		log.Info().Msgf("Initializing WireGuard server with %s", wireguardServer)
-		wgIp, wgNet, err := net.ParseCIDR(wireguardServer)
+		wgIP, wgNet, err := net.ParseCIDR(wireguardServer)
 		if err != nil {
 			return fmt.Errorf("failed to parse WireGuard server IP and netmask from %s. Use format '100.97.0.1/16': %w", wireguardServer, err)
 		}
-		wgInterfaceManager = wgtunnel.NewInterfaceManager("wg0", wgIp, wgNet)
+		// Select engine
+		eng, err := wgtunnel.SelectEngine(wgtunnel.EngineType(strings.ToLower(wgEngine)), fipsMode)
+		if err != nil {
+			return fmt.Errorf("invalid wg engine selection: %w", err)
+		}
+		wgInterfaceManager = wgtunnel.NewInterfaceManagerWithEngine("wg0", wgIP, wgNet, eng)
 		err = wgInterfaceManager.StartServer()
 		if err != nil {
 			return fmt.Errorf("failed to start the WireGuard server: %w", err)
@@ -286,12 +297,12 @@ func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManage
 	if wireGuardMiddleware != nil {
 		router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
 		router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
-		router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store, baseUrl))
+		router.With(wireGuardMiddleware).Get("/vendor-data", VendorDataHandler(handler.sm, handler.store, baseURL))
 		router.With(wireGuardMiddleware).Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 	} else {
 		router.Get("/user-data", UserDataHandler)
 		router.Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
-		router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store, baseUrl))
+		router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store, baseURL))
 		router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 	}
 	router.Post("/phone-home/{id}", PhoneHomeHandler(wgInterfaceManager, handler.sm))
@@ -307,7 +318,7 @@ func initCiAdminRouter(router chi.Router, handler *CiHandler) {
 		r.Post("/cluster-defaults", SetClusterDataHandler(handler.store))
 		// r.Put("/cluster-defaults", SetClusterDataHandler(handler.store)) // Should we support PUT and POST or just one of them?
 
-		r.Put("/instance-info/{id}", InstanceInfoHandler(handler.sm, handler.store))
+		r.Put("/instance-info/{id}", InstanceInfoHandler(handler.store))
 
 		// groups API endpoints
 		r.Get("/groups", handler.GetGroups)
@@ -320,7 +331,7 @@ func initCiAdminRouter(router chi.Router, handler *CiHandler) {
 			// impersonation API endpoints
 			r.Get("/impersonation/{id}/user-data", UserDataHandler)
 			r.Get("/impersonation/{id}/meta-data", MetaDataHandler(handler.sm, handler.store))
-			r.Get("/impersonation/{id}/vendor-data", VendorDataHandler(handler.sm, handler.store, baseUrl))
+			r.Get("/impersonation/{id}/vendor-data", VendorDataHandler(handler.sm, handler.store, baseURL))
 			r.Get("/impersonation/{id}/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 		}
 

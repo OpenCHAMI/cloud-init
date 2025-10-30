@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// MemStore is an in-memory implementation of cistore.Store for testing and ephemeral runs.
 type MemStore struct {
 	Groups               map[string]cistore.GroupData `json:"groups,omitempty" yaml:"groups,omitempty"`
 	GroupsMutex          sync.RWMutex
@@ -19,6 +20,7 @@ type MemStore struct {
 	ClusterDefaultsMutex sync.RWMutex
 }
 
+// NewMemStore constructs an empty MemStore.
 func NewMemStore() *MemStore {
 	return &MemStore{
 		Groups:               make(map[string]cistore.GroupData),
@@ -30,12 +32,14 @@ func NewMemStore() *MemStore {
 	}
 }
 
+// GetGroups returns all groups in the memstore.
 func (m *MemStore) GetGroups() map[string]cistore.GroupData {
 	m.GroupsMutex.RLock()
 	defer m.GroupsMutex.RUnlock()
 	return m.Groups
 }
 
+// AddGroupData adds a group; errors if it already exists.
 func (m *MemStore) AddGroupData(groupName string, newGroupData cistore.GroupData) error {
 	m.GroupsMutex.RLock()
 	defer m.GroupsMutex.RUnlock()
@@ -45,24 +49,22 @@ func (m *MemStore) AddGroupData(groupName string, newGroupData cistore.GroupData
 		// found group so return error without changing anything
 		log.Error().Msgf("group '%s' not added as it already exists", groupName)
 		return fmt.Errorf("group '%s' not added as it already exists", groupName)
-	} else {
-		// does not exist, so create and update
-		m.Groups[groupName] = newGroupData
-
 	}
+	// does not exist, so create and update
+	m.Groups[groupName] = newGroupData
 	return nil
 }
 
 // GetGroupData returns the value of a specific group
+// GetGroupData returns the group by name.
 func (m *MemStore) GetGroupData(groupName string) (cistore.GroupData, error) {
 	m.GroupsMutex.RLock()
 	defer m.GroupsMutex.RUnlock()
 	group, ok := m.Groups[groupName]
 	if ok {
 		return group, nil
-	} else {
-		return cistore.GroupData{}, fmt.Errorf("group (%s) not found in memstore", groupName)
 	}
+	return cistore.GroupData{}, fmt.Errorf("group (%s) not found in memstore", groupName)
 
 }
 
@@ -84,6 +86,7 @@ func (m *MemStore) UpdateGroupData(groupName string, groupData cistore.GroupData
 	return nil
 }
 
+// RemoveGroupData deletes a group by name.
 func (m *MemStore) RemoveGroupData(name string) error {
 	m.GroupsMutex.RLock()
 	defer m.GroupsMutex.RUnlock()
@@ -91,24 +94,26 @@ func (m *MemStore) RemoveGroupData(name string) error {
 	return nil
 }
 
+// GetInstanceInfo returns instance data, generating a new InstanceID when absent.
 func (m *MemStore) GetInstanceInfo(nodeName string) (cistore.OpenCHAMIInstanceInfo, error) {
 	m.InstancesMutex.RLock()
 	defer m.InstancesMutex.RUnlock()
 	if _, ok := m.Instances[nodeName]; !ok {
 		m.Instances[nodeName] = cistore.OpenCHAMIInstanceInfo{
-			InstanceID: generateInstanceId(),
+			InstanceID: generateInstanceID(),
 		}
 	}
 	return m.Instances[nodeName], nil
 }
 
+// SetInstanceInfo upserts instance information, preserving InstanceID on updates.
 func (m *MemStore) SetInstanceInfo(nodeName string, instanceInfo cistore.OpenCHAMIInstanceInfo) error {
 	m.InstancesMutex.RLock()
 	defer m.InstancesMutex.RUnlock()
 	if _, ok := m.Instances[nodeName]; !ok {
 		// This is a creation operation
 		if instanceInfo.InstanceID == "" {
-			instanceInfo.InstanceID = generateInstanceId()
+			instanceInfo.InstanceID = generateInstanceID()
 		}
 		m.Instances[nodeName] = instanceInfo
 	} else {
@@ -119,6 +124,7 @@ func (m *MemStore) SetInstanceInfo(nodeName string, instanceInfo cistore.OpenCHA
 	return nil
 }
 
+// DeleteInstanceInfo removes instance data for a node.
 func (m *MemStore) DeleteInstanceInfo(nodeName string) error {
 	m.InstancesMutex.RLock()
 	defer m.InstancesMutex.RUnlock()
@@ -126,12 +132,14 @@ func (m *MemStore) DeleteInstanceInfo(nodeName string) error {
 	return nil
 }
 
+// GetClusterDefaults returns the currently set cluster defaults.
 func (m *MemStore) GetClusterDefaults() (cistore.ClusterDefaults, error) {
 	m.ClusterDefaultsMutex.RLock()
 	defer m.ClusterDefaultsMutex.RUnlock()
 	return m.ClusterDefaults, nil
 }
 
+// SetClusterDefaults applies a partial update to cluster defaults.
 func (m *MemStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) error {
 	m.ClusterDefaultsMutex.Lock()
 	defer m.ClusterDefaultsMutex.Unlock()
@@ -148,9 +156,9 @@ func (m *MemStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) e
 		log.Debug().Msgf("Setting NidLength to %v", clusterDefaults.NidLength)
 		cd.NidLength = clusterDefaults.NidLength
 	}
-	if clusterDefaults.BaseUrl != "" {
-		log.Debug().Msgf("Setting BaseUrl to %s", clusterDefaults.BaseUrl)
-		cd.BaseUrl = strings.TrimRight(clusterDefaults.BaseUrl, "/")
+	if clusterDefaults.BaseURL != "" {
+		log.Debug().Msgf("Setting BaseURL to %s", clusterDefaults.BaseURL)
+		cd.BaseURL = strings.TrimRight(clusterDefaults.BaseURL, "/")
 	}
 	if clusterDefaults.AvailabilityZone != "" {
 		log.Debug().Msgf("Setting Availability Zone to %s", clusterDefaults.AvailabilityZone)
@@ -172,7 +180,7 @@ func (m *MemStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) e
 	return nil
 }
 
-func generateInstanceId() string {
+func generateInstanceID() string {
 	// in the future, we might want to map the instance-id to an xname or something else.
 	return generateUniqueID("i")
 

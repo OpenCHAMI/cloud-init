@@ -52,6 +52,7 @@ func (m *IDMapper) AddMapping(xname, instanceID, nodeID string) error {
 	return nil
 }
 
+// UpdateMapping updates or inserts a mapping for the given identifiers.
 func (m *IDMapper) UpdateMapping(xname, instanceID, nodeID string) error {
 	if _, exists := m.xnameToID[xname]; !exists {
 		return errors.New("xname does not exist")

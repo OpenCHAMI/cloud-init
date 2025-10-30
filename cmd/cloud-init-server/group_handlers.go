@@ -20,7 +20,7 @@ import (
 //	@Success		200	{object}	map[string]cistore.ClusterDefaults
 //	@Failure		500	{object}	nil
 //	@Router			/admin/groups [get]
-func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
+func (h CiHandler) GetGroups(w http.ResponseWriter, _ *http.Request) {
 	var (
 		groups map[string]cistore.GroupData
 		bytes  []byte

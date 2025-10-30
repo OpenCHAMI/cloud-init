@@ -45,13 +45,13 @@ func getActualRequestIP(r *http.Request) string {
 //	@Param			id	path		string	false	"Node ID"
 //	@Router			/meta-data [get]
 //	@Router			/admin/impersonation/{id}/meta-data [get]
-func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
+func MetaDataHandler(smd smdclient.Interface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		urlId := chi.URLParam(r, "id")
+		urlID := chi.URLParam(r, "id")
 		var id string
 		var err error
 		// If this request includes an id, it can be interrpreted as an impersonation request
-		if urlId == "" {
+		if urlID == "" {
 			log.Debug().Msg("no id specified in request, attempting to identify based on requesting IP")
 			ip := getActualRequestIP(r)
 			log.Debug().Msgf("requesting IP is: %s", ip)
@@ -61,11 +61,10 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http
 				log.Printf("did not find id from ip %s: %v", ip, err)
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				return
-			} else {
-				log.Printf("xname %s with ip %s found\n", id, ip)
 			}
+			log.Printf("xname %s with ip %s found\n", id, ip)
 		} else {
-			id = urlId
+			id = urlID
 		}
 		log.Debug().Msgf("Getting metadata for id: %s", id)
 		smdComponent, err := smd.ComponentInformation(id)

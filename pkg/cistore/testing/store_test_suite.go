@@ -224,7 +224,7 @@ func testClusterDefaultsOperations(t *testing.T, store cistore.Store) {
 		ClusterName:      "test-cluster",
 		ShortName:        "test",
 		NidLength:        3,
-		BaseUrl:          "http://test.example.com",
+		BaseURL:          "http://test.example.com",
 		AvailabilityZone: "test-zone",
 		Region:           "test-region",
 		CloudProvider:    "test-provider",
@@ -244,7 +244,7 @@ func testClusterDefaultsOperations(t *testing.T, store cistore.Store) {
 		assert.Equal(t, testDefaults.ClusterName, defaults.ClusterName)
 		assert.Equal(t, testDefaults.ShortName, defaults.ShortName)
 		assert.Equal(t, testDefaults.NidLength, defaults.NidLength)
-		assert.Equal(t, testDefaults.BaseUrl, defaults.BaseUrl)
+		assert.Equal(t, testDefaults.BaseURL, defaults.BaseURL)
 		assert.Equal(t, testDefaults.AvailabilityZone, defaults.AvailabilityZone)
 		assert.Equal(t, testDefaults.Region, defaults.Region)
 		assert.Equal(t, testDefaults.CloudProvider, defaults.CloudProvider)
@@ -266,7 +266,7 @@ func testClusterDefaultsOperations(t *testing.T, store cistore.Store) {
 		assert.Equal(t, partialDefaults.ClusterName, defaults.ClusterName)
 		assert.Equal(t, partialDefaults.ShortName, defaults.ShortName)
 		assert.Equal(t, testDefaults.NidLength, defaults.NidLength)
-		assert.Equal(t, testDefaults.BaseUrl, defaults.BaseUrl)
+		assert.Equal(t, testDefaults.BaseURL, defaults.BaseURL)
 		assert.Equal(t, testDefaults.AvailabilityZone, defaults.AvailabilityZone)
 		assert.Equal(t, testDefaults.Region, defaults.Region)
 		assert.Equal(t, testDefaults.CloudProvider, defaults.CloudProvider)

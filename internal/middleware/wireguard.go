@@ -1,3 +1,5 @@
+// Package middleware provides HTTP middlewares used by cloud-init-server,
+// including WireGuard-related access controls for proxied and direct traffic.
 package middleware
 
 import (
@@ -73,7 +75,7 @@ func WireGuardMiddlewareWithProxy(wireGuardCIDR string, allow bool) func(http.Ha
 	}
 }
 
-// WireGuardMiddleware enforces policies based on the interface and subnet.
+// WireGuardMiddlewareWithInterface enforces policies based on the interface and subnet.
 func WireGuardMiddlewareWithInterface(wireGuardInterface string, wireGuardCIDR string) func(http.Handler) http.Handler {
 	// Parse the WireGuard CIDR into a *net.IPNet
 	_, wgNet, err := net.ParseCIDR(wireGuardCIDR)
@@ -146,7 +148,7 @@ func WireGuardMiddlewareWithInterface(wireGuardInterface string, wireGuardCIDR s
 
 			// Check if the IP matches the WireGuard subnet
 			isInWireGuardSubnet := wgNet.Contains(ip)
-			var recievedInterface net.Interface
+			var receivedInterface net.Interface
 
 			// Check if the request arrived on the WireGuard interface
 			isOnWireGuardInterface := false
@@ -160,7 +162,7 @@ func WireGuardMiddlewareWithInterface(wireGuardInterface string, wireGuardCIDR s
 				addrs, _ := iface.Addrs() // Ignoring error on Addrs() as we can still check other interfaces
 				for _, ifaceAddr := range addrs {
 					if ipNet, ok := ifaceAddr.(*net.IPNet); ok && ipNet.IP.Equal(ip) {
-						recievedInterface = iface
+						receivedInterface = iface
 						if iface.Name == wireGuardInterface {
 							isOnWireGuardInterface = true
 							break
@@ -172,7 +174,7 @@ func WireGuardMiddlewareWithInterface(wireGuardInterface string, wireGuardCIDR s
 			log.Debug().
 				Str("localIP", localIP).
 				Str("clientIP", clientIP).
-				Str("interface", recievedInterface.Name).
+				Str("interface", receivedInterface.Name).
 				Bool("isInWireGuardSubnet", isInWireGuardSubnet).
 				Bool("isOnWireGuardInterface", isOnWireGuardInterface).
 				Msg("WireGuard policy check")

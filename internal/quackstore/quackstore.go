@@ -210,7 +210,7 @@ func (s *QuackStore) GetInstanceInfo(nodeName string) (cistore.OpenCHAMIInstance
 	if err == sql.ErrNoRows {
 		// If not found, return a new instance with generated ID
 		return cistore.OpenCHAMIInstanceInfo{
-			InstanceID: generateInstanceId(),
+			InstanceID: generateInstanceID(),
 		}, nil
 	}
 	if err != nil {
@@ -240,7 +240,7 @@ func (s *QuackStore) SetInstanceInfo(nodeName string, instanceInfo cistore.OpenC
 		return fmt.Errorf("failed to query existing instance: %w", err)
 	} else if instanceInfo.InstanceID == "" {
 		// Generate new instance ID if none exists
-		instanceInfo.InstanceID = generateInstanceId()
+		instanceInfo.InstanceID = generateInstanceID()
 	}
 
 	data, err := json.Marshal(instanceInfo)
@@ -312,8 +312,8 @@ func (s *QuackStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults)
 			if clusterDefaults.NidLength != 0 {
 				existingDefaults.NidLength = clusterDefaults.NidLength
 			}
-			if clusterDefaults.BaseUrl != "" {
-				existingDefaults.BaseUrl = clusterDefaults.BaseUrl
+			if clusterDefaults.BaseURL != "" {
+				existingDefaults.BaseURL = clusterDefaults.BaseURL
 			}
 			if clusterDefaults.AvailabilityZone != "" {
 				existingDefaults.AvailabilityZone = clusterDefaults.AvailabilityZone
@@ -353,7 +353,7 @@ func (s *QuackStore) Close() error {
 
 // generateInstanceID generates a unique instance ID in the format "i-XXXXXX",
 // where "XXXXXX" is a random 6-digit hexadecimal string.
-func generateInstanceId() string {
+func generateInstanceID() string {
 	randBytes := make([]byte, 3)
 	_, _ = rand.Read(randBytes) // Read fills randBytes with cryptographically secure random bytes. It never returns an error, and always fills randBytes entirely
 	return fmt.Sprintf("i-%x", randBytes)

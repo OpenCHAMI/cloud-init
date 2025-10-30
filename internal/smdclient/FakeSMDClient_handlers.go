@@ -9,11 +9,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// OpenCHAMINodeWithGroups is a helper DTO that augments a node with group labels.
 type OpenCHAMINodeWithGroups struct {
 	cistore.OpenCHAMIComponent
 	Groups []string `json:"groups,omitempty" yaml:"groups,omitempty"`
 }
 
+// AddNodeToInventoryHandler returns an HTTP handler that adds a node and assigns groups.
 func AddNodeToInventoryHandler(f *FakeSMDClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var addNode OpenCHAMINodeWithGroups
@@ -34,18 +36,19 @@ func AddNodeToInventoryHandler(f *FakeSMDClient) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.WriteHeader(http.StatusCreated)
 		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
 		w.Header().Add("Location", r.URL.Path+"/"+addNode.ID)
 
 	}
 }
 
+// ListNodesHandler returns an HTTP handler that lists all nodes from the fake client.
 func ListNodesHandler(f *FakeSMDClient) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		nodes := f.ListNodes()
-		w.WriteHeader(http.StatusOK)
 		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(nodes); err != nil {
 			log.Error().Err(err).Msg("Failed to encode nodes")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -54,6 +57,7 @@ func ListNodesHandler(f *FakeSMDClient) http.HandlerFunc {
 	}
 }
 
+// UpdateNodeHandler returns an HTTP handler that updates a node by ID.
 func UpdateNodeHandler(f *FakeSMDClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")

@@ -7,14 +7,16 @@ import (
 	"sync"
 
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
-	_ "github.com/marcboeker/go-duckdb"
+	_ "github.com/marcboeker/go-duckdb" // import for side-effects: DuckDB driver
 )
 
+// DuckDBStore implements cistore.Store backed by a DuckDB database.
 type DuckDBStore struct {
 	db *sql.DB
 	mu sync.RWMutex
 }
 
+// NewDuckDBStore opens or creates a DuckDB database at the given DSN.
 func NewDuckDBStore(dsn string) (*DuckDBStore, error) {
 	db, err := sql.Open("duckdb", dsn)
 	if err != nil {
@@ -23,6 +25,7 @@ func NewDuckDBStore(dsn string) (*DuckDBStore, error) {
 	return &DuckDBStore{db: db}, nil
 }
 
+// GetGroups returns all groups stored in the database.
 func (d *DuckDBStore) GetGroups() (map[string]cistore.GroupData, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -54,6 +57,7 @@ func (d *DuckDBStore) GetGroups() (map[string]cistore.GroupData, error) {
 	return groups, nil
 }
 
+// AddGroupData inserts a new group with the provided data.
 func (d *DuckDBStore) AddGroupData(groupName string, groupData cistore.GroupData) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -64,6 +68,7 @@ func (d *DuckDBStore) AddGroupData(groupName string, groupData cistore.GroupData
 	return err
 }
 
+// GetGroupData retrieves a single group's data by name.
 func (d *DuckDBStore) GetGroupData(groupName string) (cistore.GroupData, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -86,6 +91,7 @@ func (d *DuckDBStore) GetGroupData(groupName string) (cistore.GroupData, error) 
 	return group, nil
 }
 
+// UpdateGroupData updates an existing group or creates it when create=true.
 func (d *DuckDBStore) UpdateGroupData(groupName string, groupData cistore.GroupData, create bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -101,6 +107,7 @@ func (d *DuckDBStore) UpdateGroupData(groupName string, groupData cistore.GroupD
 	return err
 }
 
+// RemoveGroupData deletes a group by name.
 func (d *DuckDBStore) RemoveGroupData(groupName string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -108,6 +115,7 @@ func (d *DuckDBStore) RemoveGroupData(groupName string) error {
 	return err
 }
 
+// GetInstanceInfo returns instance information for the given node.
 func (d *DuckDBStore) GetInstanceInfo(nodeName string) (cistore.OpenCHAMIInstanceInfo, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -117,6 +125,7 @@ func (d *DuckDBStore) GetInstanceInfo(nodeName string) (cistore.OpenCHAMIInstanc
 	return instance, err
 }
 
+// SetInstanceInfo upserts instance information for a node.
 func (d *DuckDBStore) SetInstanceInfo(nodeName string, instanceInfo cistore.OpenCHAMIInstanceInfo) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -127,6 +136,7 @@ func (d *DuckDBStore) SetInstanceInfo(nodeName string, instanceInfo cistore.Open
 	return err
 }
 
+// DeleteInstanceInfo removes a node's instance information.
 func (d *DuckDBStore) DeleteInstanceInfo(nodeName string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -134,25 +144,28 @@ func (d *DuckDBStore) DeleteInstanceInfo(nodeName string) error {
 	return err
 }
 
+// GetClusterDefaults returns the cluster defaults record.
 func (d *DuckDBStore) GetClusterDefaults() (cistore.ClusterDefaults, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	var defaults cistore.ClusterDefaults
 	err := d.db.QueryRow("SELECT cloud_provider, region, availability_zone, cluster_name, public_keys, base_url, boot_subnet, wg_subnet, short_name, nid_length FROM cluster_defaults").
-		Scan(&defaults.CloudProvider, &defaults.Region, &defaults.AvailabilityZone, &defaults.ClusterName, &defaults.PublicKeys, &defaults.BaseUrl, &defaults.BootSubnet, &defaults.WGSubnet, &defaults.ShortName, &defaults.NidLength)
+		Scan(&defaults.CloudProvider, &defaults.Region, &defaults.AvailabilityZone, &defaults.ClusterName, &defaults.PublicKeys, &defaults.BaseURL, &defaults.BootSubnet, &defaults.WGSubnet, &defaults.ShortName, &defaults.NidLength)
 	return defaults, err
 }
 
+// SetClusterDefaults upserts the cluster defaults record.
 func (d *DuckDBStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	publicKeys, _ := json.Marshal(clusterDefaults.PublicKeys) // Not checking error on Marshall because PublicKeys is always serializable
 	_, err := d.db.Exec("INSERT INTO cluster_defaults (cloud_provider, region, availability_zone, cluster_name, public_keys, base_url, boot_subnet, wg_subnet, short_name, nid_length) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET cloud_provider = ?, region = ?, availability_zone = ?, cluster_name = ?, public_keys = ?, base_url = ?, boot_subnet = ?, wg_subnet = ?, short_name = ?, nid_length = ?",
-		clusterDefaults.CloudProvider, clusterDefaults.Region, clusterDefaults.AvailabilityZone, clusterDefaults.ClusterName, publicKeys, clusterDefaults.BaseUrl, clusterDefaults.BootSubnet, clusterDefaults.WGSubnet, clusterDefaults.ShortName, clusterDefaults.NidLength,
-		clusterDefaults.CloudProvider, clusterDefaults.Region, clusterDefaults.AvailabilityZone, clusterDefaults.ClusterName, publicKeys, clusterDefaults.BaseUrl, clusterDefaults.BootSubnet, clusterDefaults.WGSubnet, clusterDefaults.ShortName, clusterDefaults.NidLength)
+		clusterDefaults.CloudProvider, clusterDefaults.Region, clusterDefaults.AvailabilityZone, clusterDefaults.ClusterName, publicKeys, clusterDefaults.BaseURL, clusterDefaults.BootSubnet, clusterDefaults.WGSubnet, clusterDefaults.ShortName, clusterDefaults.NidLength,
+		clusterDefaults.CloudProvider, clusterDefaults.Region, clusterDefaults.AvailabilityZone, clusterDefaults.ClusterName, publicKeys, clusterDefaults.BaseURL, clusterDefaults.BootSubnet, clusterDefaults.WGSubnet, clusterDefaults.ShortName, clusterDefaults.NidLength)
 	return err
 }
 
+// SerializeToParquet writes all tables to parquet files at the given path.
 func (d *DuckDBStore) SerializeToParquet(filePath string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -166,6 +179,7 @@ func (d *DuckDBStore) SerializeToParquet(filePath string) error {
 	return nil
 }
 
+// LoadFromParquet loads all tables from parquet files at the given path.
 func (d *DuckDBStore) LoadFromParquet(filePath string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -179,6 +193,7 @@ func (d *DuckDBStore) LoadFromParquet(filePath string) error {
 	return nil
 }
 
+// ApplyMigrations executes the provided SQL migration statements.
 func (d *DuckDBStore) ApplyMigrations(migrations []string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

@@ -99,8 +99,8 @@ func generateMetaData(component cistore.OpenCHAMIComponent, groups []string, s c
 	// Add extended attributes
 	instanceData.V1.InstanceID = extendedInstanceData.InstanceID
 	instanceData.V1.InstanceType = extendedInstanceData.InstanceType
-	if clusterDefaults.BaseUrl != "" {
-		instanceData.V1.VendorData.CloudInitBaseURL = clusterDefaults.BaseUrl
+	if clusterDefaults.BaseURL != "" {
+		instanceData.V1.VendorData.CloudInitBaseURL = clusterDefaults.BaseURL
 	}
 	if extendedInstanceData.CloudInitBaseURL != "" {
 		instanceData.V1.VendorData.CloudInitBaseURL = extendedInstanceData.CloudInitBaseURL

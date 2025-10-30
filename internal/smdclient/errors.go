@@ -7,8 +7,10 @@ import (
 )
 
 var (
+	// ErrUnmarshal indicates the SMD client failed to unmarshal a response body.
 	ErrUnmarshal = errors.New("cannot unmarshal JSON")
-	ErrEmptyID   = errors.New("empty id")
+	// ErrEmptyID indicates a required component identifier was not provided.
+	ErrEmptyID = errors.New("empty id")
 )
 
 // ErrSMDResponse contains the HTTP response of a REST API request to SMD.

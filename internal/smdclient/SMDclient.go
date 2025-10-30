@@ -1,3 +1,5 @@
+// Package smdclient provides a client for interacting with the System Metadata
+// (SMD) service, including lightweight caching helpers used by cloud-init.
 package smdclient
 
 import (
@@ -19,8 +21,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Create an SMDClient Interface which can be more easily tested and mocked
-type SMDClientInterface interface {
+// Interface defines the SMD client contract to allow mocking and testing.
+type Interface interface {
 	IDfromMAC(mac string) (string, error)
 	IDfromIP(ipaddr string) (string, error)
 	IPfromID(id string) (string, error)
@@ -40,18 +42,19 @@ type SMDClientInterface interface {
 
 // SMDClient is a client for SMD
 type SMDClient struct {
-	clusterName       string
-	smdClient         *http.Client
-	smdBaseURL        string
-	tokenEndpoint     string
-	accessToken       string
-	nodes             map[string]NodeMapping
-	nodesMutex        *sync.Mutex
-	nodes_last_update time.Time
-	stopCacheRefresh  chan struct{}
-	stopOnce          sync.Once
+	clusterName      string
+	smdClient        *http.Client
+	smdBaseURL       string
+	tokenEndpoint    string
+	accessToken      string
+	nodes            map[string]NodeMapping
+	nodesMutex       *sync.Mutex
+	nodesLastUpdate  time.Time
+	stopCacheRefresh chan struct{}
+	stopOnce         sync.Once
 }
 
+// NodeInterface describes a node's network interface details fetched from SMD.
 type NodeInterface struct {
 	MAC  string `json:"mac" yaml:"mac"`
 	IP   string `json:"ip" yaml:"ip"`
@@ -59,6 +62,7 @@ type NodeInterface struct {
 	Desc string `json:"description" yaml:"description"`
 }
 
+// NodeMapping maps an xname to its known interfaces.
 type NodeMapping struct {
 	Xname      string          `json:"xname" yaml:"xname"`
 	Interfaces []NodeInterface `json:"interfaces" yaml:"interfaces"`
@@ -80,7 +84,7 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 		if err != nil {
 			return nil, fmt.Errorf("failed to read cert from path %s: %v", certPath, err)
 		}
-		certPool := x509.NewCertPool()
+		certPool = x509.NewCertPool()
 		certPool.AppendCertsFromPEM(cacert)
 	}
 
@@ -100,15 +104,15 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 	}
 
 	client := &SMDClient{
-		clusterName:       clusterName,
-		smdClient:         c,
-		smdBaseURL:        baseurl,
-		tokenEndpoint:     jwtURL,
-		accessToken:       accessToken,
-		nodesMutex:        &sync.Mutex{},
-		nodes_last_update: time.Now(),
-		nodes:             make(map[string]NodeMapping),
-		stopCacheRefresh:  make(chan struct{}),
+		clusterName:      clusterName,
+		smdClient:        c,
+		smdBaseURL:       baseurl,
+		tokenEndpoint:    jwtURL,
+		accessToken:      accessToken,
+		nodesMutex:       &sync.Mutex{},
+		nodesLastUpdate:  time.Now(),
+		nodes:            make(map[string]NodeMapping),
+		stopCacheRefresh: make(chan struct{}),
 	}
 
 	// Populate the cache initially
@@ -148,7 +152,6 @@ func (s *SMDClient) StopCacheRefresh() {
 	s.stopOnce.Do(func() {
 		close(s.stopCacheRefresh)
 	})
-	close(s.stopCacheRefresh)
 }
 
 // ClusterName returns the name of the cluster
@@ -273,7 +276,7 @@ func (s *SMDClient) PopulateNodes() {
 			s.nodes[ep.CompID] = newNode
 		}
 	}
-	s.nodes_last_update = time.Now()
+	s.nodesLastUpdate = time.Now()
 	log.Debug().Msg("Nodes map populated")
 }
 
@@ -322,6 +325,7 @@ func (s *SMDClient) IPfromID(id string) (string, error) {
 	return "", errors.New("ID " + id + " not found in nodes")
 }
 
+// MACfromID returns the first MAC address associated with the given xname ID.
 func (s *SMDClient) MACfromID(id string) (string, error) {
 	s.nodesMutex.Lock()
 	defer s.nodesMutex.Unlock()
@@ -352,6 +356,7 @@ func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 	return ml.GroupLabels, nil
 }
 
+// ComponentInformation fetches detailed component information for an xname ID.
 func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
 	var node base.Component
 	if strings.Trim(id, " \t") == "" {
@@ -365,6 +370,7 @@ func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
 	return node, nil
 }
 
+// AddWGIP sets the WireGuard IP on the first interface for the given xname ID.
 func (s *SMDClient) AddWGIP(id string, wgip string) error {
 	s.nodesMutex.Lock()
 	defer s.nodesMutex.Unlock()
@@ -380,6 +386,7 @@ func (s *SMDClient) AddWGIP(id string, wgip string) error {
 	return nil
 }
 
+// WGIPfromID returns the WireGuard IP for the given xname ID.
 func (s *SMDClient) WGIPfromID(id string) (string, error) {
 	s.nodesMutex.Lock()
 	defer s.nodesMutex.Unlock()

@@ -46,7 +46,7 @@ type WGResponse struct {
 //	@Param			pubkey			body		PublicKeyRequest	true	"WireGuard public key of client"
 //	@Param			X-Forwarded-For	header		string				false	"Override source IP"
 //	@Router			/wg-init [post]
-func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterface) http.HandlerFunc {
+func AddClientHandler(im *InterfaceManager, smdClient smdclient.Interface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
@@ -88,7 +88,7 @@ func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterfa
 		log.Info().Msgf("Received request: PublicKey=%s, ClientIP=%s\n", publicKey, clientIP)
 
 		// Assign a unique IP for the client.
-		clientVPNIP := im.IpForPeer(clientIP, publicKey)
+		clientVPNIP := im.IPForPeer(clientIP, publicKey)
 		if clientVPNIP == "" {
 			http.Error(w, "Failed to allocate client IP", http.StatusInternalServerError)
 			return

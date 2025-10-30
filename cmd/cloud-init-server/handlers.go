@@ -17,11 +17,11 @@ import (
 
 type CiHandler struct {
 	store       cistore.Store
-	sm          smdclient.SMDClientInterface
+	sm          smdclient.Interface
 	clusterName string
 }
 
-func NewCiHandler(s cistore.Store, c smdclient.SMDClientInterface, clusterName string) *CiHandler {
+func NewCiHandler(s cistore.Store, c smdclient.Interface, clusterName string) *CiHandler {
 	return &CiHandler{
 		store:       s,
 		sm:          c,
@@ -54,7 +54,7 @@ func parseData(r *http.Request) (cistore.GroupData, error) {
 //	@Success	200	{object}	string
 //	@Failure	500	{object}	nil
 //	@Router		/openapi.json [get]
-func DocsHandler(w http.ResponseWriter, r *http.Request) {
+func DocsHandler(w http.ResponseWriter, _ *http.Request) {
 	doc, err := swag.ReadDoc()
 	if err != nil {
 		log.Error().Msgf("Error reading OpenAPI docs: %v", err)
@@ -119,7 +119,7 @@ func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 //	@Failure		500	{object}	nil
 //	@Router			/admin/cluster-defaults [get]
 func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		data, err := store.GetClusterDefaults()
 		if err != nil {
 			log.Error().Msgf("Error getting cluster defaults: %v", err)
@@ -154,7 +154,7 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 //	@Param			id				path		string							true	"Node ID"
 //	@Param			instance-info	body		cistore.OpenCHAMIInstanceInfo	true	"Instance info data"
 //	@Router			/admin/instance-info/{id} [put]
-func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
+func InstanceInfoHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -207,7 +207,7 @@ func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) h
 //	@Param			hostname		formData	string	true	"Node's given hostname"
 //	@Param			fqdn			formData	string	true	"Node's given fully-qualified domain name"
 //	@Router			/phone-home/{id} [post]
-func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInterface) http.HandlerFunc {
+func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.Interface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -235,7 +235,7 @@ func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInter
 		pubKeyRsa := r.FormValue("pub_key_rsa")
 		pubKeyEcdsa := r.FormValue("pub_key_ecdsa")
 		pubKeyEd25519 := r.FormValue("pub_key_ed25519")
-		instanceId := r.FormValue("instance_id")
+		instanceID := r.FormValue("instance_id")
 		hostname := r.FormValue("hostname")
 		fqdn := r.FormValue("fqdn")
 
@@ -243,11 +243,11 @@ func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInter
 			Str("pub_key_rsa", pubKeyRsa).
 			Str("pub_key_ecdsa", pubKeyEcdsa).
 			Str("pub_key_ed25519", pubKeyEd25519).
-			Str("instance_id", instanceId).
+			Str("instance_id", instanceID).
 			Str("hostname", hostname).
 			Str("fqdn", fqdn).
 			Msgf("Received phone home data: pub_key_rsa=%s, pub_key_ecdsa=%s, pub_key_ed25519=%s, instance_id=%s, hostname=%s, fqdn=%s",
-				pubKeyRsa, pubKeyEcdsa, pubKeyEd25519, instanceId, hostname, fqdn)
+				pubKeyRsa, pubKeyEcdsa, pubKeyEd25519, instanceID, hostname, fqdn)
 
 		if wg != nil {
 			go func() {

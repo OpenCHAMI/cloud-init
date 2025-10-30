@@ -25,7 +25,7 @@ import (
 //	@Param			id	path		string	false	"Node ID"
 //	@Router			/user-data [get]
 //	@Router			/admin/impersonation/{id}/user-data [get]
-func UserDataHandler(w http.ResponseWriter, r *http.Request) {
+func UserDataHandler(w http.ResponseWriter, _ *http.Request) {
 	payload := `#cloud-config`
 	if _, err := w.Write([]byte(payload)); err != nil {
 		log.Error().Err(err).Msg("failed to write response")
@@ -48,7 +48,7 @@ func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 //	@Param			group	path		string	true	"Group name"
 //	@Router			/{group}.yaml [get]
 //	@Router			/admin/impersonation/{id}/{group}.yaml [get]
-func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
+func GroupUserDataHandler(smd smdclient.Interface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, group, err := getIDAndGroup(r, smd)
 		if err != nil {
@@ -88,7 +88,7 @@ func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store)
 	}
 }
 
-func getIDAndGroup(r *http.Request, smd smdclient.SMDClientInterface) (string, string, error) {
+func getIDAndGroup(r *http.Request, smd smdclient.Interface) (string, string, error) {
 	id := chi.URLParam(r, "id")
 	group := chi.URLParam(r, "group")
 
@@ -104,7 +104,7 @@ func getIDAndGroup(r *http.Request, smd smdclient.SMDClientInterface) (string, s
 	return id, group, nil
 }
 
-func isUserInGroup(id, group string, smd smdclient.SMDClientInterface) bool {
+func isUserInGroup(id, group string, smd smdclient.Interface) bool {
 	groups, err := smd.GroupMembership(id)
 	if err != nil {
 		log.Debug().Msg(err.Error())

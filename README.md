@@ -1,9 +1,11 @@
 # OpenCHAMI Cloud-Init Server
 
 ## Summary of Repo
+
 The **OpenCHAMI cloud-init service** retrieves detailed inventory information from SMD and uses it to create cloud-init payloads customized for each node in an OpenCHAMI cluster.
 
 ## Table of Contents
+
 1. [About / Introduction](#about--introduction)
 2. [Build / Install](#build--install)
    - [Environment Variables](#environment-variables)
@@ -13,6 +15,8 @@ The **OpenCHAMI cloud-init service** retrieves detailed inventory information fr
    - [Fake SMD Mode](#fake-smd-mode)
    - [Impersonation](#impersonation)
    - [Nocloud-net Datasource](#nocloud-net-datasource)
+   - [WireGuard (Userspace and Kernel)](#wireguard-userspace-and-kernel)
+   - [Userspace Runtime Requirements](#userspace-runtime-requirements)
 4. [Testing the Service](#testing-the-service)
    - [Basic Endpoint Testing](#basic-endpoint-testing)
    - [Meta-data](#meta-data)
@@ -29,19 +33,21 @@ The **OpenCHAMI cloud-init service** retrieves detailed inventory information fr
 ---
 
 ## About / Introduction
+
 The **OpenCHAMI Cloud-Init Service** is designed to generate cloud-init configuration for nodes in an OpenCHAMI cluster. The new design pushes the complexity of merging configurations into the cloud-init client rather than the server. This README provides instructions based on the [Demo.md](https://github.com/OpenCHAMI/cloud-init/blob/main/demo/Demo.md) file for running and testing the service.
 
 This service provides configuration data to cloud-init clients via the standard nocloud-net datasource. The service merges configuration from several sources:
+
 - **SMD data** (or simulated data in development mode)
 - **User-supplied JSON** (for custom configurations)
 - **Cluster defaults and group overrides**
 
 Cloud-init on nodes retrieves data in a fixed order:
+
 1. `/meta-data` – YAML document with system configuration.
 2. `/user-data` - a document which can be any of the [user data formats](https://cloudinit.readthedocs.io/en/latest/explanation/format.html#cloud-config-data)
 3. `/vendor-data` – Vendor-supplied configuration via include-file mechanisms.
-4. `/network-config` – An optional document in one of two [network configuration formats](https://cloudinit.readthedocs.io/en/latest/reference/network-config.html#network-config).  This is only requested if configured to do so with a kernel parameter or through cloud-init configuration in the image. __NB__: __OpenCHAMI doesn't support delivering `network-config` via the cloud-init server today__
-
+4. `/network-config` – An optional document in one of two [network configuration formats](https://cloudinit.readthedocs.io/en/latest/reference/network-config.html#network-config).  This is only requested if configured to do so with a kernel parameter or through cloud-init configuration in the image. **NB**: **OpenCHAMI doesn't support delivering `network-config` via the cloud-init server today**
 
 ---
 
@@ -50,6 +56,7 @@ Cloud-init on nodes retrieves data in a fixed order:
 This project uses **[GoReleaser](https://goreleaser.com/)** for building and releasing, embedding additional metadata such as commit info, build time, and version. Below is a brief overview for local builds.
 
 ### Environment Variables
+
 To include detailed metadata in your builds, set the following:
 
 - **GIT_STATE**: `clean` if your repo is clean, `dirty` if uncommitted changes exist  
@@ -65,12 +72,14 @@ export BUILD_USER=$(whoami)
 ```
 
 ### Building Locally with GoReleaser
+
 1. [Install GoReleaser](https://goreleaser.com/install/) following their documentation.  
 2. Run in snapshot mode to build locally without releasing:
 
    ```bash
    goreleaser release --snapshot --clean
    ```
+
 3. Check the `dist/` directory for compiled binaries, which will include the injected metadata.
 
 > [!NOTE]
@@ -85,6 +94,7 @@ export BUILD_USER=$(whoami)
 Each instance of cloud-init is linked to a single SMD and operates for a single cluster. Until the cluster name is automatically available via your inventory system, you must specify it on the command line using the `-cluster-name` flag.
 
 _Example:_
+
 ```bash
 -cluster-name venado
 ```
@@ -94,6 +104,7 @@ _Example:_
 For development purposes, you can run the cloud-init server without connecting to a real SMD instance. By setting the environment variable `CLOUD_INIT_SMD_SIMULATOR` to `true`, the service will generate a set of simulated nodes.
 
 **Example command:**
+
 ```bash
 CLOUD_INIT_SMD_SIMULATOR=true dist/cloud-init_darwin_arm64_v8.0/cloud-init-server -cluster-name venado -insecure -impersonation=true
 ```
@@ -103,7 +114,9 @@ CLOUD_INIT_SMD_SIMULATOR=true dist/cloud-init_darwin_arm64_v8.0/cloud-init-serve
 By default, the service determines what configuration to return based on the IP address of the requesting node. For testing, impersonation routes can be enabled with the `-impersonation=true` flag.
 
 **Sample commands:**
+
 ```bash
+
 curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/meta-data
 ```
 
@@ -113,14 +126,41 @@ curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/meta-data
 cloud-init=enabled ds=nocloud-net;s=http://192.0.0.1/cloud-init
 ```
 
+### WireGuard (Userspace and Kernel)
+
+The server can optionally serve traffic over a WireGuard interface. Enable server-side WireGuard by providing a CIDR and selecting an engine:
+
+- `--wireguard-server` / `WIREGUARD_SERVER` (e.g., `100.97.0.1/16`) enables WG on the server.
+- `--wireguard-only` / `WIREGUARD_ONLY` restricts access to requests arriving on the WG interface/subnet.
+- `--wg-engine` / `WG_ENGINE` selects the engine: `kernel`, `userspace`, or `auto` (default: `auto`).
+- `--fips-mode` / `FIPS_MODE` (bool) forces `userspace` when `--wg-engine=auto` to keep the kernel FIPS-compliant.
+
+In userspace mode, the server launches `wireguard-go` to back the `wg0` interface and then configures it using standard `wg` and `ip` commands. In kernel mode, the server uses the kernel WireGuard module (via `ip link add … type wireguard`).
+
+Client bootstrap: The included script `scripts/ochami-wg-cloud-init-setup.sh` now uses userspace WireGuard by starting `wireguard-go wg0` before configuring the interface with `wg` and `ip`. Ensure `wireguard-go` is available on the client image.
+
+> Note: Interface name defaults to `wg0`. Middleware (`--wireguard-only`) validates both the interface and subnet.
+
+### Userspace Runtime Requirements
+
+To run userspace WireGuard, the host or container runtime must provide:
+
+- `/dev/net/tun` device
+- `CAP_NET_ADMIN` capability
+- `iproute2` and `wireguard-tools` installed (`ip` and `wg` binaries)
+- The `wireguard-go` binary present in `PATH`
+
+The project’s container image includes `wireguard-go`, `iproute2`, and `wireguard-tools`. When running the container, ensure the runtime grants `NET_ADMIN` and exposes `/dev/net/tun` (e.g., Docker or Kubernetes securityContext). Consult your orchestrator’s documentation for the correct flags.
+
 ---
+
 ## Testing the Service
 
 The following testing steps (adapted from Demo.md) help you verify that the service is functioning correctly.
 
 ### Basic Endpoint Testing
 
-#### Start the Service in Fake SMD Mode (if desired):
+#### Start the Service in Fake SMD Mode (if desired)
 
 **Example:**
 
@@ -128,9 +168,9 @@ The following testing steps (adapted from Demo.md) help you verify that the serv
 CLOUD_INIT_SMD_SIMULATOR=true dist/cloud-init_darwin_arm64_v8.0/cloud-init-server -cluster-name venado -insecure -impersonation=true
 ```
 
-#### Query the Standard Endpoints:
+#### Query the Standard Endpoints
 
-#### Meta-data:
+#### Meta-data
 
 ```bash
 curl http://localhost:27777/cloud-init/meta-data
@@ -138,7 +178,7 @@ curl http://localhost:27777/cloud-init/meta-data
 
 You should see a YAML document with instance information (e.g., instance-id, cluster-name, etc.).
 
-#### User-data:
+#### User-data
 
 ```bash
 curl http://localhost:27777/cloud-init/user-data
@@ -150,7 +190,7 @@ For now, this returns a blank cloud-config document:
 #cloud-config
 ```
 
-#### Vendor-data:
+#### Vendor-data
 
 ```bash
 curl http://localhost:27777/cloud-init/vendor-data
@@ -195,7 +235,7 @@ To add more sophisticated vendor-data (for example, installing the slurm client)
 
 ### Cluster Defaults and Instance Overrides
 
-#### Set Cluster Defaults:
+#### Set Cluster Defaults
 
 ```bash
 curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
@@ -212,7 +252,7 @@ curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
     }'
 ```
 
-#### Override Instance Data:
+#### Override Instance Data
 
 ```bash
 curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
@@ -222,6 +262,7 @@ curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
         "instance-type": "t2.micro"
     }'
 ```
+
 ---
 
 ## More Reading
@@ -230,3 +271,9 @@ curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
 - [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager)  
 - [GoReleaser Documentation](https://goreleaser.com/)  
 - [SMD Documentation](https://github.com/OpenCHAMI/smd)  
+
+---
+
+## Platform Notes
+
+- macOS: Unit tests run fine on macOS. Integration tests that require Linux networking tools (`ip`, `wg`) and `/dev/net/tun` should be executed in a Linux environment (e.g., CI runners, or within the Linux VM used by Docker Desktop/Colima). Future integration tests will be guarded with build tags so they won’t run on macOS by default.

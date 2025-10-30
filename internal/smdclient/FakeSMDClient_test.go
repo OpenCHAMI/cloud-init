@@ -105,13 +105,13 @@ func TestNewFakeSMDClient(t *testing.T) {
 		t.Errorf("expected 50 components, got %d", len(client.components))
 	}
 
-	if len(client.rosetta_mapping) != 50 {
-		t.Errorf("expected 50 rosetta mappings, got %d", len(client.rosetta_mapping))
+	if len(client.rosettaMapping) != 50 {
+		t.Errorf("expected 50 rosetta mappings, got %d", len(client.rosettaMapping))
 	}
 
 	// Check if groups are created correctly
 	expectedCabinets := make(map[string]bool)
-	for _, c := range client.rosetta_mapping {
+	for _, c := range client.rosettaMapping {
 		cabinet := strings.Split(c.ComponentID, "c")[0]
 		expectedCabinets[cabinet] = true
 	}

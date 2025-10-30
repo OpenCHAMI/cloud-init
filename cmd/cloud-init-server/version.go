@@ -84,7 +84,7 @@ func VersionInfo() string {
 		Version, GitCommit, BuildTime, GitBranch, GitTag, GitState, BuildHost, GoVersion, BuildUser)
 }
 
-func VersionHandler(w http.ResponseWriter, r *http.Request) {
+func VersionHandler(w http.ResponseWriter, r *http.Request) { //nolint:revive
 	w.Header().Set("Content-Type", "application/json")
 
 	info := VersionInfo()

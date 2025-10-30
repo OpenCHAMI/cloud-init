@@ -29,12 +29,20 @@ RUN duckdb -c "INSTALL 'json';" \
  && duckdb -c "INSTALL 'parquet';" 
 
 # -------- runtime image --------
+FROM golang:1.22 AS wireguard-go-build
+ARG TARGETOS=linux
+ARG TARGETARCH
+# Build wireguard-go for the target
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 \
+  go install github.com/WireGuard/wireguard-go@v0.0.20230223
+
 FROM ubuntu:24.04
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates iproute2 wireguard-tools tini \
  && rm -rf /var/lib/apt/lists/*
 
 COPY cloud-init-server /usr/local/bin/cloud-init-server
+COPY --from=wireguard-go-build /go/bin/wireguard-go /usr/local/bin/wireguard-go
 
 #Set the golang modcache
 ENV GOMODCACHE=/tmp/.cache

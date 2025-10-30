@@ -1,6 +1,6 @@
 package cistore
 
-// ciStore is an interface for storing cloud-init entries
+// Store defines persistence operations for cloud-init groups, instances, and cluster defaults.
 type Store interface {
 	// groups API
 	GetGroups() map[string]GroupData

@@ -58,11 +58,11 @@ func TestPopulateNodes(t *testing.T) {
 
 	// Create SMDClient
 	client := &SMDClient{
-		smdClient:         server.Client(),
-		smdBaseURL:        server.URL,
-		nodesMutex:        &sync.Mutex{},
-		nodes_last_update: time.Now(),
-		nodes:             make(map[string]NodeMapping),
+		smdClient:       server.Client(),
+		smdBaseURL:      server.URL,
+		nodesMutex:      &sync.Mutex{},
+		nodesLastUpdate: time.Now(),
+		nodes:           make(map[string]NodeMapping),
 	}
 
 	// Call PopulateNodes
@@ -148,11 +148,11 @@ func TestIPfromID(t *testing.T) {
 
 	// Create SMDClient
 	client := &SMDClient{
-		smdClient:         server.Client(),
-		smdBaseURL:        server.URL,
-		nodesMutex:        &sync.Mutex{},
-		nodes_last_update: time.Now(),
-		nodes:             make(map[string]NodeMapping),
+		smdClient:       server.Client(),
+		smdBaseURL:      server.URL,
+		nodesMutex:      &sync.Mutex{},
+		nodesLastUpdate: time.Now(),
+		nodes:           make(map[string]NodeMapping),
 	}
 
 	// Call PopulateNodes to populate the nodes map
@@ -230,11 +230,11 @@ func TestIDfromIP(t *testing.T) {
 
 	// Create SMDClient
 	client := &SMDClient{
-		smdClient:         server.Client(),
-		smdBaseURL:        server.URL,
-		nodesMutex:        &sync.Mutex{},
-		nodes_last_update: time.Now(),
-		nodes:             make(map[string]NodeMapping),
+		smdClient:       server.Client(),
+		smdBaseURL:      server.URL,
+		nodesMutex:      &sync.Mutex{},
+		nodesLastUpdate: time.Now(),
+		nodes:           make(map[string]NodeMapping),
 	}
 
 	// Call PopulateNodes to populate the nodes map
@@ -312,11 +312,11 @@ func TestIDfromMAC(t *testing.T) {
 
 	// Create SMDClient
 	client := &SMDClient{
-		smdClient:         server.Client(),
-		smdBaseURL:        server.URL,
-		nodesMutex:        &sync.Mutex{},
-		nodes_last_update: time.Now(),
-		nodes:             make(map[string]NodeMapping),
+		smdClient:       server.Client(),
+		smdBaseURL:      server.URL,
+		nodesMutex:      &sync.Mutex{},
+		nodesLastUpdate: time.Now(),
+		nodes:           make(map[string]NodeMapping),
 	}
 
 	// Call PopulateNodes to populate the nodes map

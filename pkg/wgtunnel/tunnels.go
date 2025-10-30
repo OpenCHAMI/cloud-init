@@ -12,23 +12,27 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// PeerConfig describes a WireGuard peer managed by the server.
 type PeerConfig struct {
 	PublicKey string     `json:"public_key" yaml:"public_key"`
 	IP        net.IPAddr `json:"ip" yaml:"ip"`
 }
 
+// ServerConfig contains the public-facing configuration of the server.
 type ServerConfig struct {
 	PublicKey string `json:"public_key" yaml:"public_key"`
 	IP        string `json:"ip" yaml:"ip"`
 	Port      string `json:"port" yaml:"port"`
 }
 
+// Store defines the minimal interface the tunnel manager needs from a store.
 type Store interface {
-	IpForPeer(peerName, publicKey string) string
+	IPForPeer(peerName, publicKey string) string
 	GetInterfaceName() string
 	GetServerConfig() (ServerConfig, error)
 }
 
+// InterfaceManager orchestrates the lifecycle and configuration of a WireGuard interface.
 type InterfaceManager struct {
 	listenPort    int
 	interfaceName string
@@ -39,8 +43,10 @@ type InterfaceManager struct {
 	ipManager     *IPAllocator
 	privateKey    string
 	publicKey     string
+	engine        Engine
 }
 
+// GetServerConfig returns the public server configuration summary.
 func (m *InterfaceManager) GetServerConfig() (ServerConfig, error) {
 	return ServerConfig{
 		PublicKey: m.publicKey,
@@ -49,11 +55,18 @@ func (m *InterfaceManager) GetServerConfig() (ServerConfig, error) {
 	}, nil
 }
 
+// GetInterfaceName returns the interface name (e.g., "wg0").
 func (m *InterfaceManager) GetInterfaceName() string {
 	return m.interfaceName
 }
 
-func NewInterfaceManager(name string, localIp net.IP, network *net.IPNet) *InterfaceManager {
+// NewInterfaceManager creates an InterfaceManager using the default engine selection (kernel by default).
+func NewInterfaceManager(name string, localIP net.IP, network *net.IPNet) *InterfaceManager {
+	return NewInterfaceManagerWithEngine(name, localIP, network, NewKernelEngine())
+}
+
+// NewInterfaceManagerWithEngine creates an InterfaceManager with an explicit engine implementation.
+func NewInterfaceManagerWithEngine(name string, _ net.IP, network *net.IPNet, engine Engine) *InterfaceManager {
 	var err error
 	im := InterfaceManager{
 		interfaceName: name,
@@ -63,6 +76,7 @@ func NewInterfaceManager(name string, localIp net.IP, network *net.IPNet) *Inter
 
 		listenPort: 58036,
 	}
+	im.engine = engine
 	im.ipManager, err = NewIPAllocator(network.String())
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create IP allocator")
@@ -71,11 +85,11 @@ func NewInterfaceManager(name string, localIp net.IP, network *net.IPNet) *Inter
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to generate private key")
 	}
-	wgIp, err := GetUsableIP(network)
+	wgIP, err := GetUsableIP(network)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get usable IP")
 	}
-	im.ipAddress = net.IPAddr{IP: wgIp, Zone: ""}
+	im.ipAddress = net.IPAddr{IP: wgIP, Zone: ""}
 	err = im.ipManager.Reserve(im.ipAddress)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to reserve IP address")
@@ -116,10 +130,10 @@ func GetUsableIP(network *net.IPNet) (net.IP, error) {
 	return firstUsableIP, nil
 }
 
-// IpForPeer allocates an IP address for a given peer based on its name and public key.
+// IPForPeer allocates an IP address for a given peer based on its name and public key.
 // If the peer already exists, it returns the existing IP address.
 // Otherwise, it allocates a new IP address for the peer and stores the peer configuration.
-func (m *InterfaceManager) IpForPeer(peerName string, publicKey string) string {
+func (m *InterfaceManager) IPForPeer(peerName string, publicKey string) string {
 	m.peersMutex.RLock()
 	defer m.peersMutex.RUnlock()
 	log.Debug().Msgf("Allocating IP for peer: PeerName=%s, PublicKey=%s\n", peerName, publicKey)
@@ -146,6 +160,7 @@ func (m *InterfaceManager) IpForPeer(peerName string, publicKey string) string {
 	return m.peers[peerName].IP.IP.String()
 }
 
+// RemovePeer removes a peer from the WireGuard configuration and internal map.
 func (m *InterfaceManager) RemovePeer(peerName string) error {
 	m.peersMutex.Lock()
 	defer m.peersMutex.Unlock()
@@ -157,29 +172,32 @@ func (m *InterfaceManager) RemovePeer(peerName string) error {
 	return nil
 }
 
+// GetPeers returns the current set of configured peers.
 func (m *InterfaceManager) GetPeers() map[string]PeerConfig {
 	m.peersMutex.RLock()
 	defer m.peersMutex.RUnlock()
 	return m.peers
 }
 
+// PublicKey returns the server public key.
 func (m *InterfaceManager) PublicKey() (string, error) {
 	return m.publicKey, nil
 }
 
+// StartServer ensures the interface exists, configures it, and brings it up.
 func (m *InterfaceManager) StartServer() error {
-	// Step 1: Create the WireGuard interface
-	createInterfaceCommand := exec.Command("ip", "link", "add", "dev", m.interfaceName, "type", "wireguard")
-	if out, err := createInterfaceCommand.CombinedOutput(); err != nil {
-		if !strings.Contains(err.Error(), "File exists") { // Skip if interface already exists
-			log.Warn().Str("output", string(out)).Msgf("Failed to assign IP address to interface: %v", err)
-		}
+	// Step 1: Ensure the WireGuard interface exists via selected engine (kernel or userspace)
+	if m.engine == nil {
+		m.engine = NewKernelEngine()
+	}
+	if err := m.engine.EnsureInterface(m.interfaceName); err != nil {
+		return fmt.Errorf("failed to ensure WireGuard interface: %v", err)
 	}
 
 	// Step 2: Assign IP address to the WireGuard interface
-	wgIp := m.ipAddress.IP.String()
+	wgIP := m.ipAddress.IP.String()
 	ones, _ := m.network.Mask.Size() // we don't care about the number of bits in the mask
-	wgCidr := fmt.Sprintf("%s/%d", wgIp, ones)
+	wgCidr := fmt.Sprintf("%s/%d", wgIP, ones)
 
 	if out, err := exec.Command("ip", "address", "add", "dev", m.interfaceName, wgCidr).CombinedOutput(); err != nil {
 		log.Error().Str("output", string(out)).Msgf("Failed to assign IP address to interface: %v", err)
@@ -225,7 +243,6 @@ func (m *InterfaceManager) StartServer() error {
 
 	log.Info().
 		Str("Interface Name", m.interfaceName).
-		Str("Private Key", m.privateKey).
 		Str("Public Key", m.publicKey).
 		Int("Listen Port", m.listenPort).
 		Str("IP Address", m.ipAddress.String()).
@@ -234,20 +251,25 @@ func (m *InterfaceManager) StartServer() error {
 
 }
 
+// StopServer brings the interface down and cleans it up via the engine.
 func (m *InterfaceManager) StopServer() error {
 	// Step 1: Bring the interface down
 	if err := exec.Command("ip", "link", "set", "down", "dev", m.interfaceName).Run(); err != nil {
 		return fmt.Errorf("failed to bring down the WireGuard interface: %v", err)
 	}
 
-	// Step 2: Delete the WireGuard interface
-	if err := exec.Command("ip", "link", "delete", "dev", m.interfaceName).Run(); err != nil {
-		return fmt.Errorf("failed to delete the WireGuard interface: %v", err)
+	// Step 2: Cleanup via engine (delete interface and/or stop userspace process)
+	if m.engine == nil {
+		m.engine = NewKernelEngine()
+	}
+	if err := m.engine.CleanupInterface(m.interfaceName); err != nil {
+		return fmt.Errorf("failed to cleanup WireGuard interface: %v", err)
 	}
 
 	return nil
 }
 
+// AddPeer adds a peer to the WireGuard interface and records it locally.
 func (m *InterfaceManager) AddPeer(peerName, publicKey, vpnIP, clientIP string) error {
 	m.peersMutex.RLock()
 	defer m.peersMutex.RUnlock()
