@@ -1,0 +1,41 @@
+# Produces an image that runs cloud-init under a debugger. To use, build and push
+# to a registry with:
+#
+# docker buildx build -f Dockerfile.debug --load -t my-docker-tag:my-revision .
+#
+# and configure your deployment to use that image. Disable any liveness checks
+# (when the debugger is paused, service readiness/liveness endpoints will not respond,
+# and watchdogs will perceive the container as dead) and connect to the debugger listen:
+#
+# dlv connect container-hostname.example:2345
+
+FROM golang:1.24-bookworm
+
+# Configure go env
+ENV GOPATH=/usr/local/golib
+RUN export GOPATH=$GOPATH
+RUN go env -w GO111MODULE=auto
+RUN export CGO_ENABLED=0
+
+# Copy source files
+COPY cmd $GOPATH/src/github.com/OpenCHAMI/cloud-init/cmd
+COPY docs $GOPATH/src/github.com/OpenCHAMI/cloud-init/docs
+COPY pkg $GOPATH/src/github.com/OpenCHAMI/cloud-init/pkg
+COPY internal $GOPATH/src/github.com/OpenCHAMI/cloud-init/internal
+COPY go.mod $GOPATH/src/github.com/OpenCHAMI/cloud-init/go.mod
+COPY go.sum $GOPATH/src/github.com/OpenCHAMI/cloud-init/go.sum
+
+# Build the image
+RUN go build -C $GOPATH/src/github.com/OpenCHAMI/cloud-init/cmd/cloud-init-server -v \
+    -gcflags=all="-N -l" \
+    -o /usr/local/bin/cloud-init-server
+
+RUN ln -s /usr/local/bin/cloud-init-server /cloud-init-server
+
+RUN go install github.com/go-delve/delve/cmd/dlv@v1.24.0
+RUN apt update; apt install tini
+
+USER 65534:65534
+
+ENTRYPOINT ["tini", "--"]
+CMD ["/usr/local/golib/bin/dlv", "exec", "--continue", "--accept-multiclient",  "--headless", "--api-version=2", "--listen=:2345", "--log", "/usr/local/bin/cloud-init-server"]
