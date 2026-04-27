@@ -55,6 +55,7 @@ var (
 	wireGuardMiddleware  func(http.Handler) http.Handler
 	storageBackend       = "mem"           // Default to memstore
 	dbPath               = "cloud-init.db" // Default database path for quackstore
+	memPath              string
 	store                cistore.Store
 )
 
@@ -99,6 +100,7 @@ func setupFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&debug, "debug", parseBool(getEnv("DEBUG", "false")), "Enable debug logging")
 	flags.StringVar(&storageBackend, "storage-backend", getEnv("STORAGE_BACKEND", "mem"), "Storage backend to use (mem or quack)")
 	flags.StringVar(&dbPath, "db-path", getEnv("DB_PATH", "cloud-init.db"), "Path to the database file for quackstore backend")
+	flags.StringVar(&memPath, "mem-path", getEnv("MEM_PATH", ""), "Path to initial in-memory store configuration")
 }
 
 // bindViperToFlags binds each flag to Viper so environment variables work seamlessly.
@@ -124,6 +126,7 @@ func bindViperToFlags() {
 	_ = viper.BindEnv("debug")
 	_ = viper.BindEnv("storage_backend")
 	_ = viper.BindEnv("db_path")
+	_ = viper.BindEnv("mem_path")
 }
 
 // startServer is where we run our main program logic
@@ -149,6 +152,7 @@ func startServer() error {
 			Bool("debug", debug).
 			Str("storage-backend", storageBackend).
 			Str("db-path", dbPath).
+			Str("mem-path", memPath).
 			Msg("Resolved configuration")
 	}
 
@@ -161,7 +165,14 @@ func startServer() error {
 	var err error
 	switch storageBackend {
 	case "mem":
-		store = memstore.NewMemStore()
+		if memPath == "" {
+			store = memstore.NewMemStore()
+		} else {
+			store, err = memstore.NewMemStoreFromPath(memPath)
+			if err != nil {
+				return fmt.Errorf("failed to initialize in-memory store from path: %w", err)
+			}
+		}
 	case "quack":
 		store, err = quackstore.NewQuackStore(dbPath)
 		if err != nil {
