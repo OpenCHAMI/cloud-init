@@ -17,6 +17,7 @@ require (
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.6
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (

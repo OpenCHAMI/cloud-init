@@ -3,11 +3,15 @@ package memstore
 import (
 	"crypto/rand"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
+	"sigs.k8s.io/yaml"
+
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 )
 
 type MemStore struct {
@@ -28,6 +32,49 @@ func NewMemStore() *MemStore {
 		ClusterDefaults:      cistore.ClusterDefaults{},
 		ClusterDefaultsMutex: sync.RWMutex{},
 	}
+}
+
+const (
+	groupsFile    = "groups.yaml"
+	instancesFile = "instances.yaml"
+	defaultsFile  = "clusterdefaults.yaml"
+)
+
+func NewMemStoreFromPath(path string) (*MemStore, error) {
+	store := NewMemStore()
+
+	groupsPath := filepath.Join(path, groupsFile)
+	instancesPath := filepath.Join(path, instancesFile)
+	defaultsPath := filepath.Join(path, defaultsFile)
+
+	groups, err := os.ReadFile(groupsPath)
+	if err != nil {
+		return store, fmt.Errorf("error opening %s: %w", groupsPath, err)
+	}
+	err = yaml.Unmarshal(groups, &store.Groups)
+	if err != nil {
+		return store, fmt.Errorf("error unmarshaling groups.yaml: %w", err)
+	}
+
+	instances, err := os.ReadFile(instancesPath)
+	if err != nil {
+		return store, fmt.Errorf("error opening %s: %w", instancesPath, err)
+	}
+	err = yaml.Unmarshal(instances, &store.Instances)
+	if err != nil {
+		return store, fmt.Errorf("error unmarshaling instances.yaml: %w", err)
+	}
+
+	defaults, err := os.ReadFile(defaultsPath)
+	if err != nil {
+		return store, fmt.Errorf("error opening %s: %w", defaultsPath, err)
+	}
+	err = yaml.Unmarshal(defaults, &store.ClusterDefaults)
+	if err != nil {
+		return store, fmt.Errorf("error unmarshaling clusterdefaults.yaml: %w", err)
+	}
+
+	return store, err
 }
 
 func (m *MemStore) GetGroups() map[string]cistore.GroupData {
