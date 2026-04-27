@@ -1,6 +1,6 @@
 module github.com/OpenCHAMI/cloud-init
 
-go 1.24.0
+go 1.26.0
 
 require (
 	github.com/OpenCHAMI/jwtauth/v5 v5.0.0-20240321222802-e6cb468a2a18
