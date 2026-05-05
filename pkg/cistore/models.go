@@ -8,11 +8,11 @@ import (
 )
 
 type GroupData struct {
-	Name        string                 `json:"name" example:"compute" description:"Group name"`
-	Description string                 `json:"description,omitempty" example:"The compute group" description:"A short description of the group"`
-	Data        map[string]interface{} `json:"meta-data,omitempty" description:"json map of a string (key) to a struct (value) representing group meta-data"`
-	File        CloudConfigFile        `json:"file,omitempty" description:"Cloud-Init configuration for group"`
-	Versions    map[string]string      `json:"versions,omitempty" description:"Map of group versions"`
+	Name        string                 `json:"name" yaml:"name" example:"compute" description:"Group name"`
+	Description string                 `json:"description,omitempty" yaml:"description,omitempty" example:"The compute group" description:"A short description of the group"`
+	Data        map[string]interface{} `json:"meta-data,omitempty" yaml:"meta-data,omitempty" description:"json map of a string (key) to a struct (value) representing group meta-data"`
+	File        CloudConfigFile        `json:"file,omitempty" yaml:"file,omitempty" description:"Cloud-Init configuration for group"`
+	Versions    map[string]string      `json:"versions,omitempty" yaml:"versions,omitempty" description:"Map of group versions"`
 }
 
 func (g *GroupData) ParseFromJSON(body []byte) error {
@@ -66,9 +66,9 @@ type ClusterDefaults struct {
 }
 
 type CloudConfigFile struct {
-	Content  []byte `json:"content" swaggertype:"string" example:"IyMgdGVtcGxhdGU6IGppbmphCiNjbG91ZC1jb25maWcKbWVyZ2VfaG93OgotIG5hbWU6IGxpc3QKICBzZXR0aW5nczogW2FwcGVuZF0KLSBuYW1lOiBkaWN0CiAgc2V0dGluZ3M6IFtub19yZXBsYWNlLCByZWN1cnNlX2xpc3RdCnVzZXJzOgogIC0gbmFtZTogcm9vdAogICAgc3NoX2F1dGhvcml6ZWRfa2V5czoge3sgZHMubWV0YV9kYXRhLmluc3RhbmNlX2RhdGEudjEucHVibGljX2tleXMgfX0KZGlzYWJsZV9yb290OiBmYWxzZQo=" description:"Cloud-Init configuration content whose encoding depends on the value of 'encoding'"`
-	Name     string `json:"filename"`
-	Encoding string `json:"encoding,omitempty" enums:"base64,plain"`
+	Content  []byte `json:"content" yaml:"content" swaggertype:"string" example:"IyMgdGVtcGxhdGU6IGppbmphCiNjbG91ZC1jb25maWcKbWVyZ2VfaG93OgotIG5hbWU6IGxpc3QKICBzZXR0aW5nczogW2FwcGVuZF0KLSBuYW1lOiBkaWN0CiAgc2V0dGluZ3M6IFtub19yZXBsYWNlLCByZWN1cnNlX2xpc3RdCnVzZXJzOgogIC0gbmFtZTogcm9vdAogICAgc3NoX2F1dGhvcml6ZWRfa2V5czoge3sgZHMubWV0YV9kYXRhLmluc3RhbmNlX2RhdGEudjEucHVibGljX2tleXMgfX0KZGlzYWJsZV9yb290OiBmYWxzZQo=" description:"Cloud-Init configuration content whose encoding depends on the value of 'encoding'"`
+	Name     string `json:"filename" yaml:"filename"`
+	Encoding string `json:"encoding,omitempty" yaml:"encoding,omitempty" enums:"base64,plain"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler
