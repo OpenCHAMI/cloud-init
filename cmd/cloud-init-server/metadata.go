@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
 )
@@ -32,21 +33,29 @@ type InstanceData struct {
 }
 
 type VendorData struct {
-	Version          string           `json:"version" yaml:"version"`
-	CloudInitBaseURL string           `json:"cloud-init-base-url,omitempty" yaml:"cloud_init_base_url,omitempty"`
-	Rack             string           `json:"rack,omitempty" yaml:"rack,omitempty"`
-	Nid              int64            `json:"nid,omitempty" yaml:"nid,omitempty"`
-	Role             string           `json:"role,omitempty" yaml:"role,omitempty"`
-	SubRole          string           `json:"sub-role,omitempty" yaml:"sub_role,omitempty"`
-	Cabinet          string           `json:"cabinet,omitempty" yaml:"cabinet,omitempty"`
-	Location         string           `json:"location,omitempty" yaml:"location,omitempty"`
-	ClusterName      string           `json:"cluster_name,omitempty" yaml:"cluster_name,omitempty" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN"`
-	Groups           map[string]Group `json:"groups" yaml:"groups" description:"Groups known to cloud-init and their meta-data"`
+	Version           string             `json:"version" yaml:"version"`
+	CloudInitBaseURL  string             `json:"cloud-init-base-url,omitempty" yaml:"cloud_init_base_url,omitempty"`
+	Rack              string             `json:"rack,omitempty" yaml:"rack,omitempty"`
+	Nid               int64              `json:"nid,omitempty" yaml:"nid,omitempty"`
+	Role              string             `json:"role,omitempty" yaml:"role,omitempty"`
+	SubRole           string             `json:"sub-role,omitempty" yaml:"sub_role,omitempty"`
+	Cabinet           string             `json:"cabinet,omitempty" yaml:"cabinet,omitempty"`
+	Location          string             `json:"location,omitempty" yaml:"location,omitempty"`
+	ClusterName       string             `json:"cluster_name,omitempty" yaml:"cluster_name,omitempty" example:"demo" description:"Long name of entire cluster, used as a human-readable identifier and is used in the cluster's FQDN"`
+	Groups            map[string]Group   `json:"groups" yaml:"groups" description:"Groups known to cloud-init and their meta-data"`
+	NetworkInterfaces []NetworkInterface `json:"network_interfaces,omitempty" yaml:"network_interfaces,omitempty" description:"All network interfaces for this node"`
 }
 
 type Group map[string]interface{}
 
-func generateMetaData(component cistore.OpenCHAMIComponent, groups []string, s cistore.Store) MetaData {
+type NetworkInterface struct {
+	MAC         string `json:"mac" yaml:"mac"`
+	IP          string `json:"ip" yaml:"ip"`
+	WGIP        string `json:"wgip,omitempty" yaml:"wgip,omitempty"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+}
+
+func generateMetaData(component cistore.OpenCHAMIComponent, groups []string, s cistore.Store, smdClient smdclient.SMDClientInterface) MetaData {
 	metadata := MetaData{}
 	extendedInstanceData, err := s.GetInstanceInfo(component.ID)
 	if err != nil {
@@ -95,6 +104,21 @@ func generateMetaData(component cistore.OpenCHAMIComponent, groups []string, s c
 
 	instanceData.V1.LocalIPv4 = component.IP
 	instanceData.V1.VendorData.Version = "1.0"
+
+	// Populate network interfaces from SMD client
+	if node, found := smdClient.GetNodeInterfaces(component.ID); found {
+		var networkInterfaces []NetworkInterface
+		for _, iface := range node.Interfaces {
+			netIface := NetworkInterface{
+				MAC:         iface.MAC,
+				IP:          iface.IP,
+				WGIP:        iface.WGIP,
+				Description: iface.Desc,
+			}
+			networkInterfaces = append(networkInterfaces, netIface)
+		}
+		instanceData.V1.VendorData.NetworkInterfaces = networkInterfaces
+	}
 
 	// Add extended attributes
 	instanceData.V1.InstanceID = extendedInstanceData.InstanceID
