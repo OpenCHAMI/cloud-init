@@ -17,8 +17,9 @@ func TestPopulateNodes(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
-			w.Write([]byte(`[
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -50,14 +51,14 @@ func TestPopulateNodes(t *testing.T) {
 				"Description": "Test Node 4 Interface 2"
 			}
 		]`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1000" {
-			w.Write([]byte(`{"GroupLabels": ["compute"]}`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1001" {
-			w.Write([]byte(`{"GroupLabels": ["compute", "io"]}`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1002" {
-			w.Write([]byte(`{"GroupLabels": ["compute"]}`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1003" {
-			w.Write([]byte(`{"GroupLabels": ["compute", "cabinet1"]}`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1001":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute", "io"]}`))
+		case "/hsm/v2/memberships/x1002":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1003":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute", "cabinet1"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -116,9 +117,10 @@ func TestIPfromID(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
-			w.Write([]byte(`[
+
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -149,9 +151,15 @@ func TestIPfromID(t *testing.T) {
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
 			}
-		]`)); err != nil {
-			// If an error occurs here, something is very wrong.
-			t.Errorf("Write(): unexpected error: %v", err)
+		]`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1001":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1002":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1003":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -200,10 +208,12 @@ func TestIPfromID(t *testing.T) {
 func TestIDfromIP(t *testing.T) {
 	// Mock SMD server
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte(`[
+
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -234,9 +244,15 @@ func TestIDfromIP(t *testing.T) {
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
 			}
-		]`)); err != nil {
-			// If an error occurs here, something is very wrong.
-			t.Errorf("Write(): unexpected error: %v", err)
+		]`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1001":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1002":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1003":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -285,10 +301,12 @@ func TestIDfromIP(t *testing.T) {
 func TestIDfromMAC(t *testing.T) {
 	// Mock SMD server
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte(`[
+
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -319,9 +337,15 @@ func TestIDfromMAC(t *testing.T) {
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
 			}
-		]`)); err != nil {
-			// If an error occurs here, something is very wrong.
-			t.Errorf("Write(): unexpected error: %v", err)
+		]`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1001":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1002":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1003":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)

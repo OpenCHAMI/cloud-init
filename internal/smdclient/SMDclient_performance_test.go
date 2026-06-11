@@ -21,8 +21,9 @@ func TestGroupMembershipCached(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
-			w.Write([]byte(`[
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[
 				{
 					"ComponentID": "x1000",
 					"MACAddress": "00:11:22:33:44:55",
@@ -30,8 +31,8 @@ func TestGroupMembershipCached(t *testing.T) {
 					"Description": "Test Node 1"
 				}
 			]`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1000" {
-			w.Write([]byte(`{"GroupLabels": ["compute", "cabinet1"]}`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute", "cabinet1"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -81,8 +82,9 @@ func TestConcurrentReads(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
-			w.Write([]byte(`[
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[
 				{
 					"ComponentID": "x1000",
 					"MACAddress": "00:11:22:33:44:55",
@@ -96,10 +98,10 @@ func TestConcurrentReads(t *testing.T) {
 					"Description": "Test Node 2"
 				}
 			]`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1000" {
-			w.Write([]byte(`{"GroupLabels": ["compute"]}`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1001" {
-			w.Write([]byte(`{"GroupLabels": ["io"]}`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1001":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["io"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -177,9 +179,9 @@ func TestReverseIndexPerformance(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 
 		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
-			w.Write([]byte(ethInterfaces))
-		} else if r.URL.Path[:len("/hsm/v2/memberships/")] == "/hsm/v2/memberships/" {
-			w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+			_, _ = w.Write([]byte(ethInterfaces))
+		} else if len(r.URL.Path) >= len("/hsm/v2/memberships/") && r.URL.Path[:len("/hsm/v2/memberships/")] == "/hsm/v2/memberships/" {
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -248,8 +250,9 @@ func TestCaseInsensitiveLookup(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
-			w.Write([]byte(`[
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[
 				{
 					"ComponentID": "x1000",
 					"MACAddress": "AA:BB:CC:DD:EE:FF",
@@ -257,8 +260,8 @@ func TestCaseInsensitiveLookup(t *testing.T) {
 					"Description": "Test Node"
 				}
 			]`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1000" {
-			w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -308,8 +311,9 @@ func TestAddWGIPUpdatesReverseIndex(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
-			w.Write([]byte(`[
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[
 				{
 					"ComponentID": "x1000",
 					"MACAddress": "00:11:22:33:44:55",
@@ -317,8 +321,8 @@ func TestAddWGIPUpdatesReverseIndex(t *testing.T) {
 					"Description": "Test Node"
 				}
 			]`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1000" {
-			w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -369,16 +373,16 @@ func BenchmarkIDfromIP(b *testing.B) {
 					ethInterfaces += ","
 				}
 				ethInterfaces += fmt.Sprintf(`{
-					"ComponentID": "x%d",
-					"MACAddress": "00:11:22:33:%02x:%02x",
-					"IPAddresses": [{"IPAddress": "192.168.%d.%d"}],
-					"Description": "Node %d"
-				}`, i, (i>>8)&0xFF, i&0xFF, (i>>8)&0xFF, i&0xFF, i)
+				"ComponentID": "x%d",
+				"MACAddress": "00:11:22:33:%02x:%02x",
+				"IPAddresses": [{"IPAddress": "192.168.%d.%d"}],
+				"Description": "Node %d"
+			}`, i, (i>>8)&0xFF, i&0xFF, (i>>8)&0xFF, i&0xFF, i)
 			}
 			ethInterfaces += "]"
-			w.Write([]byte(ethInterfaces))
-		} else if r.URL.Path[:len("/hsm/v2/memberships/")] == "/hsm/v2/memberships/" {
-			w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+			_, _ = w.Write([]byte(ethInterfaces))
+		} else if len(r.URL.Path) >= len("/hsm/v2/memberships/") && r.URL.Path[:len("/hsm/v2/memberships/")] == "/hsm/v2/memberships/" {
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -409,8 +413,9 @@ func BenchmarkGroupMembership(b *testing.B) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
-			w.Write([]byte(`[
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[
 				{
 					"ComponentID": "x1000",
 					"MACAddress": "00:11:22:33:44:55",
@@ -418,8 +423,8 @@ func BenchmarkGroupMembership(b *testing.B) {
 					"Description": "Test Node"
 				}
 			]`))
-		} else if r.URL.Path == "/hsm/v2/memberships/x1000" {
-			w.Write([]byte(`{"GroupLabels": ["compute", "cabinet1", "rack1"]}`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute", "cabinet1", "rack1"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
