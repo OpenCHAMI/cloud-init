@@ -46,10 +46,14 @@ type SMDClient struct {
 	tokenEndpoint     string
 	accessToken       string
 	nodes             map[string]NodeMapping
-	nodesMutex        *sync.Mutex
+	nodesMutex        *sync.RWMutex
 	nodes_last_update time.Time
 	stopCacheRefresh  chan struct{}
 	stopOnce          sync.Once
+	// Reverse indexes for O(1) lookups
+	ipToXname   map[string]string
+	macToXname  map[string]string
+	wgipToXname map[string]string
 }
 
 type NodeInterface struct {
@@ -62,6 +66,7 @@ type NodeInterface struct {
 type NodeMapping struct {
 	Xname      string          `json:"xname" yaml:"xname"`
 	Interfaces []NodeInterface `json:"interfaces" yaml:"interfaces"`
+	Groups     []string        `json:"groups" yaml:"groups"`
 }
 
 // NewSMDClient creates a new SMDClient which connects to the SMD server at baseurl
@@ -105,10 +110,13 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 		smdBaseURL:        baseurl,
 		tokenEndpoint:     jwtURL,
 		accessToken:       accessToken,
-		nodesMutex:        &sync.Mutex{},
+		nodesMutex:        &sync.RWMutex{},
 		nodes_last_update: time.Now(),
 		nodes:             make(map[string]NodeMapping),
 		stopCacheRefresh:  make(chan struct{}),
+		ipToXname:         make(map[string]string),
+		macToXname:        make(map[string]string),
+		wgipToXname:       make(map[string]string),
 	}
 
 	// Populate the cache initially
@@ -219,7 +227,7 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 }
 
 // PopulateNodes fetches the Ethernet interface data from the SMD server and populates the nodes map
-// with the corresponding node information, including MAC addresses, IP addresses, and descriptions.
+// with the corresponding node information, including MAC addresses, IP addresses, descriptions, and group membership.
 func (s *SMDClient) PopulateNodes() {
 	s.nodesMutex.Lock()
 	defer s.nodesMutex.Unlock()
@@ -273,44 +281,77 @@ func (s *SMDClient) PopulateNodes() {
 			s.nodes[ep.CompID] = newNode
 		}
 	}
+
+	// Populate group membership for all nodes
+	log.Debug().Msg("Fetching group membership for all nodes")
+	for xname, node := range s.nodes {
+		ml := new(sm.Membership)
+		membershipEp := "/hsm/v2/memberships/" + xname
+		if err := s.getSMD(membershipEp, ml); err != nil {
+			log.Debug().Err(err).Msgf("Failed to get group membership for %s", xname)
+			node.Groups = []string{} // Empty groups if fetch fails
+		} else {
+			node.Groups = ml.GroupLabels
+		}
+		s.nodes[xname] = node
+	}
+
+	// Build reverse indexes for O(1) lookups
+	log.Debug().Msg("Building reverse indexes")
+	s.ipToXname = make(map[string]string)
+	s.macToXname = make(map[string]string)
+	s.wgipToXname = make(map[string]string)
+
+	for xname, node := range s.nodes {
+		for _, iface := range node.Interfaces {
+			if iface.IP != "" {
+				s.ipToXname[strings.ToLower(iface.IP)] = xname
+			}
+			if iface.MAC != "" {
+				s.macToXname[strings.ToLower(iface.MAC)] = xname
+			}
+			if iface.WGIP != "" {
+				s.wgipToXname[strings.ToLower(iface.WGIP)] = xname
+			}
+		}
+	}
+
 	s.nodes_last_update = time.Now()
-	log.Debug().Msg("Nodes map populated")
+	log.Debug().Msgf("Nodes map populated with %d nodes, %d IP mappings, %d MAC mappings",
+		len(s.nodes), len(s.ipToXname), len(s.macToXname))
 }
 
 // IDfromMAC returns the ID of the xname that has the MAC address
 func (s *SMDClient) IDfromMAC(mac string) (string, error) {
-	s.nodesMutex.Lock()
-	defer s.nodesMutex.Unlock()
+	s.nodesMutex.RLock()
+	defer s.nodesMutex.RUnlock()
 
-	for _, node := range s.nodes {
-		for _, iface := range node.Interfaces {
-			if strings.EqualFold(mac, iface.MAC) {
-				return node.Xname, nil
-			}
-		}
+	key := strings.ToLower(mac)
+	if xname, found := s.macToXname[key]; found {
+		return xname, nil
 	}
-	return "", errors.New("MAC " + mac + " not found for an xname in nodes")
+	return "", fmt.Errorf("MAC %s not found for an xname in nodes", mac)
 }
 
 // IDfromIP returns the ID of the xname that has the IP address
 func (s *SMDClient) IDfromIP(ipaddr string) (string, error) {
-	s.nodesMutex.Lock()
-	defer s.nodesMutex.Unlock()
+	s.nodesMutex.RLock()
+	defer s.nodesMutex.RUnlock()
 
-	for _, node := range s.nodes {
-		for _, iface := range node.Interfaces {
-			if strings.EqualFold(ipaddr, iface.IP) || strings.EqualFold(ipaddr, iface.WGIP) {
-				return node.Xname, nil
-			}
-		}
+	key := strings.ToLower(ipaddr)
+	if xname, found := s.ipToXname[key]; found {
+		return xname, nil
 	}
-	return "", errors.New("IP address " + ipaddr + " not found for an xname in nodes")
+	if xname, found := s.wgipToXname[key]; found {
+		return xname, nil
+	}
+	return "", fmt.Errorf("IP address %s not found for an xname in nodes", ipaddr)
 }
 
 // IPfromID returns the IP address of the xname with the given ID
 func (s *SMDClient) IPfromID(id string) (string, error) {
-	s.nodesMutex.Lock()
-	defer s.nodesMutex.Unlock()
+	s.nodesMutex.RLock()
+	defer s.nodesMutex.RUnlock()
 	if node, found := s.nodes[id]; found {
 		if node.Interfaces != nil {
 			if len(node.Interfaces) > 0 {
@@ -323,8 +364,8 @@ func (s *SMDClient) IPfromID(id string) (string, error) {
 }
 
 func (s *SMDClient) MACfromID(id string) (string, error) {
-	s.nodesMutex.Lock()
-	defer s.nodesMutex.Unlock()
+	s.nodesMutex.RLock()
+	defer s.nodesMutex.RUnlock()
 	if node, found := s.nodes[id]; found {
 		if node.Interfaces != nil {
 			if len(node.Interfaces) > 0 {
@@ -343,13 +384,15 @@ func (s *SMDClient) GroupMembership(id string) ([]string, error) {
 		log.Err(err).Msg("failed to get group membership")
 		return []string{}, err
 	}
-	ml := new(sm.Membership)
-	ep := "/hsm/v2/memberships/" + id
-	err := s.getSMD(ep, ml)
-	if err != nil {
-		return nil, err
+
+	s.nodesMutex.RLock()
+	defer s.nodesMutex.RUnlock()
+
+	if node, found := s.nodes[id]; found {
+		return node.Groups, nil
 	}
-	return ml.GroupLabels, nil
+
+	return []string{}, fmt.Errorf("node %s not found in cache", id)
 }
 
 func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
@@ -372,6 +415,9 @@ func (s *SMDClient) AddWGIP(id string, wgip string) error {
 		if node.Interfaces != nil {
 			if len(node.Interfaces) > 0 {
 				node.Interfaces[0].WGIP = wgip
+				s.nodes[id] = node
+				// Update reverse index
+				s.wgipToXname[strings.ToLower(wgip)] = id
 				return nil
 			}
 			return errors.New("no interfaces found for ID " + id)
@@ -381,8 +427,8 @@ func (s *SMDClient) AddWGIP(id string, wgip string) error {
 }
 
 func (s *SMDClient) WGIPfromID(id string) (string, error) {
-	s.nodesMutex.Lock()
-	defer s.nodesMutex.Unlock()
+	s.nodesMutex.RLock()
+	defer s.nodesMutex.RUnlock()
 	if node, found := s.nodes[id]; found {
 		if node.Interfaces != nil {
 			if len(node.Interfaces) > 0 {
