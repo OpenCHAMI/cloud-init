@@ -14,10 +14,11 @@ import (
 func TestPopulateNodes(t *testing.T) {
 	// Mock SMD server
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte(`[
+
+		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
+			w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -48,9 +49,15 @@ func TestPopulateNodes(t *testing.T) {
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
 			}
-		]`)); err != nil {
-			// If an error occurs here, something is very wrong.
-			t.Errorf("Write(): unexpected error: %v", err)
+		]`))
+		} else if r.URL.Path == "/hsm/v2/memberships/x1000" {
+			w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		} else if r.URL.Path == "/hsm/v2/memberships/x1001" {
+			w.Write([]byte(`{"GroupLabels": ["compute", "io"]}`))
+		} else if r.URL.Path == "/hsm/v2/memberships/x1002" {
+			w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		} else if r.URL.Path == "/hsm/v2/memberships/x1003" {
+			w.Write([]byte(`{"GroupLabels": ["compute", "cabinet1"]}`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -60,18 +67,21 @@ func TestPopulateNodes(t *testing.T) {
 	client := &SMDClient{
 		smdClient:         server.Client(),
 		smdBaseURL:        server.URL,
-		nodesMutex:        &sync.Mutex{},
+		nodesMutex:        &sync.RWMutex{},
 		nodes_last_update: time.Now(),
 		nodes:             make(map[string]NodeMapping),
+		ipToXname:         make(map[string]string),
+		macToXname:        make(map[string]string),
+		wgipToXname:       make(map[string]string),
 	}
 
 	// Call PopulateNodes
 	client.PopulateNodes()
 
 	// Verify nodes map
-	client.nodesMutex.Lock()
+	client.nodesMutex.RLock()
 	t.Log(client.nodes)
-	defer client.nodesMutex.Unlock()
+	defer client.nodesMutex.RUnlock()
 
 	assert.Equal(t, 4, len(client.nodes))
 
@@ -104,10 +114,11 @@ func TestPopulateNodes(t *testing.T) {
 func TestIPfromID(t *testing.T) {
 	// Mock SMD server
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/hsm/v2/Inventory/EthernetInterfaces/", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte(`[
+		
+		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
+			w.Write([]byte(`[
 			{
 				"ComponentID": "x1000",
 				"MACAddress": "00:11:22:33:44:55",
@@ -150,9 +161,12 @@ func TestIPfromID(t *testing.T) {
 	client := &SMDClient{
 		smdClient:         server.Client(),
 		smdBaseURL:        server.URL,
-		nodesMutex:        &sync.Mutex{},
+		nodesMutex:        &sync.RWMutex{},
 		nodes_last_update: time.Now(),
 		nodes:             make(map[string]NodeMapping),
+		ipToXname:         make(map[string]string),
+		macToXname:        make(map[string]string),
+		wgipToXname:       make(map[string]string),
 	}
 
 	// Call PopulateNodes to populate the nodes map
@@ -232,9 +246,12 @@ func TestIDfromIP(t *testing.T) {
 	client := &SMDClient{
 		smdClient:         server.Client(),
 		smdBaseURL:        server.URL,
-		nodesMutex:        &sync.Mutex{},
+		nodesMutex:        &sync.RWMutex{},
 		nodes_last_update: time.Now(),
 		nodes:             make(map[string]NodeMapping),
+		ipToXname:         make(map[string]string),
+		macToXname:        make(map[string]string),
+		wgipToXname:       make(map[string]string),
 	}
 
 	// Call PopulateNodes to populate the nodes map
@@ -314,9 +331,12 @@ func TestIDfromMAC(t *testing.T) {
 	client := &SMDClient{
 		smdClient:         server.Client(),
 		smdBaseURL:        server.URL,
-		nodesMutex:        &sync.Mutex{},
+		nodesMutex:        &sync.RWMutex{},
 		nodes_last_update: time.Now(),
 		nodes:             make(map[string]NodeMapping),
+		ipToXname:         make(map[string]string),
+		macToXname:        make(map[string]string),
+		wgipToXname:       make(map[string]string),
 	}
 
 	// Call PopulateNodes to populate the nodes map
