@@ -144,8 +144,15 @@ func WireGuardMiddlewareWithInterface(wireGuardInterface string, wireGuardCIDR s
 				}
 			}
 
-			// Check if the IP matches the WireGuard subnet
-			isInWireGuardSubnet := wgNet.Contains(ip)
+			// Parse client IP to check if it's in WireGuard subnet
+			clientIPParsed := net.ParseIP(clientIP)
+			if clientIPParsed == nil {
+				http.Error(w, "Invalid client IP Address", http.StatusForbidden)
+				return
+			}
+
+			// Check if the CLIENT IP is in the WireGuard subnet
+			isInWireGuardSubnet := wgNet.Contains(clientIPParsed)
 			var recievedInterface net.Interface
 
 			// Check if the request arrived on the WireGuard interface
@@ -179,8 +186,8 @@ func WireGuardMiddlewareWithInterface(wireGuardInterface string, wireGuardCIDR s
 
 			// Enforce the policy: deny if neither condition is true
 			if !isInWireGuardSubnet && !isOnWireGuardInterface {
-				log.Debug().Msgf("Access denied: IP %s not in WireGuard subnet or interface", localIP)
-				http.Error(w, fmt.Sprintf("Access denied: IP %s not in WireGuard subnet or interface", localIP), http.StatusForbidden)
+				log.Debug().Msgf("Access denied: client IP %s not in WireGuard subnet or interface", clientIP)
+				http.Error(w, fmt.Sprintf("Access denied: client IP %s not in WireGuard subnet or interface", clientIP), http.StatusForbidden)
 				return
 			}
 

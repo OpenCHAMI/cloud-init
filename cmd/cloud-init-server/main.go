@@ -251,10 +251,11 @@ func startServer() error {
 		openchami_logger.OpenCHAMILogger(log.Logger),
 	)
 
-	// Add WireGuard middleware if enabled
-	if wireguardOnly && wireGuardMiddleware != nil {
-		router.Use(wireGuardMiddleware)
-	}
+	// NOTE: WireGuard middleware is NOT applied globally here.
+	// It is selectively applied only to cloud-init client routes in initCiClientRouter.
+	// Admin routes and /wg-init MUST remain accessible without WireGuard to allow:
+	// 1. Clients to establish WireGuard tunnels via /wg-init
+	// 2. Admins to manage configuration
 
 	// Setup routes
 	initCiClientRouter(router, handler, wgInterfaceManager)
@@ -291,9 +292,18 @@ func parseBool(str string) bool {
 }
 
 func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
-	// Add cloud-init endpoints to router
+	// Public endpoints (no WireGuard required)
 	router.Get("/openapi.json", DocsHandler)
 	router.Get("/version", VersionHandler)
+
+	// WireGuard tunnel establishment endpoint - MUST be accessible without WireGuard
+	// because clients need this to get their WireGuard IP in the first place!
+	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
+
+	// Phone home endpoint - allow without WireGuard for initial node registration
+	router.Post("/phone-home/{id}", PhoneHomeHandler(wgInterfaceManager, handler.sm))
+
+	// Cloud-init data endpoints - apply WireGuard middleware if configured
 	if wireGuardMiddleware != nil {
 		router.With(wireGuardMiddleware).Get("/user-data", UserDataHandler)
 		router.With(wireGuardMiddleware).Get("/meta-data", MetaDataHandler(handler.sm, handler.store))
@@ -305,8 +315,6 @@ func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManage
 		router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store, baseUrl))
 		router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 	}
-	router.Post("/phone-home/{id}", PhoneHomeHandler(wgInterfaceManager, handler.sm))
-	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
 }
 
 func initCiAdminRouter(router chi.Router, handler *CiHandler) {
