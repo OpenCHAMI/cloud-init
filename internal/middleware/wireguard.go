@@ -132,19 +132,6 @@ func WireGuardMiddlewareWithInterface(wireGuardInterface string, wireGuardCIDR s
 
 			// Check if the CLIENT IP is in the WireGuard subnet
 			isInWireGuardSubnet := wgNet.Contains(clientIPParsed)
-			var recievedInterface net.Interface
-
-			// Check if the request arrived on the WireGuard interface
-			isOnWireGuardInterface := false
-			interfaces, err := net.Interfaces()
-			if err != nil {
-				log.Debug().Msg("Could not retrieve network interfaces")
-				http.Error(w, "Could not retrieve network interfaces", http.StatusInternalServerError)
-				return
-			}
-
-			// Check if CLIENT IP is in WireGuard subnet
-			isInWireGuardSubnet := wgNet.Contains(clientIPParsed)
 
 			// Retrieve the local address (where the request arrived on the server)
 			var localIP string
