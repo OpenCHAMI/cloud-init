@@ -378,3 +378,25 @@ func (f *FakeSMDClient) WGIPfromID(id string) (string, error) {
 	}
 	return "", fmt.Errorf("node (%s) not found", id)
 }
+
+// GetNodeInterfaces returns all network interfaces for a given node ID
+func (f *FakeSMDClient) GetNodeInterfaces(id string) (NodeMapping, bool) {
+	for _, c := range f.rosetta_mapping {
+		if c.ComponentID == id {
+			// Create a NodeMapping with the interface information
+			node := NodeMapping{
+				Xname: c.ComponentID,
+				Interfaces: []NodeInterface{
+					{
+						MAC:  c.BootMAC,
+						IP:   c.BootIPAddress,
+						WGIP: c.WGIPAddress,
+						Desc: "Boot interface",
+					},
+				},
+			}
+			return node, true
+		}
+	}
+	return NodeMapping{}, false
+}
