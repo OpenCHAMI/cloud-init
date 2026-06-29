@@ -251,11 +251,6 @@ func startServer() error {
 		openchami_logger.OpenCHAMILogger(log.Logger),
 	)
 
-	// Add WireGuard middleware if enabled
-	if wireguardOnly && wireGuardMiddleware != nil {
-		router.Use(wireGuardMiddleware)
-	}
-
 	// Setup routes
 	initCiClientRouter(router, handler, wgInterfaceManager)
 	initCiAdminRouter(router, handler)
