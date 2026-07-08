@@ -102,7 +102,7 @@ base-url: http://test.example/
 func TestConcurrentInstanceAccess(t *testing.T) {
 	store := NewMemStore()
 
-	store.SetInstanceInfo("node1", cistore.OpenCHAMIInstanceInfo{InstanceID: "i-001"})
+	store.SetInstanceInfo("node1", cistore.OpenCHAMIInstanceInfo{InstanceID: "i-001"}) // nolint:errcheck
 
 	t.Run("concurrent_reads", func(t *testing.T) {
 		var wg sync.WaitGroup
