@@ -84,8 +84,8 @@ func (m *MemStore) GetGroups() map[string]cistore.GroupData {
 }
 
 func (m *MemStore) AddGroupData(groupName string, newGroupData cistore.GroupData) error {
-	m.GroupsMutex.RLock()
-	defer m.GroupsMutex.RUnlock()
+	m.GroupsMutex.Lock()
+	defer m.GroupsMutex.Unlock()
 	// get CI data and check if groups IDENTIFIER exists (creates if not)
 	_, ok := m.Groups[groupName]
 	if ok {
@@ -115,8 +115,8 @@ func (m *MemStore) GetGroupData(groupName string) (cistore.GroupData, error) {
 
 // UpdateGroupData is similar to AddGroupData but only works if the group exists
 func (m *MemStore) UpdateGroupData(groupName string, groupData cistore.GroupData, create bool) error {
-	m.GroupsMutex.RLock()
-	defer m.GroupsMutex.RUnlock()
+	m.GroupsMutex.Lock()
+	defer m.GroupsMutex.Unlock()
 	if create {
 		m.Groups[groupName] = groupData
 		return nil
@@ -139,8 +139,8 @@ func (m *MemStore) RemoveGroupData(name string) error {
 }
 
 func (m *MemStore) GetInstanceInfo(nodeName string) (cistore.OpenCHAMIInstanceInfo, error) {
-	m.InstancesMutex.RLock()
-	defer m.InstancesMutex.RUnlock()
+	m.InstancesMutex.Lock()
+	defer m.InstancesMutex.Unlock()
 	if _, ok := m.Instances[nodeName]; !ok {
 		m.Instances[nodeName] = cistore.OpenCHAMIInstanceInfo{
 			InstanceID: generateInstanceId(),
@@ -150,8 +150,8 @@ func (m *MemStore) GetInstanceInfo(nodeName string) (cistore.OpenCHAMIInstanceIn
 }
 
 func (m *MemStore) SetInstanceInfo(nodeName string, instanceInfo cistore.OpenCHAMIInstanceInfo) error {
-	m.InstancesMutex.RLock()
-	defer m.InstancesMutex.RUnlock()
+	m.InstancesMutex.Lock()
+	defer m.InstancesMutex.Unlock()
 	if _, ok := m.Instances[nodeName]; !ok {
 		// This is a creation operation
 		if instanceInfo.InstanceID == "" {
