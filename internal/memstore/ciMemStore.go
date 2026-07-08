@@ -132,8 +132,8 @@ func (m *MemStore) UpdateGroupData(groupName string, groupData cistore.GroupData
 }
 
 func (m *MemStore) RemoveGroupData(name string) error {
-	m.GroupsMutex.RLock()
-	defer m.GroupsMutex.RUnlock()
+	m.GroupsMutex.Lock()
+	defer m.GroupsMutex.Unlock()
 	delete(m.Groups, name)
 	return nil
 }
@@ -167,8 +167,8 @@ func (m *MemStore) SetInstanceInfo(nodeName string, instanceInfo cistore.OpenCHA
 }
 
 func (m *MemStore) DeleteInstanceInfo(nodeName string) error {
-	m.InstancesMutex.RLock()
-	defer m.InstancesMutex.RUnlock()
+	m.InstancesMutex.Lock()
+	defer m.InstancesMutex.Unlock()
 	delete(m.Instances, nodeName)
 	return nil
 }
