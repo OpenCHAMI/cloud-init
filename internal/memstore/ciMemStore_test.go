@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
+	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/stretchr/testify/require"
 
 	storetesting "github.com/OpenCHAMI/cloud-init/pkg/cistore/testing"
@@ -96,3 +98,63 @@ base-url: http://test.example/
 
 	testInvalidFile = `this is not yaml`
 )
+
+func TestConcurrentInstanceAccess(t *testing.T) {
+	store := NewMemStore()
+
+	store.SetInstanceInfo("node1", cistore.OpenCHAMIInstanceInfo{InstanceID: "i-001"}) // nolint:errcheck
+
+	t.Run("concurrent_reads", func(t *testing.T) {
+		var wg sync.WaitGroup
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				for j := 0; j < 10; j++ {
+					_, err := store.GetInstanceInfo("node1")
+					if err != nil {
+						t.Errorf("concurrent read failed: %v", err)
+						return
+					}
+				}
+			}(i)
+		}
+		wg.Wait()
+	})
+
+	t.Run("concurrent_writes", func(t *testing.T) {
+		var wg sync.WaitGroup
+		for i := 0; i < 50; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				nodeID := fmt.Sprintf("node-%d", id)
+				err := store.SetInstanceInfo(nodeID, cistore.OpenCHAMIInstanceInfo{InstanceID: fmt.Sprintf("i-%d", id)})
+				if err != nil {
+					t.Errorf("concurrent write failed for %s: %v", nodeID, err)
+				}
+			}(i)
+		}
+		wg.Wait()
+	})
+
+	t.Run("mixed_access", func(t *testing.T) {
+		var wg sync.WaitGroup
+		for i := 0; i < 25; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				nodeID := fmt.Sprintf("mixed-node-%d", id)
+				_ = store.SetInstanceInfo(nodeID, cistore.OpenCHAMIInstanceInfo{InstanceID: fmt.Sprintf("i-mixed-%d", id)})
+			}(i)
+		}
+		for i := 0; i < 25; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				_, _ = store.GetInstanceInfo("node1")
+			}(i)
+		}
+		wg.Wait()
+	})
+}
