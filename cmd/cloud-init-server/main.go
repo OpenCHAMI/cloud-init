@@ -52,6 +52,7 @@ var (
 	wireguardServer      string
 	wireguardOnly        bool
 	debug                bool
+	logFormat            string
 	wireGuardMiddleware  func(http.Handler) http.Handler
 	storageBackend       = "mem"           // Default to memstore
 	dbPath               = "cloud-init.db" // Default database path for quackstore
@@ -98,6 +99,7 @@ func setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&wireguardServer, "wireguard-server", getEnv("WIREGUARD_SERVER", ""), "WireGuard server IP address and network (e.g. 100.97.0.1/16)")
 	flags.BoolVar(&wireguardOnly, "wireguard-only", parseBool(getEnv("WIREGUARD_ONLY", "false")), "Only allow access to the cloud-init functions from the WireGuard subnet")
 	flags.BoolVar(&debug, "debug", parseBool(getEnv("DEBUG", "false")), "Enable debug logging")
+	flags.StringVar(&logFormat, "log-format", getEnv("LOG_FORMAT", "auto"), "Log format: json, console, or auto (auto detects TTY)")
 	flags.StringVar(&storageBackend, "storage-backend", getEnv("STORAGE_BACKEND", "mem"), "Storage backend to use (mem or quack)")
 	flags.StringVar(&dbPath, "db-path", getEnv("DB_PATH", "cloud-init.db"), "Path to the database file for quackstore backend")
 	flags.StringVar(&memPath, "mem-path", getEnv("MEM_PATH", ""), "Path to initial in-memory store configuration")
@@ -124,6 +126,7 @@ func bindViperToFlags() {
 	_ = viper.BindEnv("wireguard_server")
 	_ = viper.BindEnv("wireguard_only")
 	_ = viper.BindEnv("debug")
+	_ = viper.BindEnv("log_format")
 	_ = viper.BindEnv("storage_backend")
 	_ = viper.BindEnv("db_path")
 	_ = viper.BindEnv("mem_path")
@@ -159,7 +162,34 @@ func startServer() error {
 	// Setup logger
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	// Configure log output based on format and TTY detection
+	switch strings.ToLower(logFormat) {
+	case "json":
+		log.Logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
+	case "console":
+		log.Logger = log.Output(zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			NoColor:    false,
+			TimeFormat: time.RFC3339,
+		})
+	case "auto":
+		// Auto-detect: use JSON if not a TTY (container logs), console with no color otherwise
+		if isatty := func() bool {
+			fileInfo, _ := os.Stderr.Stat()
+			return (fileInfo.Mode() & os.ModeCharDevice) != 0
+		}(); isatty {
+			log.Logger = log.Output(zerolog.ConsoleWriter{
+				Out:        os.Stderr,
+				NoColor:    false,
+				TimeFormat: time.RFC3339,
+			})
+		} else {
+			log.Logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
+		}
+	default:
+		log.Logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
+	}
 
 	// Initialize storage backend
 	var err error

@@ -68,7 +68,7 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http
 			id = urlId
 		}
 		log.Debug().Msgf("Getting metadata for id: %s", id)
-		smdComponent, err := smd.ComponentInformation(id)
+		smdComponent, err := smd.ComponentInformationWithRetry(id, 3)
 		if err != nil {
 			if esr, ok := err.(smdclient.ErrSMDResponse); ok {
 				var msg string
