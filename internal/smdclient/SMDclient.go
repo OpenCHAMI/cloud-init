@@ -27,6 +27,7 @@ type SMDClientInterface interface {
 	MACfromID(id string) (string, error)
 	GroupMembership(id string) ([]string, error)
 	ComponentInformation(id string) (base.Component, error)
+	ComponentInformationWithRetry(id string, maxRetries int) (base.Component, error)
 	PopulateNodes()
 	ClusterName() string
 	AddWGIP(id string, wgip string) error
@@ -77,7 +78,7 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 		certPool *x509.CertPool
 	)
 
-	c = &http.Client{Timeout: 2 * time.Second}
+	c = &http.Client{Timeout: 10 * time.Second}
 
 	// try and load the cert if path is provided first
 	if certPath != "" {
@@ -95,7 +96,7 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 			RootCAs:            certPool,
 			InsecureSkipVerify: insecure,
 		},
-		DisableKeepAlives: true,
+		DisableKeepAlives: false,
 		Dial: (&net.Dialer{
 			Timeout:   120 * time.Second,
 			KeepAlive: 120 * time.Second,
@@ -406,6 +407,94 @@ func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
 		return node, err
 	}
 	return node, nil
+}
+
+// ComponentInformationWithRetry wraps ComponentInformation with exponential backoff retry logic
+// for transient network errors and timeouts. This is critical during boot storms when SMD
+// may be temporarily overloaded.
+func (s *SMDClient) ComponentInformationWithRetry(id string, maxRetries int) (base.Component, error) {
+	var lastErr error
+	var node base.Component
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		node, err := s.ComponentInformation(id)
+		if err == nil {
+			// Success - return immediately
+			return node, nil
+		}
+
+		lastErr = err
+
+		// Check if error is retryable (timeout or network error)
+		if !isRetryableError(err) {
+			// Non-retryable error (e.g., 404 Not Found, auth failure)
+			return node, err
+		}
+
+		// Don't sleep on the last attempt
+		if attempt < maxRetries-1 {
+			// Exponential backoff: 100ms, 200ms, 400ms, 800ms, etc.
+			backoff := time.Duration(100<<uint(attempt)) * time.Millisecond
+			log.Warn().
+				Str("component_id", id).
+				Int("attempt", attempt+1).
+				Int("max_retries", maxRetries).
+				Dur("backoff", backoff).
+				Err(err).
+				Msg("SMD request failed, retrying after backoff")
+			time.Sleep(backoff)
+		}
+	}
+
+	// All retries exhausted
+	log.Error().
+		Str("component_id", id).
+		Int("attempts", maxRetries).
+		Err(lastErr).
+		Msg("SMD request failed after all retry attempts")
+
+	return node, fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+}
+
+// isRetryableError determines if an error should trigger a retry
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+
+	// Timeout errors
+	if strings.Contains(errStr, "context deadline exceeded") ||
+		strings.Contains(errStr, "Client.Timeout exceeded") ||
+		strings.Contains(errStr, "timeout") ||
+		strings.Contains(errStr, "Timeout") {
+		return true
+	}
+
+	// Network errors
+	if strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "network is unreachable") ||
+		strings.Contains(errStr, "no route to host") ||
+		strings.Contains(errStr, "broken pipe") ||
+		strings.Contains(errStr, "EOF") {
+		return true
+	}
+
+	// Temporary service unavailability (503)
+	if strings.Contains(errStr, "503") ||
+		strings.Contains(errStr, "Service Unavailable") {
+		return true
+	}
+
+	// Too Many Requests (429) - SMD may be rate limiting
+	if strings.Contains(errStr, "429") ||
+		strings.Contains(errStr, "Too Many Requests") {
+		return true
+	}
+
+	return false
 }
 
 func (s *SMDClient) AddWGIP(id string, wgip string) error {

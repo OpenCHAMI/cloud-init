@@ -133,6 +133,10 @@ func (f *FakeSMDClient) ComponentInformation(id string) (base.Component, error) 
 	return base.Component{}, errors.New("component not found in fake SMD client")
 }
 
+func (f *FakeSMDClient) ComponentInformationWithRetry(id string, maxRetries int) (base.Component, error) {
+	return f.ComponentInformation(id)
+}
+
 func (f *FakeSMDClient) Summary() {
 	fmt.Printf("FakeSMDClient: %d components from %s to %s\n", len(f.components), f.rosetta_mapping[0].ComponentID, f.rosetta_mapping[len(f.rosetta_mapping)-1].ComponentID)
 	groupNames := make([]string, 0, len(f.groups))
