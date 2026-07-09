@@ -90,7 +90,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
