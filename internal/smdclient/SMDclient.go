@@ -283,16 +283,21 @@ func (s *SMDClient) PopulateNodes() {
 		}
 	}
 
-	// Populate group membership for all nodes
 	log.Debug().Msg("Fetching group membership for all nodes")
+	memberships := make([]sm.Membership, 0)
+	if err := s.getSMD("/hsm/v2/memberships?type=node", &memberships); err != nil {
+		log.Error().Err(err).Msg("Failed to get SMD node memberships")
+		return
+	}
+
+	groupsByXname := make(map[string][]string, len(memberships))
+	for _, membership := range memberships {
+		groupsByXname[membership.ID] = membership.GroupLabels
+	}
 	for xname, node := range nextNodes {
-		ml := new(sm.Membership)
-		membershipEp := "/hsm/v2/memberships/" + xname
-		if err := s.getSMD(membershipEp, ml); err != nil {
-			log.Debug().Err(err).Msgf("Failed to get group membership for %s", xname)
-			node.Groups = []string{} // Empty groups if fetch fails
-		} else {
-			node.Groups = ml.GroupLabels
+		node.Groups = []string{}
+		if groups, found := groupsByXname[xname]; found && groups != nil {
+			node.Groups = groups
 		}
 		nextNodes[xname] = node
 	}

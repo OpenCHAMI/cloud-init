@@ -14,111 +14,121 @@ import (
 )
 
 func TestPopulateNodesBlockedRefreshDoesNotBlockCachedOperations(t *testing.T) {
-	var blockRefresh atomic.Bool
-	refreshStarted := make(chan struct{})
-	releaseRefresh := make(chan struct{})
-	var signalRefreshStarted sync.Once
-	var releaseRefreshOnce sync.Once
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" && blockRefresh.Load() {
-			signalRefreshStarted.Do(func() { close(refreshStarted) })
-			<-releaseRefresh
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		switch r.URL.Path {
-		case "/hsm/v2/Inventory/EthernetInterfaces/":
-			_, _ = w.Write([]byte(`[{
-				"ComponentID": "x1000",
-				"MACAddress": "00:11:22:33:44:55",
-				"IPAddresses": [{"IPAddress": "192.168.1.1"}],
-				"Description": "Test Node"
-			}]`))
-		case "/hsm/v2/memberships/x1000":
-			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
-		}
-	})
-	server := httptest.NewServer(handler)
-	defer server.Close()
-	release := func() {
-		releaseRefreshOnce.Do(func() { close(releaseRefresh) })
-	}
-	defer release()
-
-	client := &SMDClient{
-		smdClient:   server.Client(),
-		smdBaseURL:  server.URL,
-		nodesMutex:  &sync.RWMutex{},
-		nodes:       make(map[string]NodeMapping),
-		ipToXname:   make(map[string]string),
-		macToXname:  make(map[string]string),
-		wgipToXname: make(map[string]string),
-	}
-	client.PopulateNodes()
-
-	blockRefresh.Store(true)
-	refreshDone := make(chan struct{})
-	go func() {
-		client.PopulateNodes()
-		close(refreshDone)
-	}()
-
-	select {
-	case <-refreshStarted:
-	case <-time.After(time.Second):
-		t.Fatal("refresh did not reach blocked SMD handler")
+	tests := []struct {
+		name        string
+		blockedPath string
+	}{
+		{name: "blocked inventory request", blockedPath: "/hsm/v2/Inventory/EthernetInterfaces/"},
+		{name: "blocked bulk membership request", blockedPath: "/hsm/v2/memberships"},
 	}
 
-	lookupResult := make(chan struct {
-		xname string
-		err   error
-	}, 1)
-	go func() {
-		xname, err := client.IDfromIP("192.168.1.1")
-		lookupResult <- struct {
-			xname string
-			err   error
-		}{xname: xname, err: err}
-	}()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var blockRefresh atomic.Bool
+			refreshStarted := make(chan struct{})
+			releaseRefresh := make(chan struct{})
+			var signalRefreshStarted sync.Once
+			var releaseRefreshOnce sync.Once
 
-	select {
-	case result := <-lookupResult:
-		require.NoError(t, result.err)
-		assert.Equal(t, "x1000", result.xname)
-	case <-time.After(time.Second):
-		t.Fatal("IDfromIP blocked on slow PopulateNodes network I/O")
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == tt.blockedPath && blockRefresh.Load() {
+					signalRefreshStarted.Do(func() { close(refreshStarted) })
+					<-releaseRefresh
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				switch r.URL.Path {
+				case "/hsm/v2/Inventory/EthernetInterfaces/":
+					_, _ = w.Write([]byte(`[{"ComponentID":"x1000","MACAddress":"00:11:22:33:44:55","IPAddresses":[{"IPAddress":"192.168.1.1"}],"Description":"Test Node"}]`))
+				case "/hsm/v2/memberships":
+					if got := r.URL.Query().Get("type"); got != "node" {
+						t.Errorf("membership type query = %q, want node", got)
+					}
+					_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":""}]`))
+				}
+			})
+			server := httptest.NewServer(handler)
+			defer server.Close()
+			release := func() {
+				releaseRefreshOnce.Do(func() { close(releaseRefresh) })
+			}
+			defer release()
+
+			client := &SMDClient{
+				smdClient:   server.Client(),
+				smdBaseURL:  server.URL,
+				nodesMutex:  &sync.RWMutex{},
+				nodes:       make(map[string]NodeMapping),
+				ipToXname:   make(map[string]string),
+				macToXname:  make(map[string]string),
+				wgipToXname: make(map[string]string),
+			}
+			client.PopulateNodes()
+
+			blockRefresh.Store(true)
+			refreshDone := make(chan struct{})
+			go func() {
+				client.PopulateNodes()
+				close(refreshDone)
+			}()
+
+			select {
+			case <-refreshStarted:
+			case <-time.After(time.Second):
+				t.Fatal("refresh did not reach blocked SMD handler")
+			}
+
+			lookupResult := make(chan struct {
+				xname string
+				err   error
+			}, 1)
+			go func() {
+				xname, err := client.IDfromIP("192.168.1.1")
+				lookupResult <- struct {
+					xname string
+					err   error
+				}{xname: xname, err: err}
+			}()
+
+			select {
+			case result := <-lookupResult:
+				require.NoError(t, result.err)
+				assert.Equal(t, "x1000", result.xname)
+			case <-time.After(time.Second):
+				t.Fatal("IDfromIP blocked on slow PopulateNodes network I/O")
+			}
+
+			addWGIPResult := make(chan error, 1)
+			go func() {
+				addWGIPResult <- client.AddWGIP("x1000", "10.99.0.2")
+			}()
+
+			select {
+			case err := <-addWGIPResult:
+				require.NoError(t, err)
+			case <-time.After(time.Second):
+				t.Fatal("AddWGIP blocked on slow PopulateNodes network I/O")
+			}
+
+			release()
+			select {
+			case <-refreshDone:
+			case <-time.After(time.Second):
+				t.Fatal("PopulateNodes did not finish after SMD response was released")
+			}
+
+			xname, err := client.IDfromIP("10.99.0.2")
+			require.NoError(t, err)
+			assert.Equal(t, "x1000", xname)
+			wgip, err := client.WGIPfromID("x1000")
+			require.NoError(t, err)
+			assert.Equal(t, "10.99.0.2", wgip)
+			groups, err := client.GroupMembership("x1000")
+			require.NoError(t, err)
+			assert.Equal(t, []string{"compute"}, groups)
+		})
 	}
-
-	addWGIPResult := make(chan error, 1)
-	go func() {
-		addWGIPResult <- client.AddWGIP("x1000", "10.99.0.2")
-	}()
-
-	select {
-	case err := <-addWGIPResult:
-		require.NoError(t, err)
-	case <-time.After(time.Second):
-		t.Fatal("AddWGIP blocked on slow PopulateNodes network I/O")
-	}
-
-	release()
-	select {
-	case <-refreshDone:
-	case <-time.After(time.Second):
-		t.Fatal("PopulateNodes did not finish after SMD response was released")
-	}
-
-	xname, err := client.IDfromIP("10.99.0.2")
-	require.NoError(t, err)
-	assert.Equal(t, "x1000", xname)
-	wgip, err := client.WGIPfromID("x1000")
-	require.NoError(t, err)
-	assert.Equal(t, "10.99.0.2", wgip)
-	groups, err := client.GroupMembership("x1000")
-	require.NoError(t, err)
-	assert.Equal(t, []string{"compute"}, groups)
 }
 
 // TestGroupMembershipCached verifies that Bug #1 is fixed:
@@ -140,8 +150,8 @@ func TestGroupMembershipCached(t *testing.T) {
 					"Description": "Test Node 1"
 				}
 			]`))
-		case "/hsm/v2/memberships/x1000":
-			_, _ = w.Write([]byte(`{"GroupLabels": ["compute", "cabinet1"]}`))
+		case "/hsm/v2/memberships":
+			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute","cabinet1"],"partitionName":""}]`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -161,6 +171,7 @@ func TestGroupMembershipCached(t *testing.T) {
 	initialRequests := requestCount
 	client.PopulateNodes()
 	populateRequests := requestCount - initialRequests
+	assert.Equal(t, 2, populateRequests)
 
 	// Verify group membership was cached
 	groups, err := client.GroupMembership("x1000")
@@ -207,10 +218,11 @@ func TestConcurrentReads(t *testing.T) {
 					"Description": "Test Node 2"
 				}
 			]`))
-		case "/hsm/v2/memberships/x1000":
-			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
-		case "/hsm/v2/memberships/x1001":
-			_, _ = w.Write([]byte(`{"GroupLabels": ["io"]}`))
+		case "/hsm/v2/memberships":
+			_, _ = w.Write([]byte(`[
+				{"id":"x1000","groupLabels":["compute"],"partitionName":""},
+				{"id":"x1001","groupLabels":["io"],"partitionName":""}
+			]`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -287,10 +299,13 @@ func TestReverseIndexPerformance(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
 			_, _ = w.Write([]byte(ethInterfaces))
-		} else if len(r.URL.Path) >= len("/hsm/v2/memberships/") && r.URL.Path[:len("/hsm/v2/memberships/")] == "/hsm/v2/memberships/" {
-			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships":
+			_, _ = w.Write([]byte(bulkMembershipsJSON(nodeCount)))
+		default:
+			http.NotFound(w, r)
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -369,8 +384,8 @@ func TestCaseInsensitiveLookup(t *testing.T) {
 					"Description": "Test Node"
 				}
 			]`))
-		case "/hsm/v2/memberships/x1000":
-			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships":
+			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":""}]`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -430,8 +445,8 @@ func TestAddWGIPUpdatesReverseIndex(t *testing.T) {
 					"Description": "Test Node"
 				}
 			]`))
-		case "/hsm/v2/memberships/x1000":
-			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships":
+			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":""}]`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -474,7 +489,8 @@ func BenchmarkIDfromIP(b *testing.B) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
 			// Generate 1000 nodes
 			ethInterfaces := "["
 			for i := 0; i < 1000; i++ {
@@ -490,8 +506,10 @@ func BenchmarkIDfromIP(b *testing.B) {
 			}
 			ethInterfaces += "]"
 			_, _ = w.Write([]byte(ethInterfaces))
-		} else if len(r.URL.Path) >= len("/hsm/v2/memberships/") && r.URL.Path[:len("/hsm/v2/memberships/")] == "/hsm/v2/memberships/" {
-			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		case "/hsm/v2/memberships":
+			_, _ = w.Write([]byte(bulkMembershipsJSON(1000)))
+		default:
+			http.NotFound(w, r)
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -532,8 +550,8 @@ func BenchmarkGroupMembership(b *testing.B) {
 					"Description": "Test Node"
 				}
 			]`))
-		case "/hsm/v2/memberships/x1000":
-			_, _ = w.Write([]byte(`{"GroupLabels": ["compute", "cabinet1", "rack1"]}`))
+		case "/hsm/v2/memberships":
+			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute","cabinet1","rack1"],"partitionName":""}]`))
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -555,4 +573,15 @@ func BenchmarkGroupMembership(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = client.GroupMembership("x1000")
 	}
+}
+
+func bulkMembershipsJSON(nodeCount int) string {
+	memberships := "["
+	for i := 0; i < nodeCount; i++ {
+		if i > 0 {
+			memberships += ","
+		}
+		memberships += fmt.Sprintf(`{"id":"x%d","groupLabels":["compute"],"partitionName":""}`, i)
+	}
+	return memberships + "]"
 }

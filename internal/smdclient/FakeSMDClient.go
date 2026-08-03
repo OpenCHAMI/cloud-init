@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	base "github.com/Cray-HPE/hms-base"
+	"github.com/OpenCHAMI/smd/v2/pkg/sm"
 
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 )
@@ -287,6 +288,28 @@ func (f *FakeSMDClient) PopulateNodes() {
 }
 
 // ***** Simulated SMD Client functions.  Not part of the SMDClientInterface *****
+
+// ListMemberships returns memberships derived from the simulator's group state.
+func (f *FakeSMDClient) ListMemberships() []sm.Membership {
+	memberships := make([]sm.Membership, 0, len(f.rosetta_mapping))
+	for _, component := range f.rosetta_mapping {
+		groupLabels := make([]string, 0)
+		for group, componentIDs := range f.groups {
+			for _, componentID := range componentIDs {
+				if componentID == component.ComponentID {
+					groupLabels = append(groupLabels, group)
+					break
+				}
+			}
+		}
+		memberships = append(memberships, sm.Membership{
+			ID:            component.ComponentID,
+			GroupLabels:   groupLabels,
+			PartitionName: "",
+		})
+	}
+	return memberships
+}
 
 // AddNodeToInventory adds a node to the inventory.  This is not part of the SMDClient Interface and only useful as part of the simulator
 func (f *FakeSMDClient) AddNodeToInventory(node cistore.OpenCHAMIComponent) error {
