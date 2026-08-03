@@ -299,11 +299,12 @@ func TestReverseIndexPerformance(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
 			_, _ = w.Write([]byte(ethInterfaces))
-		} else if r.URL.Path == "/hsm/v2/memberships" {
+		case "/hsm/v2/memberships":
 			_, _ = w.Write([]byte(bulkMembershipsJSON(nodeCount)))
-		} else {
+		default:
 			http.NotFound(w, r)
 		}
 	})
@@ -488,7 +489,8 @@ func BenchmarkIDfromIP(b *testing.B) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" {
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
 			// Generate 1000 nodes
 			ethInterfaces := "["
 			for i := 0; i < 1000; i++ {
@@ -504,9 +506,9 @@ func BenchmarkIDfromIP(b *testing.B) {
 			}
 			ethInterfaces += "]"
 			_, _ = w.Write([]byte(ethInterfaces))
-		} else if r.URL.Path == "/hsm/v2/memberships" {
+		case "/hsm/v2/memberships":
 			_, _ = w.Write([]byte(bulkMembershipsJSON(1000)))
-		} else {
+		default:
 			http.NotFound(w, r)
 		}
 	})
