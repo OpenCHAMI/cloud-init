@@ -230,62 +230,62 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 // PopulateNodes fetches the Ethernet interface data from the SMD server and populates the nodes map
 // with the corresponding node information, including MAC addresses, IP addresses, descriptions, and group membership.
 func (s *SMDClient) PopulateNodes() {
-	s.nodesMutex.Lock()
-	defer s.nodesMutex.Unlock()
 	var ethIfaceArray []sm.CompEthInterfaceV2
 	ep := "/hsm/v2/Inventory/EthernetInterfaces/"
 	if err := s.getSMD(ep, &ethIfaceArray); err != nil {
 		log.Error().Err(err).Msg("Failed to get SMD data")
 		return
 	}
+
+	nextNodes := make(map[string]NodeMapping)
 	log.Debug().Msgf("Populating nodes with %d Ethernet interfaces", len(ethIfaceArray))
-	for _, ep := range ethIfaceArray {
-		if existingNode, exists := s.nodes[ep.CompID]; exists {
+	for _, ethIface := range ethIfaceArray {
+		if existingNode, exists := nextNodes[ethIface.CompID]; exists {
 			found := false
 			for index, existingInterface := range existingNode.Interfaces {
-				if strings.EqualFold(existingInterface.MAC, ep.MACAddr) {
+				if strings.EqualFold(existingInterface.MAC, ethIface.MACAddr) {
 					// found the interface.  Update the IP and Description
 					found = true
 					// Update the IP and Description
-					if len(ep.IPAddrs) > 0 {
-						existingInterface.IP = ep.IPAddrs[0].IPAddr
+					if len(ethIface.IPAddrs) > 0 {
+						existingInterface.IP = ethIface.IPAddrs[0].IPAddr
 					}
-					existingInterface.Desc = ep.Desc
+					existingInterface.Desc = ethIface.Desc
 					existingNode.Interfaces[index] = existingInterface
 				}
 			}
 			if !found {
 				// This is a new interface.  Add it to the map
 				newInterface := NodeInterface{
-					MAC:  ep.MACAddr,
-					Desc: ep.Desc,
+					MAC:  ethIface.MACAddr,
+					Desc: ethIface.Desc,
 				}
-				if len(ep.IPAddrs) > 0 {
-					newInterface.IP = ep.IPAddrs[0].IPAddr
+				if len(ethIface.IPAddrs) > 0 {
+					newInterface.IP = ethIface.IPAddrs[0].IPAddr
 				}
 				existingNode.Interfaces = append(existingNode.Interfaces, newInterface)
-				s.nodes[ep.CompID] = existingNode
 			}
+			nextNodes[ethIface.CompID] = existingNode
 		} else { // This is a new node
 			newNode := NodeMapping{
-				Xname: ep.CompID,
+				Xname: ethIface.CompID,
 			}
 			newInterface := NodeInterface{
-				MAC:  ep.MACAddr,
-				Desc: ep.Desc,
+				MAC:  ethIface.MACAddr,
+				Desc: ethIface.Desc,
 			}
-			log.Debug().Msgf("Adding new node %s with MAC %s and IPs: %v", ep.CompID, ep.MACAddr, ep.IPAddrs)
-			if len(ep.IPAddrs) > 0 {
-				newInterface.IP = ep.IPAddrs[0].IPAddr
+			log.Debug().Msgf("Adding new node %s with MAC %s and IPs: %v", ethIface.CompID, ethIface.MACAddr, ethIface.IPAddrs)
+			if len(ethIface.IPAddrs) > 0 {
+				newInterface.IP = ethIface.IPAddrs[0].IPAddr
 			}
 			newNode.Interfaces = append(newNode.Interfaces, newInterface)
-			s.nodes[ep.CompID] = newNode
+			nextNodes[ethIface.CompID] = newNode
 		}
 	}
 
 	// Populate group membership for all nodes
 	log.Debug().Msg("Fetching group membership for all nodes")
-	for xname, node := range s.nodes {
+	for xname, node := range nextNodes {
 		ml := new(sm.Membership)
 		membershipEp := "/hsm/v2/memberships/" + xname
 		if err := s.getSMD(membershipEp, ml); err != nil {
@@ -294,32 +294,57 @@ func (s *SMDClient) PopulateNodes() {
 		} else {
 			node.Groups = ml.GroupLabels
 		}
-		s.nodes[xname] = node
+		nextNodes[xname] = node
 	}
 
 	// Build reverse indexes for O(1) lookups
 	log.Debug().Msg("Building reverse indexes")
-	s.ipToXname = make(map[string]string)
-	s.macToXname = make(map[string]string)
-	s.wgipToXname = make(map[string]string)
+	nextIPToXname := make(map[string]string)
+	nextMACToXname := make(map[string]string)
+	nextWGIPToXname := make(map[string]string)
 
-	for xname, node := range s.nodes {
+	for xname, node := range nextNodes {
 		for _, iface := range node.Interfaces {
 			if iface.IP != "" {
-				s.ipToXname[strings.ToLower(iface.IP)] = xname
+				nextIPToXname[strings.ToLower(iface.IP)] = xname
 			}
 			if iface.MAC != "" {
-				s.macToXname[strings.ToLower(iface.MAC)] = xname
+				nextMACToXname[strings.ToLower(iface.MAC)] = xname
 			}
 			if iface.WGIP != "" {
-				s.wgipToXname[strings.ToLower(iface.WGIP)] = xname
+				nextWGIPToXname[strings.ToLower(iface.WGIP)] = xname
 			}
 		}
 	}
 
+	s.nodesMutex.Lock()
+	defer s.nodesMutex.Unlock()
+
+	for xname, nextNode := range nextNodes {
+		currentNode, found := s.nodes[xname]
+		if !found {
+			continue
+		}
+		for nextIndex, nextInterface := range nextNode.Interfaces {
+			for _, currentInterface := range currentNode.Interfaces {
+				if currentInterface.WGIP == "" || !strings.EqualFold(currentInterface.MAC, nextInterface.MAC) {
+					continue
+				}
+				nextNode.Interfaces[nextIndex].WGIP = currentInterface.WGIP
+				nextWGIPToXname[strings.ToLower(currentInterface.WGIP)] = xname
+				break
+			}
+		}
+		nextNodes[xname] = nextNode
+	}
+
+	s.nodes = nextNodes
+	s.ipToXname = nextIPToXname
+	s.macToXname = nextMACToXname
+	s.wgipToXname = nextWGIPToXname
 	s.nodes_last_update = time.Now()
 	log.Debug().Msgf("Nodes map populated with %d nodes, %d IP mappings, %d MAC mappings",
-		len(s.nodes), len(s.ipToXname), len(s.macToXname))
+		len(nextNodes), len(nextIPToXname), len(nextMACToXname))
 }
 
 // IDfromMAC returns the ID of the xname that has the MAC address
