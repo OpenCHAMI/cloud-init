@@ -5,12 +5,121 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPopulateNodesBlockedRefreshDoesNotBlockCachedOperations(t *testing.T) {
+	var blockRefresh atomic.Bool
+	refreshStarted := make(chan struct{})
+	releaseRefresh := make(chan struct{})
+	var signalRefreshStarted sync.Once
+	var releaseRefreshOnce sync.Once
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/hsm/v2/Inventory/EthernetInterfaces/" && blockRefresh.Load() {
+			signalRefreshStarted.Do(func() { close(refreshStarted) })
+			<-releaseRefresh
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[{
+				"ComponentID": "x1000",
+				"MACAddress": "00:11:22:33:44:55",
+				"IPAddresses": [{"IPAddress": "192.168.1.1"}],
+				"Description": "Test Node"
+			}]`))
+		case "/hsm/v2/memberships/x1000":
+			_, _ = w.Write([]byte(`{"GroupLabels": ["compute"]}`))
+		}
+	})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	release := func() {
+		releaseRefreshOnce.Do(func() { close(releaseRefresh) })
+	}
+	defer release()
+
+	client := &SMDClient{
+		smdClient:   server.Client(),
+		smdBaseURL:  server.URL,
+		nodesMutex:  &sync.RWMutex{},
+		nodes:       make(map[string]NodeMapping),
+		ipToXname:   make(map[string]string),
+		macToXname:  make(map[string]string),
+		wgipToXname: make(map[string]string),
+	}
+	client.PopulateNodes()
+
+	blockRefresh.Store(true)
+	refreshDone := make(chan struct{})
+	go func() {
+		client.PopulateNodes()
+		close(refreshDone)
+	}()
+
+	select {
+	case <-refreshStarted:
+	case <-time.After(time.Second):
+		t.Fatal("refresh did not reach blocked SMD handler")
+	}
+
+	lookupResult := make(chan struct {
+		xname string
+		err   error
+	}, 1)
+	go func() {
+		xname, err := client.IDfromIP("192.168.1.1")
+		lookupResult <- struct {
+			xname string
+			err   error
+		}{xname: xname, err: err}
+	}()
+
+	select {
+	case result := <-lookupResult:
+		require.NoError(t, result.err)
+		assert.Equal(t, "x1000", result.xname)
+	case <-time.After(time.Second):
+		t.Fatal("IDfromIP blocked on slow PopulateNodes network I/O")
+	}
+
+	addWGIPResult := make(chan error, 1)
+	go func() {
+		addWGIPResult <- client.AddWGIP("x1000", "10.99.0.2")
+	}()
+
+	select {
+	case err := <-addWGIPResult:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("AddWGIP blocked on slow PopulateNodes network I/O")
+	}
+
+	release()
+	select {
+	case <-refreshDone:
+	case <-time.After(time.Second):
+		t.Fatal("PopulateNodes did not finish after SMD response was released")
+	}
+
+	xname, err := client.IDfromIP("10.99.0.2")
+	require.NoError(t, err)
+	assert.Equal(t, "x1000", xname)
+	wgip, err := client.WGIPfromID("x1000")
+	require.NoError(t, err)
+	assert.Equal(t, "10.99.0.2", wgip)
+	groups, err := client.GroupMembership("x1000")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"compute"}, groups)
+}
 
 // TestGroupMembershipCached verifies that Bug #1 is fixed:
 // GroupMembership should use the cache instead of making HTTP requests
