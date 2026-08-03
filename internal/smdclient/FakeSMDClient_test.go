@@ -4,6 +4,10 @@ import (
 	"net"
 	"strings"
 	"testing"
+
+	"github.com/OpenCHAMI/smd/v2/pkg/sm"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIncrementXname(t *testing.T) {
@@ -129,4 +133,51 @@ func TestNewFakeSMDClient(t *testing.T) {
 	if len(client.groups["io"]) != 9 {
 		t.Errorf("expected 9 components in io group, got %d", len(client.groups["io"]))
 	}
+}
+
+func TestFakeSMDClientListMemberships(t *testing.T) {
+	client := NewFakeSMDClient("fake", 12)
+	representativeIDs := []string{
+		client.rosetta_mapping[0].ComponentID,
+		client.rosetta_mapping[len(client.rosetta_mapping)-1].ComponentID,
+	}
+
+	memberships := client.ListMemberships()
+	require.Len(t, memberships, len(client.components))
+	for _, id := range representativeIDs {
+		expected, err := client.GroupMembership(id)
+		require.NoError(t, err)
+		actual := membershipByID(t, memberships, id)
+		assert.ElementsMatch(t, expected, actual.GroupLabels)
+		assert.Empty(t, actual.PartitionName)
+	}
+
+	ungroupedID := representativeIDs[0]
+	for group, componentIDs := range client.groups {
+		filtered := make([]string, 0, len(componentIDs))
+		for _, id := range componentIDs {
+			if id != ungroupedID {
+				filtered = append(filtered, id)
+			}
+		}
+		client.groups[group] = filtered
+	}
+	ungrouped := membershipByID(t, client.ListMemberships(), ungroupedID)
+	assert.Empty(t, ungrouped.GroupLabels)
+	assert.NotNil(t, ungrouped.GroupLabels)
+
+	require.NoError(t, client.AddNodeToGroups(ungroupedID, []string{"new-group"}))
+	updated := membershipByID(t, client.ListMemberships(), ungroupedID)
+	assert.Equal(t, []string{"new-group"}, updated.GroupLabels)
+}
+
+func membershipByID(t *testing.T, memberships []sm.Membership, id string) sm.Membership {
+	t.Helper()
+	for _, membership := range memberships {
+		if membership.ID == id {
+			return membership
+		}
+	}
+	t.Fatalf("membership for %s not found", id)
+	return sm.Membership{}
 }
