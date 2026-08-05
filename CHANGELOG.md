@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.8] - 2026-08-05
+
+### Security
+
+- Updated golang.org/x/crypto to v0.54.0 (fixes CVE-2024-45337, CVE-2025-58181, CVE-2026-46595)
+- Updated golang.org/x/net to v0.56.0
+- Updated go-chi/chi/v5 to v5.3.0 (fixes IP spoofing in RealIP middleware)
+- Updated go-jose/go-jose/v4 to v4.1.4 (fixes CVE-2026-34986 JWE decryption panic)
+- Updated go-viper/mapstructure/v2 to v2.4.0 (fixes CVE-2025-11065 sensitive info leak)
+
 ## [0.1.1] - 2024-07-19
 
 ### Added
