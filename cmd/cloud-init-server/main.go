@@ -273,7 +273,7 @@ func startServer() error {
 	// Add middleware
 	router.Use(
 		middleware.RequestID,
-		middleware.RealIP,
+		middleware.ClientIPFromRemoteAddr,
 		middleware.Logger,
 		middleware.Recoverer,
 		middleware.StripSlashes,
