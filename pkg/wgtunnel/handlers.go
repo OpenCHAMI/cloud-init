@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
+	"github.com/openchami/cloud-init/internal/smdclient"
 	"github.com/rs/zerolog/log"
 )
 

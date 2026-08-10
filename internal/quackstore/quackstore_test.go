@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	storetesting "github.com/OpenCHAMI/cloud-init/pkg/cistore/testing"
+	storetesting "github.com/openchami/cloud-init/pkg/cistore/testing"
 	"github.com/stretchr/testify/assert"
 )
 

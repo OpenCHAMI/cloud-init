@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/yaml"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/openchami/cloud-init/pkg/cistore"
 )
 
 type MemStore struct {

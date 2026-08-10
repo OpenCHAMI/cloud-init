@@ -18,15 +18,15 @@ RUN go env -w GO111MODULE=auto
 RUN export CGO_ENABLED=0
 
 # Copy source files
-COPY cmd $GOPATH/src/github.com/OpenCHAMI/cloud-init/cmd
-COPY docs $GOPATH/src/github.com/OpenCHAMI/cloud-init/docs
-COPY pkg $GOPATH/src/github.com/OpenCHAMI/cloud-init/pkg
-COPY internal $GOPATH/src/github.com/OpenCHAMI/cloud-init/internal
-COPY go.mod $GOPATH/src/github.com/OpenCHAMI/cloud-init/go.mod
-COPY go.sum $GOPATH/src/github.com/OpenCHAMI/cloud-init/go.sum
+COPY cmd $GOPATH/src/github.com/openchami/cloud-init/cmd
+COPY docs $GOPATH/src/github.com/openchami/cloud-init/docs
+COPY pkg $GOPATH/src/github.com/openchami/cloud-init/pkg
+COPY internal $GOPATH/src/github.com/openchami/cloud-init/internal
+COPY go.mod $GOPATH/src/github.com/openchami/cloud-init/go.mod
+COPY go.sum $GOPATH/src/github.com/openchami/cloud-init/go.sum
 
 # Build the image
-RUN go build -C $GOPATH/src/github.com/OpenCHAMI/cloud-init/cmd/cloud-init-server -v \
+RUN go build -C $GOPATH/src/github.com/openchami/cloud-init/cmd/cloud-init-server -v \
     -gcflags=all="-N -l" \
     -o /usr/local/bin/cloud-init-server
 

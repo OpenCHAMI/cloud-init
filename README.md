@@ -29,7 +29,7 @@ The **OpenCHAMI cloud-init service** retrieves detailed inventory information fr
 ---
 
 ## About / Introduction
-The **OpenCHAMI Cloud-Init Service** is designed to generate cloud-init configuration for nodes in an OpenCHAMI cluster. The new design pushes the complexity of merging configurations into the cloud-init client rather than the server. This README provides instructions based on the [Demo.md](https://github.com/OpenCHAMI/cloud-init/blob/main/demo/Demo.md) file for running and testing the service.
+The **OpenCHAMI Cloud-Init Service** is designed to generate cloud-init configuration for nodes in an OpenCHAMI cluster. The new design pushes the complexity of merging configurations into the cloud-init client rather than the server. This README provides instructions based on the [Demo.md](https://github.com/openchami/cloud-init/blob/main/demo/Demo.md) file for running and testing the service.
 
 This service provides configuration data to cloud-init clients via the standard nocloud-net datasource. The service merges configuration from several sources:
 - **SMD data** (or simulated data in development mode)
