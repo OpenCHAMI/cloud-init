@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	base "github.com/Cray-HPE/hms-base"
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/openchami/cloud-init/pkg/cistore"
 )
 
 func TestGenerateHostname(t *testing.T) {

@@ -6,11 +6,11 @@ import (
 	"net/http"
 
 	// Import to run swag.Register() to generated docs
-	_ "github.com/OpenCHAMI/cloud-init/docs"
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
-	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/openchami/cloud-init/docs"
+	"github.com/openchami/cloud-init/internal/smdclient"
+	"github.com/openchami/cloud-init/pkg/cistore"
+	"github.com/openchami/cloud-init/pkg/wgtunnel"
 	"github.com/rs/zerolog/log"
 	"github.com/swaggo/swag"
 )
