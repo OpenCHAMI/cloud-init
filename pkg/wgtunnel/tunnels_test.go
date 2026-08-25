@@ -181,6 +181,26 @@ func TestRemovePeerRunsWireGuardOutsidePeerLock(t *testing.T) {
 	}
 }
 
+func TestRemovePeerReleasesAllocatedIP(t *testing.T) {
+	manager := newTestInterfaceManager(t)
+	peerName := "10.1.0.1"
+	publicKey := "key-1"
+	vpnIP := manager.IpForPeer(peerName, publicKey)
+	if vpnIP == "" {
+		t.Fatal("expected allocated peer IP")
+	}
+
+	installFakeWG(t)
+	if err := manager.RemovePeer(peerName); err != nil {
+		t.Fatalf("RemovePeer() error = %v, want nil", err)
+	}
+
+	reusedIP := manager.IpForPeer("10.1.0.2", "key-2")
+	if reusedIP != vpnIP {
+		t.Fatalf("reused IP = %q, want released IP %q", reusedIP, vpnIP)
+	}
+}
+
 func installFakeWG(t *testing.T) string {
 	t.Helper()
 

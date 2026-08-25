@@ -166,6 +166,10 @@ func (m *InterfaceManager) RemovePeer(peerName string) error {
 	currentPeer, found := m.peers[peerName]
 	if found && currentPeer.PublicKey == peer.PublicKey {
 		delete(m.peers, peerName)
+		if err := m.ipManager.Release(peer.IP); err != nil {
+			log.Error().Err(err).Msgf("Failed to release peer IP (%s)", peerName)
+			return err
+		}
 	}
 	return nil
 }
