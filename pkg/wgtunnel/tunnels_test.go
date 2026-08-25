@@ -3,6 +3,9 @@ package wgtunnel
 import (
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -93,4 +96,56 @@ func TestGetPeersReturnsCopy(t *testing.T) {
 	if _, found := manager.peers["10.1.0.2"]; found {
 		t.Fatal("GetPeers returned mutable internal peers map")
 	}
+}
+
+func TestAddPeerConfiguresWireGuardWithoutMutatingPeers(t *testing.T) {
+	manager := newTestInterfaceManager(t)
+	clientIP := "10.1.0.1"
+	publicKey := "key-1"
+	vpnIP := manager.IpForPeer(clientIP, publicKey)
+	if vpnIP == "" {
+		t.Fatal("expected allocated peer IP")
+	}
+
+	argsFile := installFakeWG(t)
+	if err := manager.AddPeer(publicKey, vpnIP, clientIP); err != nil {
+		t.Fatalf("AddPeer() error = %v, want nil", err)
+	}
+
+	manager.peersMutex.RLock()
+	defer manager.peersMutex.RUnlock()
+	if _, found := manager.peers[manager.GetInterfaceName()]; found {
+		t.Fatalf("AddPeer wrote peer under interface name %q", manager.GetInterfaceName())
+	}
+	peer, found := manager.peers[clientIP]
+	if !found {
+		t.Fatalf("peer %q missing after IpForPeer", clientIP)
+	}
+	if peer.PublicKey != publicKey || peer.IP.IP.String() != vpnIP {
+		t.Fatalf("peer = %+v, want public key %q and IP %q", peer, publicKey, vpnIP)
+	}
+
+	args, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatalf("failed to read fake wg args: %v", err)
+	}
+	got := strings.TrimSpace(string(args))
+	want := fmt.Sprintf("set wg0 peer %s allowed-ips %s/32", publicKey, vpnIP)
+	if got != want {
+		t.Fatalf("wg args = %q, want %q", got, want)
+	}
+}
+
+func installFakeWG(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	argsFile := filepath.Join(dir, "wg-args")
+	wgPath := filepath.Join(dir, "wg")
+	script := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$*\" >> %q\n", argsFile)
+	if err := os.WriteFile(wgPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("failed to write fake wg: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return argsFile
 }

@@ -251,19 +251,8 @@ func (m *InterfaceManager) StopServer() error {
 	return nil
 }
 
-func (m *InterfaceManager) AddPeer(peerName, publicKey, vpnIP, clientIP string) error {
-	m.peersMutex.RLock()
-	defer m.peersMutex.RUnlock()
-
-	// Add the peer to the WireGuard configuration
-	if err := AddWireGuardPeer(m.interfaceName, publicKey, vpnIP, clientIP); err != nil {
-		return err
-	}
-	m.peers[peerName] = PeerConfig{
-		PublicKey: publicKey,
-		IP:        net.IPAddr{IP: net.ParseIP(vpnIP), Zone: ""},
-	}
-	return nil
+func (m *InterfaceManager) AddPeer(publicKey, vpnIP, clientIP string) error {
+	return AddWireGuardPeer(m.interfaceName, publicKey, vpnIP, clientIP)
 }
 
 // AddWireGuardPeer adds a peer to the WireGuard configuration.
