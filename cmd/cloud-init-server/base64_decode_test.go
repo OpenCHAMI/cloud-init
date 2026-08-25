@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/OpenCHAMI/cloud-init/internal/memstore"
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/openchami/cloud-init/internal/memstore"
+	"github.com/openchami/cloud-init/pkg/cistore"
 )
 
 // TestBase64Decoding tests that base64 decoding doesn't produce trailing NUL bytes

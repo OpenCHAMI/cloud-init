@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/go-chi/chi/v5"
+	"github.com/openchami/cloud-init/internal/smdclient"
 )
 
 type blockingPeerRemover struct {

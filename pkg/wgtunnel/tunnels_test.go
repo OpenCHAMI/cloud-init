@@ -98,7 +98,6 @@ func TestGetPeersReturnsCopy(t *testing.T) {
 		t.Fatal("GetPeers returned mutable internal peers map")
 	}
 }
-
 func TestAddPeerConfiguresWireGuardWithoutMutatingPeers(t *testing.T) {
 	manager := newTestInterfaceManager(t)
 	clientIP := "10.1.0.1"

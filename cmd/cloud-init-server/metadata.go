@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
 )
 

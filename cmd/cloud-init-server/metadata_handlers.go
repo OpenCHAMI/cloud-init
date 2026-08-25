@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
+	"github.com/openchami/cloud-init/internal/smdclient"
+	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v2"
 )

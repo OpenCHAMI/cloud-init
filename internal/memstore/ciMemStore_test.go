@@ -7,10 +7,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/stretchr/testify/require"
 
-	storetesting "github.com/OpenCHAMI/cloud-init/pkg/cistore/testing"
+	storetesting "github.com/openchami/cloud-init/pkg/cistore/testing"
 )
 
 func TestMemStore(t *testing.T) {

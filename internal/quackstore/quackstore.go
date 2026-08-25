@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/OpenCHAMI/quack/quack"
+	"github.com/openchami/cloud-init/pkg/cistore"
 )
 
 // QuackStore implements the cistore.Store interface using Quack for persistence

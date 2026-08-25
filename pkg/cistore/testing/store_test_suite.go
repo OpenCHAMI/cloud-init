@@ -3,7 +3,7 @@ package testing
 import (
 	"testing"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
+	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/stretchr/testify/assert"
 )
 

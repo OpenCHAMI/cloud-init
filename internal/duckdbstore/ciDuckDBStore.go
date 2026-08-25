@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	_ "github.com/marcboeker/go-duckdb"
+	"github.com/openchami/cloud-init/pkg/cistore"
 )
 
 type DuckDBStore struct {

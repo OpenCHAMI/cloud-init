@@ -16,7 +16,7 @@ The idea behind the cloud-init microservice is to provide `user-data`, `vendor-d
 
 
 ### v0.0.1
-In the most current tagged release [v0.1.1](https://github.com/OpenCHAMI/cloud-init/tree/v0.1.1) the payloads are non-restrictive and have the follow format:
+In the most current tagged release [v0.1.1](https://github.com/openchami/cloud-init/tree/v0.1.1) the payloads are non-restrictive and have the follow format:
 ```yaml
 name: IDENTIFIER
 cloud-init:
@@ -64,7 +64,7 @@ This is not ideal because if a `ComponentID` is a member of multiple groups, and
 
 
 ### Current Main
-In the latest [main](https://github.com/OpenCHAMI/cloud-init) branch of cloud-init, we have made significant changes to how the `*-data` structures are generated. 
+In the latest [main](https://github.com/openchami/cloud-init) branch of cloud-init, we have made significant changes to how the `*-data` structures are generated.
 
 First, the payloads for populating the cloud-init server have changed endpoints and structure. Endpoints are now `/cloud-init/groups/{IDENTIFIER}` and the structure changes on whether we are adding `user-data` or `meta-data`.  
 `meta-data` looks like so:

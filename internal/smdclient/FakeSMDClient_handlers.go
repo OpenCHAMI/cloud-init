@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
 	"github.com/go-chi/chi/v5"
+	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
 )
 

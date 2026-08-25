@@ -14,17 +14,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OpenCHAMI/cloud-init/internal/memstore"
-	openchami_middleware "github.com/OpenCHAMI/cloud-init/internal/middleware"
-	"github.com/OpenCHAMI/cloud-init/internal/quackstore"
-	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
-	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
-	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	openchami_authenticator "github.com/openchami/chi-middleware/auth"
 	openchami_logger "github.com/openchami/chi-middleware/log"
+	"github.com/openchami/cloud-init/internal/memstore"
+	openchami_middleware "github.com/openchami/cloud-init/internal/middleware"
+	"github.com/openchami/cloud-init/internal/quackstore"
+	"github.com/openchami/cloud-init/internal/smdclient"
+	"github.com/openchami/cloud-init/pkg/cistore"
+	"github.com/openchami/cloud-init/pkg/wgtunnel"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
@@ -277,7 +277,7 @@ func startServer() error {
 	// Add middleware
 	router.Use(
 		middleware.RequestID,
-		middleware.RealIP,
+		middleware.RealIP, //nolint:staticcheck // Preserve existing proxy behavior after the chi upgrade.
 		middleware.Logger,
 		middleware.Recoverer,
 		middleware.StripSlashes,
