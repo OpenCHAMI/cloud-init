@@ -28,6 +28,22 @@ func TestReserve(t *testing.T) {
 	}
 }
 
+func TestReserveAdvancesCursorWhenReservingNextIP(t *testing.T) {
+	allocator, _ := NewIPAllocator("192.168.1.0/24") // ignoring error on NewIPAllocator.  We'll catch it on use anyway.
+	if err := allocator.Reserve(net.IPAddr{IP: net.ParseIP("192.168.1.1")}); err != nil {
+		t.Fatalf("Failed to reserve IP: %v", err)
+	}
+
+	ip, err := allocator.NextAvailable()
+	if err != nil {
+		t.Fatalf("Failed to get next available IP: %v", err)
+	}
+	expectedIP := net.IPAddr{IP: net.ParseIP("192.168.1.2")}
+	if !ip.IP.Equal(expectedIP.IP) {
+		t.Fatalf("Expected IP %v, got %v", expectedIP, ip)
+	}
+}
+
 func TestNextAvailable(t *testing.T) {
 	allocator, _ := NewIPAllocator("192.168.1.0/24") // ignoring error on NewIPAllocator.  We'll catch it on use anyway.
 
@@ -51,6 +67,10 @@ func TestNextAvailable(t *testing.T) {
 	}
 	if allocator.IsAllocated(broadcastIP) {
 		t.Fatalf("Broadcast address should not be allocated")
+	}
+	_, err := allocator.NextAvailable()
+	if err == nil {
+		t.Fatalf("Expected error when IP range is exhausted")
 	}
 }
 
@@ -87,5 +107,27 @@ func TestRelease(t *testing.T) {
 	err = allocator.Release(ip)
 	if err == nil {
 		t.Fatalf("Expected error when releasing a non-allocated IP")
+	}
+}
+
+func TestReleaseMakesLowerIPAvailableAgain(t *testing.T) {
+	allocator, _ := NewIPAllocator("192.168.1.0/24")
+	for i := 1; i <= 10; i++ {
+		_, err := allocator.NextAvailable()
+		if err != nil {
+			t.Fatalf("Failed to get next available IP: %v", err)
+		}
+	}
+	releasedIP := net.IPAddr{IP: net.ParseIP("192.168.1.5")}
+	if err := allocator.Release(releasedIP); err != nil {
+		t.Fatalf("Failed to release IP: %v", err)
+	}
+
+	ip, err := allocator.NextAvailable()
+	if err != nil {
+		t.Fatalf("Failed to get next available IP: %v", err)
+	}
+	if !ip.IP.Equal(releasedIP.IP) {
+		t.Fatalf("Expected released IP %v, got %v", releasedIP, ip)
 	}
 }

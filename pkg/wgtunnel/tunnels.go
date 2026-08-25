@@ -148,13 +148,29 @@ func (m *InterfaceManager) IpForPeer(peerName string, publicKey string) string {
 }
 
 func (m *InterfaceManager) RemovePeer(peerName string) error {
-	m.peersMutex.Lock()
-	defer m.peersMutex.Unlock()
-	if err := exec.Command("wg", "set", m.interfaceName, "peer", m.peers[peerName].PublicKey, "remove").Run(); err != nil {
+	m.peersMutex.RLock()
+	peer, found := m.peers[peerName]
+	interfaceName := m.interfaceName
+	m.peersMutex.RUnlock()
+	if !found {
+		return nil
+	}
+
+	if err := exec.Command("wg", "set", interfaceName, "peer", peer.PublicKey, "remove").Run(); err != nil {
 		log.Error().Err(err).Msgf("Failed to remove peer (%s)", peerName)
 		return err
 	}
-	delete(m.peers, peerName)
+
+	m.peersMutex.Lock()
+	defer m.peersMutex.Unlock()
+	currentPeer, found := m.peers[peerName]
+	if found && currentPeer.PublicKey == peer.PublicKey {
+		delete(m.peers, peerName)
+		if err := m.ipManager.Release(peer.IP); err != nil {
+			log.Error().Err(err).Msgf("Failed to release peer IP (%s)", peerName)
+			return err
+		}
+	}
 	return nil
 }
 
@@ -251,19 +267,8 @@ func (m *InterfaceManager) StopServer() error {
 	return nil
 }
 
-func (m *InterfaceManager) AddPeer(peerName, publicKey, vpnIP, clientIP string) error {
-	m.peersMutex.RLock()
-	defer m.peersMutex.RUnlock()
-
-	// Add the peer to the WireGuard configuration
-	if err := AddWireGuardPeer(m.interfaceName, publicKey, vpnIP, clientIP); err != nil {
-		return err
-	}
-	m.peers[peerName] = PeerConfig{
-		PublicKey: publicKey,
-		IP:        net.IPAddr{IP: net.ParseIP(vpnIP), Zone: ""},
-	}
-	return nil
+func (m *InterfaceManager) AddPeer(publicKey, vpnIP, clientIP string) error {
+	return AddWireGuardPeer(m.interfaceName, publicKey, vpnIP, clientIP)
 }
 
 // AddWireGuardPeer adds a peer to the WireGuard configuration.

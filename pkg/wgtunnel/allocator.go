@@ -13,6 +13,7 @@ type IPAllocator struct {
 	mu            sync.Mutex
 	networkAddr   net.IP
 	broadcastAddr net.IP
+	nextIP        net.IP
 }
 
 // NewIPAllocator initializes a new IPAllocator for a given network.
@@ -39,6 +40,7 @@ func NewIPAllocator(cidr string) (*IPAllocator, error) {
 		networkAddr:   networkAddr,
 		broadcastAddr: broadcastAddr,
 		usedIPs:       make(map[string]bool),
+		nextIP:        nextIP(networkAddr),
 	}, nil
 }
 
@@ -56,6 +58,9 @@ func (a *IPAllocator) Reserve(ipAddr net.IPAddr) error {
 		return errors.New("IP address already allocated")
 	}
 	a.usedIPs[ipStr] = true
+	if ip.Equal(a.nextIP) {
+		a.nextIP = nextIP(ip)
+	}
 	return nil
 }
 
@@ -64,26 +69,27 @@ func (a *IPAllocator) NextAvailable() (net.IPAddr, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	ip := make(net.IP, len(a.networkAddr))
-	copy(ip, a.networkAddr)
+	ip := cloneIP(a.nextIP)
+	start := cloneIP(a.nextIP)
+	wrapped := false
 	for {
-		for i := len(ip) - 1; i >= 0; i-- {
-			ip[i]++
-			if ip[i] != 0 {
-				break
-			}
+		if wrapped && ip.Equal(start) {
+			return net.IPAddr{}, errors.New("IP range exhausted: no available IP addresses in range " + a.network.String())
 		}
 
-		// Check if the incremented IP is still within the subnet range
-		if !a.network.Contains(ip) {
-			return net.IPAddr{}, errors.New("IP range exhausted: no available IP addresses in range " + a.network.String())
+		if !a.network.Contains(ip) || ip.Equal(a.networkAddr) || ip.Equal(a.broadcastAddr) {
+			ip = a.firstUsableIP()
+			wrapped = true
+			continue
 		}
 
 		ipStr := ip.String()
 		if !a.usedIPs[ipStr] {
 			a.usedIPs[ipStr] = true
+			a.nextIP = nextIP(ip)
 			return net.IPAddr{IP: ip}, nil
 		}
+		ip = nextIP(ip)
 	}
 }
 
@@ -105,5 +111,46 @@ func (a *IPAllocator) Release(ipAddr net.IPAddr) error {
 		return errors.New("IP address not allocated")
 	}
 	delete(a.usedIPs, ipStr)
+	if a.network.Contains(ipAddr.IP) && !ipAddr.IP.Equal(a.networkAddr) && !ipAddr.IP.Equal(a.broadcastAddr) && ipLess(ipAddr.IP, a.nextIP) {
+		a.nextIP = cloneIP(ipAddr.IP)
+	}
 	return nil
+}
+
+func (a *IPAllocator) firstUsableIP() net.IP {
+	return nextIP(a.networkAddr)
+}
+
+func cloneIP(ip net.IP) net.IP {
+	clone := make(net.IP, len(ip))
+	copy(clone, ip)
+	return clone
+}
+
+func nextIP(ip net.IP) net.IP {
+	next := cloneIP(ip)
+	for i := len(next) - 1; i >= 0; i-- {
+		next[i]++
+		if next[i] != 0 {
+			break
+		}
+	}
+	return next
+}
+
+func ipLess(left, right net.IP) bool {
+	left = left.To4()
+	right = right.To4()
+	if left == nil || right == nil {
+		return false
+	}
+	for i := range left {
+		if left[i] < right[i] {
+			return true
+		}
+		if left[i] > right[i] {
+			return false
+		}
+	}
+	return false
 }

@@ -3,8 +3,10 @@ package memstore
 import (
 	"crypto/rand"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -80,7 +82,11 @@ func NewMemStoreFromPath(path string) (*MemStore, error) {
 func (m *MemStore) GetGroups() map[string]cistore.GroupData {
 	m.GroupsMutex.RLock()
 	defer m.GroupsMutex.RUnlock()
-	return m.Groups
+	groups := make(map[string]cistore.GroupData, len(m.Groups))
+	for groupName, groupData := range m.Groups {
+		groups[groupName] = cloneGroupData(groupData)
+	}
+	return groups
 }
 
 func (m *MemStore) AddGroupData(groupName string, newGroupData cistore.GroupData) error {
@@ -94,7 +100,7 @@ func (m *MemStore) AddGroupData(groupName string, newGroupData cistore.GroupData
 		return fmt.Errorf("group '%s' not added as it already exists", groupName)
 	} else {
 		// does not exist, so create and update
-		m.Groups[groupName] = newGroupData
+		m.Groups[groupName] = cloneGroupData(newGroupData)
 
 	}
 	return nil
@@ -106,7 +112,7 @@ func (m *MemStore) GetGroupData(groupName string) (cistore.GroupData, error) {
 	defer m.GroupsMutex.RUnlock()
 	group, ok := m.Groups[groupName]
 	if ok {
-		return group, nil
+		return cloneGroupData(group), nil
 	} else {
 		return cistore.GroupData{}, fmt.Errorf("group (%s) not found in memstore", groupName)
 	}
@@ -118,13 +124,13 @@ func (m *MemStore) UpdateGroupData(groupName string, groupData cistore.GroupData
 	m.GroupsMutex.Lock()
 	defer m.GroupsMutex.Unlock()
 	if create {
-		m.Groups[groupName] = groupData
+		m.Groups[groupName] = cloneGroupData(groupData)
 		return nil
 	}
 
 	_, ok := m.Groups[groupName]
 	if ok {
-		m.Groups[groupName] = groupData
+		m.Groups[groupName] = cloneGroupData(groupData)
 	} else {
 		return fmt.Errorf("group (%s) not found", groupName)
 	}
@@ -146,7 +152,7 @@ func (m *MemStore) GetInstanceInfo(nodeName string) (cistore.OpenCHAMIInstanceIn
 			InstanceID: generateInstanceId(),
 		}
 	}
-	return m.Instances[nodeName], nil
+	return cloneInstanceInfo(m.Instances[nodeName]), nil
 }
 
 func (m *MemStore) SetInstanceInfo(nodeName string, instanceInfo cistore.OpenCHAMIInstanceInfo) error {
@@ -157,11 +163,11 @@ func (m *MemStore) SetInstanceInfo(nodeName string, instanceInfo cistore.OpenCHA
 		if instanceInfo.InstanceID == "" {
 			instanceInfo.InstanceID = generateInstanceId()
 		}
-		m.Instances[nodeName] = instanceInfo
+		m.Instances[nodeName] = cloneInstanceInfo(instanceInfo)
 	} else {
 		// This is an update operation.  We need to keep the instance ID the same.
 		instanceInfo.InstanceID = m.Instances[nodeName].InstanceID
-		m.Instances[nodeName] = instanceInfo
+		m.Instances[nodeName] = cloneInstanceInfo(instanceInfo)
 	}
 	return nil
 }
@@ -176,7 +182,7 @@ func (m *MemStore) DeleteInstanceInfo(nodeName string) error {
 func (m *MemStore) GetClusterDefaults() (cistore.ClusterDefaults, error) {
 	m.ClusterDefaultsMutex.RLock()
 	defer m.ClusterDefaultsMutex.RUnlock()
-	return m.ClusterDefaults, nil
+	return cloneClusterDefaults(m.ClusterDefaults), nil
 }
 
 func (m *MemStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) error {
@@ -215,8 +221,51 @@ func (m *MemStore) SetClusterDefaults(clusterDefaults cistore.ClusterDefaults) e
 		log.Debug().Msgf("Setting Public Keys to %v", clusterDefaults.PublicKeys)
 		cd.PublicKeys = clusterDefaults.PublicKeys
 	}
-	m.ClusterDefaults = cd
+	m.ClusterDefaults = cloneClusterDefaults(cd)
 	return nil
+}
+
+func cloneGroupData(groupData cistore.GroupData) cistore.GroupData {
+	groupData.Data = cloneAnyMap(groupData.Data)
+	groupData.File.Content = slices.Clone(groupData.File.Content)
+	groupData.Versions = maps.Clone(groupData.Versions)
+	return groupData
+}
+
+func cloneInstanceInfo(instanceInfo cistore.OpenCHAMIInstanceInfo) cistore.OpenCHAMIInstanceInfo {
+	instanceInfo.PublicKeys = slices.Clone(instanceInfo.PublicKeys)
+	return instanceInfo
+}
+
+func cloneClusterDefaults(clusterDefaults cistore.ClusterDefaults) cistore.ClusterDefaults {
+	clusterDefaults.PublicKeys = slices.Clone(clusterDefaults.PublicKeys)
+	return clusterDefaults
+}
+
+func cloneAnyMap(source map[string]any) map[string]any {
+	if source == nil {
+		return nil
+	}
+	clone := make(map[string]any, len(source))
+	for key, value := range source {
+		clone[key] = cloneAny(value)
+	}
+	return clone
+}
+
+func cloneAny(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return cloneAnyMap(typed)
+	case []any:
+		clone := make([]any, len(typed))
+		for i, item := range typed {
+			clone[i] = cloneAny(item)
+		}
+		return clone
+	default:
+		return value
+	}
 }
 
 func generateInstanceId() string {

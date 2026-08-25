@@ -107,7 +107,7 @@ func AddClientHandler(im *InterfaceManager, smdClient smdclient.SMDClientInterfa
 
 		// Add the client to the WireGuard configuration.
 		log.Info().Msgf("Adding WireGuard peer: PublicKey=%s, ClientVPNIP=%s, ClientIP=%s\n", publicKey, clientVPNIP, clientIP)
-		if err := im.AddPeer(im.GetInterfaceName(), publicKey, clientVPNIP, clientIP); err != nil {
+		if err := im.AddPeer(publicKey, clientVPNIP, clientIP); err != nil {
 			http.Error(w, "Failed to configure WireGuard tunnel: "+err.Error(), http.StatusInternalServerError)
 			return
 		}

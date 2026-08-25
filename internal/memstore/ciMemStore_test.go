@@ -158,3 +158,83 @@ func TestConcurrentInstanceAccess(t *testing.T) {
 		wg.Wait()
 	})
 }
+
+func TestMemStoreGroupDataCopies(t *testing.T) {
+	store := NewMemStore()
+	original := cistore.GroupData{
+		Name:        "compute",
+		Description: "Compute nodes",
+		Data: map[string]interface{}{
+			"role": "compute",
+			"nested": map[string]interface{}{
+				"key": "value",
+			},
+			"list": []interface{}{"a", map[string]interface{}{"b": "c"}},
+		},
+		File: cistore.CloudConfigFile{
+			Content:  []byte("#cloud-config"),
+			Encoding: "plain",
+		},
+		Versions: map[string]string{"v1": "one"},
+	}
+	require.NoError(t, store.AddGroupData(original.Name, original))
+
+	original.Data["role"] = "mutated"
+	original.Data["nested"].(map[string]interface{})["key"] = "mutated"
+	original.Data["list"].([]interface{})[1].(map[string]interface{})["b"] = "mutated"
+	original.File.Content[0] = '!'
+	original.Versions["v1"] = "mutated"
+
+	group, err := store.GetGroupData("compute")
+	require.NoError(t, err)
+	mutateGroupData(group)
+
+	groups := store.GetGroups()
+	delete(groups, "compute")
+	groups = store.GetGroups()
+	mutateGroupData(groups["compute"])
+
+	fresh, err := store.GetGroupData("compute")
+	require.NoError(t, err)
+	require.Equal(t, "compute", fresh.Data["role"])
+	require.Equal(t, "value", fresh.Data["nested"].(map[string]interface{})["key"])
+	require.Equal(t, "c", fresh.Data["list"].([]interface{})[1].(map[string]interface{})["b"])
+	require.Equal(t, []byte("#cloud-config"), fresh.File.Content)
+	require.Equal(t, "one", fresh.Versions["v1"])
+}
+
+func TestMemStoreInstanceAndDefaultsCopies(t *testing.T) {
+	store := NewMemStore()
+	instance := cistore.OpenCHAMIInstanceInfo{
+		InstanceID: "i-1",
+		PublicKeys: []string{
+			"key-1",
+		},
+	}
+	require.NoError(t, store.SetInstanceInfo("node1", instance))
+	instance.PublicKeys[0] = "mutated"
+	gotInstance, err := store.GetInstanceInfo("node1")
+	require.NoError(t, err)
+	gotInstance.PublicKeys[0] = "mutated-again"
+	freshInstance, err := store.GetInstanceInfo("node1")
+	require.NoError(t, err)
+	require.Equal(t, []string{"key-1"}, freshInstance.PublicKeys)
+
+	defaults := cistore.ClusterDefaults{PublicKeys: []string{"default-key"}}
+	require.NoError(t, store.SetClusterDefaults(defaults))
+	defaults.PublicKeys[0] = "mutated"
+	gotDefaults, err := store.GetClusterDefaults()
+	require.NoError(t, err)
+	gotDefaults.PublicKeys[0] = "mutated-again"
+	freshDefaults, err := store.GetClusterDefaults()
+	require.NoError(t, err)
+	require.Equal(t, []string{"default-key"}, freshDefaults.PublicKeys)
+}
+
+func mutateGroupData(group cistore.GroupData) {
+	group.Data["role"] = "mutated"
+	group.Data["nested"].(map[string]interface{})["key"] = "mutated"
+	group.Data["list"].([]interface{})[1].(map[string]interface{})["b"] = "mutated"
+	group.File.Content[0] = '!'
+	group.Versions["v1"] = "mutated"
+}
