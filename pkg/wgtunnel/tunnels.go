@@ -3,6 +3,7 @@ package wgtunnel
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"os/exec"
@@ -120,8 +121,8 @@ func GetUsableIP(network *net.IPNet) (net.IP, error) {
 // If the peer already exists, it returns the existing IP address.
 // Otherwise, it allocates a new IP address for the peer and stores the peer configuration.
 func (m *InterfaceManager) IpForPeer(peerName string, publicKey string) string {
-	m.peersMutex.RLock()
-	defer m.peersMutex.RUnlock()
+	m.peersMutex.Lock()
+	defer m.peersMutex.Unlock()
 	log.Debug().Msgf("Allocating IP for peer: PeerName=%s, PublicKey=%s\n", peerName, publicKey)
 	if _, ok := m.peers[peerName]; !ok {
 		// Peer not found.  Store the peer and return the IP.
@@ -160,7 +161,9 @@ func (m *InterfaceManager) RemovePeer(peerName string) error {
 func (m *InterfaceManager) GetPeers() map[string]PeerConfig {
 	m.peersMutex.RLock()
 	defer m.peersMutex.RUnlock()
-	return m.peers
+	peers := make(map[string]PeerConfig, len(m.peers))
+	maps.Copy(peers, m.peers)
+	return peers
 }
 
 func (m *InterfaceManager) PublicKey() (string, error) {
