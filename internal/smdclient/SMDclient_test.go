@@ -2,6 +2,7 @@ package smdclient
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -69,6 +71,8 @@ func TestPopulateNodes(t *testing.T) {
 				{"id":"x1003","groupLabels":["compute","cabinet1"],"partitionName":""},
 				{"id":"x9999","groupLabels":["unrelated"],"partitionName":""}
 			]`))
+		case "/hsm/v2/State/Components":
+			writeTestComponents(w)
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -127,12 +131,136 @@ func TestPopulateNodes(t *testing.T) {
 	defer requestsMutex.Unlock()
 	require.Equal(t, []string{
 		"/hsm/v2/Inventory/EthernetInterfaces/",
+		"/hsm/v2/State/Components",
 		"/hsm/v2/memberships?type=node",
 	}, requests)
 	for _, request := range requests {
 		assert.False(t, strings.HasPrefix(request, "/hsm/v2/memberships/"), "unexpected per-node membership request: %s", request)
 	}
 }
+
+func TestConcurrentGetSMDCoalescesTokenRefresh(t *testing.T) {
+	var tokenRequests atomic.Int64
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenRequests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"fresh-token"}`))
+	}))
+	defer tokenServer.Close()
+
+	smdServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer fresh-token" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":"true"}`))
+	}))
+	defer smdServer.Close()
+
+	client := &SMDClient{
+		smdClient:     smdServer.Client(),
+		smdBaseURL:    smdServer.URL,
+		tokenEndpoint: tokenServer.URL,
+		accessToken:   "stale-token",
+		nodesMutex:    &sync.RWMutex{},
+	}
+
+	const requestCount = 64
+	var ready sync.WaitGroup
+	var start sync.WaitGroup
+	var done sync.WaitGroup
+	ready.Add(requestCount)
+	start.Add(1)
+	done.Add(requestCount)
+	for range requestCount {
+		go func() {
+			defer done.Done()
+			ready.Done()
+			start.Wait()
+			var response map[string]string
+			if err := client.getSMD("/component", &response); err != nil {
+				t.Errorf("getSMD() error = %v", err)
+				return
+			}
+			if response["ok"] != "true" {
+				t.Errorf("response = %v, want ok=true", response)
+			}
+		}()
+	}
+	ready.Wait()
+	start.Done()
+	done.Wait()
+
+	if got := tokenRequests.Load(); got != 1 {
+		t.Fatalf("token endpoint requests = %d, want 1", got)
+	}
+	if got := client.currentAccessToken(); got != "fresh-token" {
+		t.Fatalf("current access token = %q, want fresh-token", got)
+	}
+}
+
+func TestComponentInformationUsesCache(t *testing.T) {
+	var perNodeComponentRequests atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/hsm/v2/Inventory/EthernetInterfaces/":
+			_, _ = w.Write([]byte(`[{"ComponentID":"x1000","MACAddress":"00:11:22:33:44:55","IPAddresses":[{"IPAddress":"192.168.1.1"}]}]`))
+		case "/hsm/v2/State/Components":
+			writeComponents(w, []string{"x1000"})
+		case "/hsm/v2/memberships":
+			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":""}]`))
+		case "/hsm/v2/State/Components/x1000":
+			perNodeComponentRequests.Add(1)
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestSMDClient(server)
+	client.PopulateNodes()
+
+	component, err := client.ComponentInformation("x1000")
+	require.NoError(t, err)
+	require.Equal(t, "x1000", component.ID)
+	require.Equal(t, "compute", component.Role)
+	require.Zero(t, perNodeComponentRequests.Load())
+
+	component.Role = "mutated"
+	component.Enabled = boolPtr(false)
+	fresh, err := client.ComponentInformationWithRetry("x1000", 3)
+	require.NoError(t, err)
+	require.Equal(t, "compute", fresh.Role)
+	require.Nil(t, fresh.Enabled)
+	require.Zero(t, perNodeComponentRequests.Load())
+}
+
+func TestComponentInformationFallsBackOnCacheMiss(t *testing.T) {
+	var perNodeComponentRequests atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/hsm/v2/State/Components/x9999":
+			perNodeComponentRequests.Add(1)
+			_, _ = w.Write([]byte(`{"ID":"x9999","Type":"Node","NID":"9999","Role":"fallback"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := newTestSMDClient(server)
+	component, err := client.ComponentInformation("x9999")
+	require.NoError(t, err)
+	require.Equal(t, "x9999", component.ID)
+	require.Equal(t, "fallback", component.Role)
+	require.Equal(t, int64(1), perNodeComponentRequests.Load())
+}
+
 func TestIPfromID(t *testing.T) {
 	// Mock SMD server
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -180,6 +308,8 @@ func TestIPfromID(t *testing.T) {
 				{"id":"x1002","groupLabels":["compute"],"partitionName":""},
 				{"id":"x1003","groupLabels":["compute"],"partitionName":""}
 			]`))
+		case "/hsm/v2/State/Components":
+			writeTestComponents(w)
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -272,6 +402,8 @@ func TestIDfromIP(t *testing.T) {
 				{"id":"x1002","groupLabels":["compute"],"partitionName":""},
 				{"id":"x1003","groupLabels":["compute"],"partitionName":""}
 			]`))
+		case "/hsm/v2/State/Components":
+			writeTestComponents(w)
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -364,6 +496,8 @@ func TestIDfromMAC(t *testing.T) {
 				{"id":"x1002","groupLabels":["compute"],"partitionName":""},
 				{"id":"x1003","groupLabels":["compute"],"partitionName":""}
 			]`))
+		case "/hsm/v2/State/Components":
+			writeTestComponents(w)
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -424,6 +558,8 @@ func TestPopulateNodesMissingMembershipUsesEmptyGroups(t *testing.T) {
 				t.Errorf("membership type query = %q, want node", got)
 			}
 			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":"ignored"}]`))
+		case "/hsm/v2/State/Components":
+			writeComponents(w, []string{"x1000", "x1001"})
 		default:
 			t.Errorf("unexpected SMD request: %s", r.URL.RequestURI())
 			w.WriteHeader(http.StatusNotFound)
@@ -476,6 +612,8 @@ func TestPopulateNodesBulkMembershipFailurePreservesCache(t *testing.T) {
 						return
 					}
 					_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":""}]`))
+				case "/hsm/v2/State/Components":
+					writeComponents(w, []string{"x1000"})
 				default:
 					if strings.HasPrefix(r.URL.Path, "/hsm/v2/memberships/") {
 						perNodeRequests.Add(1)
@@ -513,6 +651,76 @@ func TestPopulateNodesBulkMembershipFailurePreservesCache(t *testing.T) {
 	}
 }
 
+func TestPopulateNodesBulkComponentFailurePreservesCache(t *testing.T) {
+	tests := []struct {
+		name         string
+		writeFailure func(http.ResponseWriter)
+	}{
+		{
+			name: "HTTP failure",
+			writeFailure: func(w http.ResponseWriter) {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_, _ = w.Write([]byte(`{"error":"unavailable"}`))
+			},
+		},
+		{
+			name: "malformed JSON",
+			writeFailure: func(w http.ResponseWriter) {
+				_, _ = w.Write([]byte(`{"Components":[{"ID":"x1000"}`))
+			},
+		},
+		{
+			name: "missing component",
+			writeFailure: func(w http.ResponseWriter) {
+				_, _ = w.Write([]byte(`{"Components":[]}`))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var failComponents atomic.Bool
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/hsm/v2/Inventory/EthernetInterfaces/":
+					_, _ = w.Write([]byte(`[{"ComponentID":"x1000","MACAddress":"00:11:22:33:44:55","IPAddresses":[{"IPAddress":"192.168.1.1"}]}]`))
+				case "/hsm/v2/State/Components":
+					if failComponents.Load() {
+						tt.writeFailure(w)
+						return
+					}
+					writeComponents(w, []string{"x1000"})
+				case "/hsm/v2/memberships":
+					_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":""}]`))
+				default:
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer server.Close()
+
+			client := newTestSMDClient(server)
+			client.PopulateNodes()
+			component, err := client.ComponentInformation("x1000")
+			require.NoError(t, err)
+			require.Equal(t, "compute", component.Role)
+
+			client.nodesMutex.RLock()
+			oldTimestamp := client.nodes_last_update
+			client.nodesMutex.RUnlock()
+			failComponents.Store(true)
+			client.PopulateNodes()
+
+			fresh, err := client.ComponentInformation("x1000")
+			require.NoError(t, err)
+			require.Equal(t, "compute", fresh.Role)
+			client.nodesMutex.RLock()
+			require.Equal(t, oldTimestamp, client.nodes_last_update)
+			client.nodesMutex.RUnlock()
+		})
+	}
+}
+
 func newTestSMDClient(server *httptest.Server) *SMDClient {
 	return &SMDClient{
 		smdClient:   server.Client(),
@@ -522,7 +730,27 @@ func newTestSMDClient(server *httptest.Server) *SMDClient {
 		ipToXname:   make(map[string]string),
 		macToXname:  make(map[string]string),
 		wgipToXname: make(map[string]string),
+		components:  make(map[string]base.Component),
 	}
+}
+
+func writeTestComponents(w http.ResponseWriter) {
+	writeComponents(w, []string{"x1000", "x1001", "x1002", "x1003"})
+}
+
+func writeComponents(w http.ResponseWriter, ids []string) {
+	_, _ = w.Write([]byte(`{"Components":[`))
+	for i, id := range ids {
+		if i > 0 {
+			_, _ = w.Write([]byte(`,`))
+		}
+		_, _ = fmt.Fprintf(w, `{"ID":%q,"Type":"Node","NID":%q,"Role":"compute"}`, id, strings.TrimPrefix(id, "x"))
+	}
+	_, _ = w.Write([]byte(`]}`))
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 func mustIDfromIP(t *testing.T, client *SMDClient, ip string) string {

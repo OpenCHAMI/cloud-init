@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func newTestInterfaceManager(t *testing.T) *InterfaceManager {
@@ -136,6 +137,51 @@ func TestAddPeerConfiguresWireGuardWithoutMutatingPeers(t *testing.T) {
 	}
 }
 
+func TestRemovePeerRunsWireGuardOutsidePeerLock(t *testing.T) {
+	manager := newTestInterfaceManager(t)
+	peerName := "10.1.0.1"
+	originalKey := "key-1"
+	vpnIP := manager.IpForPeer(peerName, originalKey)
+	if vpnIP == "" {
+		t.Fatal("expected allocated peer IP")
+	}
+
+	release := make(chan struct{})
+	argsFile := installBlockingFakeWG(t, release)
+	removeDone := make(chan error, 1)
+	go func() {
+		removeDone <- manager.RemovePeer(peerName)
+	}()
+
+	waitForWGArgs(t, argsFile)
+	if got := manager.IpForPeer(peerName, "key-2"); got != vpnIP {
+		t.Fatalf("IpForPeer while remove was blocked = %q, want %q", got, vpnIP)
+	}
+	close(release)
+	if err := <-removeDone; err != nil {
+		t.Fatalf("RemovePeer() error = %v", err)
+	}
+
+	manager.peersMutex.RLock()
+	defer manager.peersMutex.RUnlock()
+	peer, found := manager.peers[peerName]
+	if !found {
+		t.Fatal("RemovePeer deleted peer that was replaced while wg command ran")
+	}
+	if peer.PublicKey != "key-2" {
+		t.Fatalf("peer public key = %q, want replacement key", peer.PublicKey)
+	}
+
+	args, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatalf("failed to read fake wg args: %v", err)
+	}
+	want := fmt.Sprintf("set wg0 peer %s remove", originalKey)
+	if got := strings.TrimSpace(string(args)); got != want {
+		t.Fatalf("wg args = %q, want %q", got, want)
+	}
+}
+
 func installFakeWG(t *testing.T) string {
 	t.Helper()
 
@@ -148,4 +194,39 @@ func installFakeWG(t *testing.T) string {
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	return argsFile
+}
+
+func installBlockingFakeWG(t *testing.T, release <-chan struct{}) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	argsFile := filepath.Join(dir, "wg-args")
+	releaseFile := filepath.Join(dir, "release")
+	wgPath := filepath.Join(dir, "wg")
+	script := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$*\" >> %q\nwhile [ ! -f %q ]; do sleep 0.01; done\n", argsFile, releaseFile)
+	if err := os.WriteFile(wgPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("failed to write fake wg: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	go func() {
+		<-release
+		_ = os.WriteFile(releaseFile, []byte("release"), 0o644)
+	}()
+	return argsFile
+}
+
+func waitForWGArgs(t *testing.T, argsFile string) {
+	t.Helper()
+	deadline := time.After(time.Second)
+	for {
+		select {
+		case <-deadline:
+			t.Fatal("fake wg command did not start")
+		default:
+			if _, err := os.Stat(argsFile); err == nil {
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
 }

@@ -46,7 +46,9 @@ type SMDClient struct {
 	smdBaseURL        string
 	tokenEndpoint     string
 	accessToken       string
+	accessTokenMutex  sync.Mutex
 	nodes             map[string]NodeMapping
+	components        map[string]base.Component
 	nodesMutex        *sync.RWMutex
 	nodes_last_update time.Time
 	stopCacheRefresh  chan struct{}
@@ -114,6 +116,7 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 		nodesMutex:        &sync.RWMutex{},
 		nodes_last_update: time.Now(),
 		nodes:             make(map[string]NodeMapping),
+		components:        make(map[string]base.Component),
 		stopCacheRefresh:  make(chan struct{}),
 		ipToXname:         make(map[string]string),
 		macToXname:        make(map[string]string),
@@ -166,7 +169,7 @@ func (s *SMDClient) ClusterName() string {
 }
 
 // getSMD is a helper function to initialize the SMDClient
-func (s *SMDClient) getSMD(ep string, smd interface{}) error {
+func (s *SMDClient) getSMD(ep string, smd any) error {
 	url := s.smdBaseURL + ep
 	var resp *http.Response
 	// Manage fetching a new JWT if we initially fail
@@ -176,19 +179,21 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 		if err != nil {
 			return err
 		}
-		req.Header.Set("Authorization", "Bearer "+s.accessToken)
+		usedToken := s.currentAccessToken()
+		req.Header.Set("Authorization", "Bearer "+usedToken)
 		resp, err = s.smdClient.Do(req)
 		if err != nil {
 			return err
 		}
 		if resp.StatusCode == http.StatusUnauthorized {
+			_ = resp.Body.Close()
 			// Request failed; handle appropriately (based on whether or not
 			// this was a fresh JWT)
 			log.Info().Msg("Cached JWT was rejected by SMD")
 			if !freshToken {
 				log.Info().Msg("Fetching new JWT and retrying...")
 				// Try to refresh the token and retry once
-				if err2 := s.RefreshToken(); err2 != nil {
+				if err2 := s.refreshTokenIfCurrent(usedToken); err2 != nil {
 					// If token refresh fails, refresh will attempt again.
 					// While effectively we could ignore the error, it helps
 					// to see why the failure is occurring in case the error
@@ -225,6 +230,12 @@ func (s *SMDClient) getSMD(ep string, smd interface{}) error {
 		return ErrUnmarshal
 	}
 	return nil
+}
+
+func (s *SMDClient) currentAccessToken() string {
+	s.accessTokenMutex.Lock()
+	defer s.accessTokenMutex.Unlock()
+	return s.accessToken
 }
 
 // PopulateNodes fetches the Ethernet interface data from the SMD server and populates the nodes map
@@ -280,6 +291,29 @@ func (s *SMDClient) PopulateNodes() {
 			}
 			newNode.Interfaces = append(newNode.Interfaces, newInterface)
 			nextNodes[ethIface.CompID] = newNode
+		}
+	}
+
+	var componentArray base.ComponentArray
+	if err := s.getSMD("/hsm/v2/State/Components", &componentArray); err != nil {
+		log.Error().Err(err).Msg("Failed to get SMD component data")
+		return
+	}
+	nextComponents := make(map[string]base.Component, len(componentArray.Components))
+	for _, component := range componentArray.Components {
+		if component == nil || component.ID == "" {
+			continue
+		}
+		nextComponents[component.ID] = cloneComponent(*component)
+	}
+	if len(nextComponents) == 0 {
+		log.Error().Msg("SMD component data was empty")
+		return
+	}
+	for xname := range nextNodes {
+		if _, found := nextComponents[xname]; !found {
+			log.Error().Str("xname", xname).Msg("SMD component data missing node from Ethernet interface inventory")
+			return
 		}
 	}
 
@@ -344,6 +378,7 @@ func (s *SMDClient) PopulateNodes() {
 	}
 
 	s.nodes = nextNodes
+	s.components = nextComponents
 	s.ipToXname = nextIPToXname
 	s.macToXname = nextMACToXname
 	s.wgipToXname = nextWGIPToXname
@@ -431,12 +466,28 @@ func (s *SMDClient) ComponentInformation(id string) (base.Component, error) {
 	if strings.Trim(id, " \t") == "" {
 		return node, ErrEmptyID
 	}
+
+	s.nodesMutex.RLock()
+	if component, found := s.components[id]; found {
+		s.nodesMutex.RUnlock()
+		return cloneComponent(component), nil
+	}
+	s.nodesMutex.RUnlock()
+
 	ep := "/hsm/v2/State/Components/" + id
 	err := s.getSMD(ep, &node)
 	if err != nil {
 		return node, err
 	}
 	return node, nil
+}
+
+func cloneComponent(component base.Component) base.Component {
+	if component.Enabled != nil {
+		enabled := *component.Enabled
+		component.Enabled = &enabled
+	}
+	return component
 }
 
 // ComponentInformationWithRetry wraps ComponentInformation with exponential backoff retry logic
@@ -446,7 +497,7 @@ func (s *SMDClient) ComponentInformationWithRetry(id string, maxRetries int) (ba
 	var lastErr error
 	var node base.Component
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		node, err := s.ComponentInformation(id)
 		if err == nil {
 			// Success - return immediately

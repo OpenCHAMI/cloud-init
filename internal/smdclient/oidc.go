@@ -19,11 +19,27 @@ type oidcTokenData struct {
 // authorization grant. Support for said grant should probably be implemented
 // at some point.
 func (s *SMDClient) RefreshToken() error {
+	s.accessTokenMutex.Lock()
+	defer s.accessTokenMutex.Unlock()
+	return s.refreshTokenLocked()
+}
+
+func (s *SMDClient) refreshTokenIfCurrent(rejectedToken string) error {
+	s.accessTokenMutex.Lock()
+	defer s.accessTokenMutex.Unlock()
+	if s.accessToken != rejectedToken {
+		return nil
+	}
+	return s.refreshTokenLocked()
+}
+
+func (s *SMDClient) refreshTokenLocked() error {
 	// Request new token from OIDC server
 	r, err := http.Get(s.tokenEndpoint)
 	if err != nil {
 		return err
 	}
+	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err

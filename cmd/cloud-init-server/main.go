@@ -269,6 +269,10 @@ func startServer() error {
 
 	// Create router
 	router := chi.NewRouter()
+	var peerRemovalQueue *PeerRemovalQueue
+	if wgInterfaceManager != nil {
+		peerRemovalQueue = NewPeerRemovalQueue(wgInterfaceManager)
+	}
 
 	// Add middleware
 	router.Use(
@@ -282,7 +286,7 @@ func startServer() error {
 	)
 
 	// Setup routes
-	initCiClientRouter(router, handler, wgInterfaceManager)
+	initCiClientRouter(router, handler, wgInterfaceManager, peerRemovalQueue)
 	initCiAdminRouter(router, handler)
 
 	// Add secure routes if JWKS is configured
@@ -315,7 +319,7 @@ func parseBool(str string) bool {
 	return strings.EqualFold(str, "true") || str == "1"
 }
 
-func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager) {
+func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManager *wgtunnel.InterfaceManager, peerRemovalQueue *PeerRemovalQueue) {
 	// Add cloud-init endpoints to router
 	router.Get("/openapi.json", DocsHandler)
 	router.Get("/version", VersionHandler)
@@ -330,7 +334,7 @@ func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManage
 		router.Get("/vendor-data", VendorDataHandler(handler.sm, handler.store, baseUrl))
 		router.Get("/{group}.yaml", GroupUserDataHandler(handler.sm, handler.store))
 	}
-	router.Post("/phone-home/{id}", PhoneHomeHandler(wgInterfaceManager, handler.sm))
+	router.Post("/phone-home/{id}", PhoneHomeHandler(peerRemovalQueue, handler.sm))
 	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
 }
 

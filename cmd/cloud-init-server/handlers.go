@@ -9,7 +9,6 @@ import (
 	_ "github.com/OpenCHAMI/cloud-init/docs"
 	"github.com/OpenCHAMI/cloud-init/internal/smdclient"
 	"github.com/OpenCHAMI/cloud-init/pkg/cistore"
-	"github.com/OpenCHAMI/cloud-init/pkg/wgtunnel"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/swaggo/swag"
@@ -207,7 +206,7 @@ func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) h
 //	@Param			hostname		formData	string	true	"Node's given hostname"
 //	@Param			fqdn			formData	string	true	"Node's given fully-qualified domain name"
 //	@Router			/phone-home/{id} [post]
-func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInterface) http.HandlerFunc {
+func PhoneHomeHandler(peerRemovalQueue *PeerRemovalQueue, sm smdclient.SMDClientInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -249,12 +248,10 @@ func PhoneHomeHandler(wg *wgtunnel.InterfaceManager, sm smdclient.SMDClientInter
 			Msgf("Received phone home data: pub_key_rsa=%s, pub_key_ecdsa=%s, pub_key_ed25519=%s, instance_id=%s, hostname=%s, fqdn=%s",
 				pubKeyRsa, pubKeyEcdsa, pubKeyEd25519, instanceId, hostname, fqdn)
 
-		if wg != nil {
-			go func() {
-				_ = wg.RemovePeer(peerName) // Explicitly ignoring the error here.  There's nothing to do with it within the goroutine.
-			}()
-
-			w.WriteHeader(http.StatusOK)
+		if peerRemovalQueue != nil && !peerRemovalQueue.TryEnqueue(peerName) {
+			http.Error(w, "WireGuard peer removal queue is full", http.StatusServiceUnavailable)
+			return
 		}
+		w.WriteHeader(http.StatusOK)
 	}
 }

@@ -19,6 +19,7 @@ func TestPopulateNodesBlockedRefreshDoesNotBlockCachedOperations(t *testing.T) {
 		blockedPath string
 	}{
 		{name: "blocked inventory request", blockedPath: "/hsm/v2/Inventory/EthernetInterfaces/"},
+		{name: "blocked bulk component request", blockedPath: "/hsm/v2/State/Components"},
 		{name: "blocked bulk membership request", blockedPath: "/hsm/v2/memberships"},
 	}
 
@@ -46,6 +47,8 @@ func TestPopulateNodesBlockedRefreshDoesNotBlockCachedOperations(t *testing.T) {
 						t.Errorf("membership type query = %q, want node", got)
 					}
 					_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":""}]`))
+				case "/hsm/v2/State/Components":
+					writeComponents(w, []string{"x1000"})
 				}
 			})
 			server := httptest.NewServer(handler)
@@ -152,6 +155,8 @@ func TestGroupMembershipCached(t *testing.T) {
 			]`))
 		case "/hsm/v2/memberships":
 			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute","cabinet1"],"partitionName":""}]`))
+		case "/hsm/v2/State/Components":
+			writeComponents(w, []string{"x1000"})
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -167,11 +172,10 @@ func TestGroupMembershipCached(t *testing.T) {
 		wgipToXname: make(map[string]string),
 	}
 
-	// Populate cache - should make 2 requests (interfaces + membership)
 	initialRequests := requestCount
 	client.PopulateNodes()
 	populateRequests := requestCount - initialRequests
-	assert.Equal(t, 2, populateRequests)
+	assert.Equal(t, 3, populateRequests)
 
 	// Verify group membership was cached
 	groups, err := client.GroupMembership("x1000")
@@ -223,6 +227,8 @@ func TestConcurrentReads(t *testing.T) {
 				{"id":"x1000","groupLabels":["compute"],"partitionName":""},
 				{"id":"x1001","groupLabels":["io"],"partitionName":""}
 			]`))
+		case "/hsm/v2/State/Components":
+			writeComponents(w, []string{"x1000", "x1001"})
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -304,6 +310,8 @@ func TestReverseIndexPerformance(t *testing.T) {
 			_, _ = w.Write([]byte(ethInterfaces))
 		case "/hsm/v2/memberships":
 			_, _ = w.Write([]byte(bulkMembershipsJSON(nodeCount)))
+		case "/hsm/v2/State/Components":
+			_, _ = w.Write([]byte(bulkComponentsJSON(nodeCount)))
 		default:
 			http.NotFound(w, r)
 		}
@@ -386,6 +394,8 @@ func TestCaseInsensitiveLookup(t *testing.T) {
 			]`))
 		case "/hsm/v2/memberships":
 			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":""}]`))
+		case "/hsm/v2/State/Components":
+			writeComponents(w, []string{"x1000"})
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -447,6 +457,8 @@ func TestAddWGIPUpdatesReverseIndex(t *testing.T) {
 			]`))
 		case "/hsm/v2/memberships":
 			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute"],"partitionName":""}]`))
+		case "/hsm/v2/State/Components":
+			writeComponents(w, []string{"x1000"})
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -508,6 +520,8 @@ func BenchmarkIDfromIP(b *testing.B) {
 			_, _ = w.Write([]byte(ethInterfaces))
 		case "/hsm/v2/memberships":
 			_, _ = w.Write([]byte(bulkMembershipsJSON(1000)))
+		case "/hsm/v2/State/Components":
+			_, _ = w.Write([]byte(bulkComponentsJSON(1000)))
 		default:
 			http.NotFound(w, r)
 		}
@@ -552,6 +566,8 @@ func BenchmarkGroupMembership(b *testing.B) {
 			]`))
 		case "/hsm/v2/memberships":
 			_, _ = w.Write([]byte(`[{"id":"x1000","groupLabels":["compute","cabinet1","rack1"],"partitionName":""}]`))
+		case "/hsm/v2/State/Components":
+			writeComponents(w, []string{"x1000"})
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -584,4 +600,15 @@ func bulkMembershipsJSON(nodeCount int) string {
 		memberships += fmt.Sprintf(`{"id":"x%d","groupLabels":["compute"],"partitionName":""}`, i)
 	}
 	return memberships + "]"
+}
+
+func bulkComponentsJSON(nodeCount int) string {
+	components := `{"Components":[`
+	for i := range nodeCount {
+		if i > 0 {
+			components += ","
+		}
+		components += fmt.Sprintf(`{"ID":"x%d","Type":"Node","NID":"%d","Role":"compute"}`, i, i)
+	}
+	return components + "]}"
 }

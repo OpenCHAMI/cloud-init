@@ -148,13 +148,25 @@ func (m *InterfaceManager) IpForPeer(peerName string, publicKey string) string {
 }
 
 func (m *InterfaceManager) RemovePeer(peerName string) error {
-	m.peersMutex.Lock()
-	defer m.peersMutex.Unlock()
-	if err := exec.Command("wg", "set", m.interfaceName, "peer", m.peers[peerName].PublicKey, "remove").Run(); err != nil {
+	m.peersMutex.RLock()
+	peer, found := m.peers[peerName]
+	interfaceName := m.interfaceName
+	m.peersMutex.RUnlock()
+	if !found {
+		return nil
+	}
+
+	if err := exec.Command("wg", "set", interfaceName, "peer", peer.PublicKey, "remove").Run(); err != nil {
 		log.Error().Err(err).Msgf("Failed to remove peer (%s)", peerName)
 		return err
 	}
-	delete(m.peers, peerName)
+
+	m.peersMutex.Lock()
+	defer m.peersMutex.Unlock()
+	currentPeer, found := m.peers[peerName]
+	if found && currentPeer.PublicKey == peer.PublicKey {
+		delete(m.peers, peerName)
+	}
 	return nil
 }
 
