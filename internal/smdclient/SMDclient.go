@@ -51,6 +51,7 @@ type SMDClient struct {
 	tokenEndpoint     string
 	accessToken       string
 	accessTokenMutex  sync.Mutex
+	refreshLock       sync.Mutex
 	nodes             map[string]NodeMapping
 	components        map[string]base.Component
 	nodesMutex        *sync.RWMutex
@@ -161,10 +162,16 @@ func (s *SMDClient) RefreshCache() {
 
 // StopCacheRefresh stops the cache refresh goroutine
 func (s *SMDClient) StopCacheRefresh() {
+	// Ensure the stop channel is closed exactly once.
 	s.stopOnce.Do(func() {
-		close(s.stopCacheRefresh)
+		// safeClose closes the channel only if it hasn't been closed already.
+		select {
+		case <-s.stopCacheRefresh:
+			// already closed
+		default:
+			close(s.stopCacheRefresh)
+		}
 	})
-	close(s.stopCacheRefresh)
 }
 
 // ClusterName returns the name of the cluster
@@ -299,7 +306,7 @@ func (s *SMDClient) PopulateNodes() {
 	}
 
 	var componentArray base.ComponentArray
-	if err := s.getSMD("/hsm/v2/State/Components", &componentArray); err != nil {
+	if err := s.getSMD("/hsm/v2/State/Components?type=Node", &componentArray); err != nil {
 		log.Error().Err(err).Msg("Failed to get SMD component data")
 		return
 	}
