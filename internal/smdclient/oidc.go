@@ -5,9 +5,11 @@
 package smdclient
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
+	"time"
 )
 
 // Structure of a token reponse from OIDC server
@@ -23,23 +25,50 @@ type oidcTokenData struct {
 // authorization grant. Support for said grant should probably be implemented
 // at some point.
 func (s *SMDClient) RefreshToken() error {
-	s.accessTokenMutex.Lock()
-	defer s.accessTokenMutex.Unlock()
-	return s.refreshTokenLocked()
+	// Serialize refresh to avoid concurrent token fetches.
+	s.refreshLock.Lock()
+	defer s.refreshLock.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultRefreshTimeout)
+	defer cancel()
+	return s.refreshTokenWithContext(ctx)
 }
+
+const defaultRefreshTimeout = 10 * time.Second
 
 func (s *SMDClient) refreshTokenIfCurrent(rejectedToken string) error {
+	// Fast path: if token already different, nothing to do.
 	s.accessTokenMutex.Lock()
-	defer s.accessTokenMutex.Unlock()
 	if s.accessToken != rejectedToken {
+		s.accessTokenMutex.Unlock()
 		return nil
 	}
-	return s.refreshTokenLocked()
+	s.accessTokenMutex.Unlock()
+
+	// Serialize refresh to avoid concurrent token fetches.
+	s.refreshLock.Lock()
+	defer s.refreshLock.Unlock()
+
+	// Re-check token after acquiring lock (it may have been refreshed by another goroutine).
+	s.accessTokenMutex.Lock()
+	if s.accessToken != rejectedToken {
+		s.accessTokenMutex.Unlock()
+		return nil
+	}
+	s.accessTokenMutex.Unlock()
+
+	// Acquire new token with timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), defaultRefreshTimeout)
+	defer cancel()
+	return s.refreshTokenWithContext(ctx)
 }
 
-func (s *SMDClient) refreshTokenLocked() error {
-	// Request new token from OIDC server
-	r, err := http.Get(s.tokenEndpoint)
+func (s *SMDClient) refreshTokenWithContext(ctx context.Context) error {
+	// Request new token from OIDC server using the provided context.
+	req, err := http.NewRequestWithContext(ctx, "GET", s.tokenEndpoint, nil)
+	if err != nil {
+		return err
+	}
+	r, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -53,7 +82,9 @@ func (s *SMDClient) refreshTokenLocked() error {
 	if err = json.Unmarshal(body, &tokenResp); err != nil {
 		return err
 	}
-	// Extract and store the JWT itself
+	// Store the JWT safely.
+	s.accessTokenMutex.Lock()
 	s.accessToken = tokenResp.Access_token
+	s.accessTokenMutex.Unlock()
 	return nil
 }
