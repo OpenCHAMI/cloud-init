@@ -7,6 +7,7 @@ package smdclient
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -68,7 +69,10 @@ func (s *SMDClient) refreshTokenWithContext(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	r, err := http.DefaultClient.Do(req)
+	if s.smdClient == nil {
+		return fmt.Errorf("SMD HTTP client was nil (was NewSMDClient() run?)")
+	}
+	r, err := s.smdClient.Do(req)
 	if err != nil {
 		return err
 	}
