@@ -162,15 +162,8 @@ func (s *SMDClient) RefreshCache() {
 
 // StopCacheRefresh stops the cache refresh goroutine
 func (s *SMDClient) StopCacheRefresh() {
-	// Ensure the stop channel is closed exactly once.
 	s.stopOnce.Do(func() {
-		// safeClose closes the channel only if it hasn't been closed already.
-		select {
-		case <-s.stopCacheRefresh:
-			// already closed
-		default:
-			close(s.stopCacheRefresh)
-		}
+		close(s.stopCacheRefresh)
 	})
 }
 
