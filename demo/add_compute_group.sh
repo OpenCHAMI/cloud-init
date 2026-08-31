@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: 2026 Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
+
 # Define the cloud-config content
 CLOUD_CONFIG_CONTENT=$(cat <<EOF
 #cloud-config
@@ -33,4 +37,3 @@ EOF
 curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
      -H "Content-Type: application/json" \
      -d "$JSON_PAYLOAD"
-

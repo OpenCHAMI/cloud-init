@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+//
+// SPDX-License-Identifier: MIT
+
 package smdclient
 
 import (
@@ -51,13 +55,13 @@ func TestPopulateNodes(t *testing.T) {
 				"Description": "Test Node 3"
 			},
 			{
-				"ComponentID": "x1003",	
+				"ComponentID": "x1003",
 				"MACAddress": "22:33:44:55:66:77",
 				"IPAddresses": [{"IPAddress": "192.168.1.5"}],
 				"Description": "Test Node 4 Interface 1"
 		    },
 			{
-				"ComponentID": "x1003",		
+				"ComponentID": "x1003",
 				"MACAddress": "88:99:AA:BB:CC:DD",
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
@@ -289,13 +293,13 @@ func TestIPfromID(t *testing.T) {
 				"Description": "Test Node 3"
 			},
 			{
-				"ComponentID": "x1003",	
+				"ComponentID": "x1003",
 				"MACAddress": "22:33:44:55:66:77",
 				"IPAddresses": [{"IPAddress": "192.168.1.5"}],
 				"Description": "Test Node 4 Interface 1"
 			},
 			{
-				"ComponentID": "x1003",		
+				"ComponentID": "x1003",
 				"MACAddress": "88:99:AA:BB:CC:DD",
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
@@ -383,13 +387,13 @@ func TestIDfromIP(t *testing.T) {
 				"Description": "Test Node 3"
 			},
 			{
-				"ComponentID": "x1003",	
+				"ComponentID": "x1003",
 				"MACAddress": "22:33:44:55:66:77",
 				"IPAddresses": [{"IPAddress": "192.168.1.5"}],
 				"Description": "Test Node 4 Interface 1"
 			},
 			{
-				"ComponentID": "x1003",		
+				"ComponentID": "x1003",
 				"MACAddress": "88:99:AA:BB:CC:DD",
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"
@@ -477,13 +481,13 @@ func TestIDfromMAC(t *testing.T) {
 				"Description": "Test Node 3"
 			},
 			{
-				"ComponentID": "x1003",	
+				"ComponentID": "x1003",
 				"MACAddress": "22:33:44:55:66:77",
 				"IPAddresses": [{"IPAddress": "192.168.1.5"}],
 				"Description": "Test Node 4 Interface 1"
 			},
 			{
-				"ComponentID": "x1003",		
+				"ComponentID": "x1003",
 				"MACAddress": "88:99:AA:BB:CC:DD",
 				"IPAddresses": [{"IPAddr": "192.168.1.6"}],
 				"Description": "Test Node 4 Interface 2"

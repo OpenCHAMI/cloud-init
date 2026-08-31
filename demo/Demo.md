@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+
+SPDX-License-Identifier: MIT
+-->
+
 # Demo of new cloud-init behavior
 
 Updates to the cloud-init service are designed to push the complexity of merging configurations into the cloud-init client rather than the cloud-init server.  The codepaths for reducing surprises in merge behavior are much better tested in the client which is open source and deployed on countless instances around the world.  Staying compliant with the [nocloud-net datasource](https://cloudinit.readthedocs.io/en/latest/reference/datasources/nocloud.html) client requires a short review of how it handles the order of requests and the order of processing.
@@ -184,5 +190,3 @@ curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
         "instance-type": "t2.micro"
     }'
 ```
-
-

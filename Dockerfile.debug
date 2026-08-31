@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
 # Produces an image that runs cloud-init under a debugger. To use, build and push
 # to a registry with:
 #

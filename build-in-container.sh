@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
+
 set -euo pipefail
 
 # This script uses the latest Ubuntu 24.04 container to build the project with GoReleaser.  It emulates the GitHub Actions environment as closely as possible.

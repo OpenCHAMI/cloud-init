@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: 2026 Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
+
 curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
     -H "Content-Type: application/json" \
     -d '{

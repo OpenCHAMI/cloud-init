@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
 # syntax=docker/dockerfile:1.7
 FROM ubuntu:24.04 AS duckdb-ext
 ARG TARGETARCH
@@ -26,7 +29,7 @@ RUN mkdir -p "$DUCKDB_HOME"
 
 # Preinstall whatever you need
 RUN duckdb -c "INSTALL 'json';" \
- && duckdb -c "INSTALL 'parquet';" 
+ && duckdb -c "INSTALL 'parquet';"
 
 # -------- runtime image --------
 FROM ubuntu:24.04
@@ -62,4 +65,3 @@ ENV LISTEN="0.0.0.0:27777"
 USER 65534:65534
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/usr/local/bin/cloud-init-server"]
-

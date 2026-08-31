@@ -4,7 +4,7 @@
 	{
 		"userdata":
 		{
-			"packages": 
+			"packages":
 			[
 				"bash",
 				"git",
@@ -15,7 +15,7 @@
 				"systemctl restart slurmctld"
 			],
 			"ssh_deletekeys": true,
-			"ssh_genkeytypes": 
+			"ssh_genkeytypes":
 			[
     				"rsa",
 				"ecdsa",

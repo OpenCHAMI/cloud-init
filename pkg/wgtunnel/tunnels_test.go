@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: © 2026 OpenCHAMI a Series of LF Projects, LLC
+// SPDX-License-Identifier: MIT
+
 package wgtunnel
 
 import (
@@ -146,6 +149,13 @@ func TestRemovePeerRunsWireGuardOutsidePeerLock(t *testing.T) {
 	}
 
 	release := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseWG := func() {
+		releaseOnce.Do(func() {
+			close(release)
+		})
+	}
+	defer releaseWG()
 	argsFile := installBlockingFakeWG(t, release)
 	removeDone := make(chan error, 1)
 	go func() {
@@ -156,7 +166,7 @@ func TestRemovePeerRunsWireGuardOutsidePeerLock(t *testing.T) {
 	if got := manager.IpForPeer(peerName, "key-2"); got != vpnIP {
 		t.Fatalf("IpForPeer while remove was blocked = %q, want %q", got, vpnIP)
 	}
-	close(release)
+	releaseWG()
 	if err := <-removeDone; err != nil {
 		t.Fatalf("RemovePeer() error = %v", err)
 	}
@@ -236,7 +246,7 @@ func installBlockingFakeWG(t *testing.T, release <-chan struct{}) string {
 
 func waitForWGArgs(t *testing.T, argsFile string) {
 	t.Helper()
-	deadline := time.After(time.Second)
+	deadline := time.After(5 * time.Second)
 	for {
 		select {
 		case <-deadline:

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: 2026 Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
+
 curl -X POST http://localhost:27777/cloud-init/admin/fake-sm/nodes \
      -H "Content-Type: application/json" \
      -d '{
@@ -11,6 +15,3 @@ curl -X POST http://localhost:27777/cloud-init/admin/fake-sm/nodes \
            "Groups": ["x4000","all","compute"],
            "IP": "192.168.100.21"
          }'
-
-
-

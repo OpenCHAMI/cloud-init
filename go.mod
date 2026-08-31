@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+//
+// SPDX-License-Identifier: MIT
+
 module github.com/openchami/cloud-init
 
 go 1.26.6
