@@ -3,8 +3,9 @@ package testing
 import (
 	"testing"
 
-	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/openchami/cloud-init/pkg/cistore"
 )
 
 // RunStoreTests runs a suite of tests against any implementation of cistore.Store

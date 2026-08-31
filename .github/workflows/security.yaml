@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2026 OpenCHAMI Contributors
+#
+# SPDX-License-Identifier: MIT
+
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    name: govulncheck
+    uses: OpenCHAMI/github-actions/.github/workflows/govulncheck.yml@v3.2
+    with:
+      go-package: ./...
+
+  dependency-review:
+    name: dependency-review
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: OpenCHAMI/github-actions/.github/workflows/dependency-review.yml@v3.2
+    with:
+      fail-on-severity: high
+      comment-summary-in-pr: never
+
+  workflow-lint:
+    name: workflow lint
+    permissions:
+      contents: read
+      security-events: write
+    uses: OpenCHAMI/github-actions/.github/workflows/lint-workflows.yml@v3.2

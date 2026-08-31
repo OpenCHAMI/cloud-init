@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/openchami/cloud-init/internal/smdclient"
 	"github.com/rs/zerolog/log"
+
+	"github.com/openchami/cloud-init/internal/smdclient"
 )
 
 // PublicKeyRequest represents the JSON payload for a WireGuard public key.

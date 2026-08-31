@@ -7,9 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/stretchr/testify/require"
 
+	"github.com/openchami/cloud-init/pkg/cistore"
 	storetesting "github.com/openchami/cloud-init/pkg/cistore/testing"
 )
 

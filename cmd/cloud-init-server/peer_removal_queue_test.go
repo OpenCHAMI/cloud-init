@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+
 	"github.com/openchami/cloud-init/internal/smdclient"
 )
 

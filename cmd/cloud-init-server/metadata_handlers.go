@@ -6,10 +6,11 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/openchami/cloud-init/internal/smdclient"
-	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/openchami/cloud-init/internal/smdclient"
+	"github.com/openchami/cloud-init/pkg/cistore"
 )
 
 func getActualRequestIP(r *http.Request) string {

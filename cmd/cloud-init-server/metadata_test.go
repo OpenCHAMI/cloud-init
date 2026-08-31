@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	base "github.com/Cray-HPE/hms-base"
+
 	"github.com/openchami/cloud-init/pkg/cistore"
 )
 

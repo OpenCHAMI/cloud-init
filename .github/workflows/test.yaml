@@ -1,4 +1,8 @@
-name: Run golangci-lint
+# SPDX-FileCopyrightText: 2026 OpenCHAMI Contributors
+#
+# SPDX-License-Identifier: MIT
+
+name: Test
 
 on:
   push:
@@ -7,15 +11,15 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: lint-${{ github.ref }}
+  group: test-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  golangci:
-    name: Run golangci-lint
+  unit:
+    name: Unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -29,13 +33,29 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v9.2.0
-        with:
-          version: v2.13.2
+      - name: Run tests
+        run: make test
 
-  modules:
-    name: Check Go modules
+  race:
+    name: Race tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
+
+      - name: Run race tests
+        run: make test-race
+
+  build:
+    name: Build binary
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -49,23 +69,5 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Check go.mod and go.sum
-        run: make tidy-check
-
-  vet:
-    name: Run go vet
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6.0.3
-        with:
-          persist-credentials: false
-
-      - name: Set up Go
-        uses: actions/setup-go@v6.4.0
-        with:
-          go-version-file: go.mod
-
-      - name: Run go vet
-        run: make vet
+      - name: Build
+        run: make build

@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
+
+	"github.com/openchami/cloud-init/pkg/cistore"
 )
 
 type MetaData struct {

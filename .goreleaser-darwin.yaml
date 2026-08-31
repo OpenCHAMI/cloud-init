@@ -2,10 +2,8 @@ version: 2
 project_name: cloud-init
 before:
   hooks:
-    # You may remove this if you don't use go modules.
-    - go mod tidy
-    - go install github.com/swaggo/swag/cmd/swag@latest
-    - swag init -g cmd/cloud-init-server/main.go  
+    - go install github.com/swaggo/swag/cmd/swag@v1.16.6
+    - swag init -g cmd/cloud-init-server/main.go
 
 builds:
   - id: darwin

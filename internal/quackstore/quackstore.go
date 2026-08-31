@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/OpenCHAMI/quack/quack"
+
 	"github.com/openchami/cloud-init/pkg/cistore"
 )
 

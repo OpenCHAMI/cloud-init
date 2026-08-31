@@ -6,26 +6,34 @@ on:
     tags:
       - v*
 
-permissions: write-all # Necessary for the generate-build-provenance action with containers
+permissions:
+  contents: write
+  packages: write
+  attestations: write
+  id-token: write
 
 jobs:
   stress-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6.0.3
         with:
-          go-version: stable
+          persist-credentials: false
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
       - name: Run release stress tests
-        run: go test -tags=stress -count=1 ./cmd/cloud-init-server ./pkg/wgtunnel ./internal/memstore ./internal/smdclient
+        run: make test-stress
 
   release:
     needs: stress-tests
     uses: OpenCHAMI/github-actions/.github/workflows/go-build-release.yml@v3.2
     with:
-      cgo-enabled: "1"
+      cgo-enabled: 1
+      go-version: "1.26.5"
+      goreleaser-version: "v2.11.2"
       pre-build-commands: |
-        go install github.com/swaggo/swag/cmd/swag@latest
+        go install github.com/swaggo/swag/cmd/swag@v1.16.6
         sudo apt update && sudo apt install -y git gcc g++ make ca-certificates curl gnupg gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev-arm64-cross software-properties-common clang-tools libstdc++-13-dev-arm64-cross
       attestation-binary-path: "dist/cloud-init*"
       registry-name: ghcr.io/openchami/cloud-init

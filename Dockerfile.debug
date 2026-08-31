@@ -9,13 +9,11 @@
 #
 # dlv connect container-hostname.example:2345
 
-FROM golang:1.24-bookworm
+FROM golang:1.26.5-bookworm
 
 # Configure go env
 ENV GOPATH=/usr/local/golib
-RUN export GOPATH=$GOPATH
-RUN go env -w GO111MODULE=auto
-RUN export CGO_ENABLED=0
+ENV CGO_ENABLED=1
 
 # Copy source files
 COPY cmd $GOPATH/src/github.com/openchami/cloud-init/cmd
@@ -33,7 +31,9 @@ RUN go build -C $GOPATH/src/github.com/openchami/cloud-init/cmd/cloud-init-serve
 RUN ln -s /usr/local/bin/cloud-init-server /cloud-init-server
 
 RUN go install github.com/go-delve/delve/cmd/dlv@v1.24.0
-RUN apt update; apt install tini
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tini \
+ && rm -rf /var/lib/apt/lists/*
 
 USER 65534:65534
 

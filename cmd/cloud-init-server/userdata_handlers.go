@@ -6,9 +6,10 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
+
 	"github.com/openchami/cloud-init/internal/smdclient"
 	"github.com/openchami/cloud-init/pkg/cistore"
-	"github.com/rs/zerolog/log"
 )
 
 // UserDataHandler godoc

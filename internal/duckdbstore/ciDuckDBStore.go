@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	_ "github.com/marcboeker/go-duckdb"
+
 	"github.com/openchami/cloud-init/pkg/cistore"
 )
 

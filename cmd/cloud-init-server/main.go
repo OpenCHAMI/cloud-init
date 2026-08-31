@@ -19,19 +19,19 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	openchami_authenticator "github.com/openchami/chi-middleware/auth"
 	openchami_logger "github.com/openchami/chi-middleware/log"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/pkgerrors"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
 	"github.com/openchami/cloud-init/internal/memstore"
 	openchami_middleware "github.com/openchami/cloud-init/internal/middleware"
 	"github.com/openchami/cloud-init/internal/quackstore"
 	"github.com/openchami/cloud-init/internal/smdclient"
 	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/openchami/cloud-init/pkg/wgtunnel"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"github.com/rs/zerolog/pkgerrors"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 var (

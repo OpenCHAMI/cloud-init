@@ -6,12 +6,13 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
+	"github.com/swaggo/swag"
+
 	// Import to run swag.Register() to generated docs
 	_ "github.com/openchami/cloud-init/docs"
 	"github.com/openchami/cloud-init/internal/smdclient"
 	"github.com/openchami/cloud-init/pkg/cistore"
-	"github.com/rs/zerolog/log"
-	"github.com/swaggo/swag"
 )
 
 type CiHandler struct {

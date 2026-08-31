@@ -7,6 +7,7 @@ The **OpenCHAMI cloud-init service** retrieves detailed inventory information fr
 1. [About / Introduction](#about--introduction)
 2. [Build / Install](#build--install)
    - [Environment Variables](#environment-variables)
+   - [Local Automation](#local-automation)
    - [Building Locally with GoReleaser](#building-locally-with-goreleaser)
 3. [Running the Service](#running-the-service)
    - [Cluster Name](#cluster-name)
@@ -48,6 +49,25 @@ Cloud-init on nodes retrieves data in a fixed order:
 ## Build / Install
 
 This project uses **[GoReleaser](https://goreleaser.com/)** for building and releasing, embedding additional metadata such as commit info, build time, and version. Below is a brief overview for local builds.
+
+### Local Automation
+
+The repository provides a `Makefile` that mirrors the GitHub Actions quality gates. Common targets are:
+
+```bash
+make build          # build bin/cloud-init-server
+make test           # run unit tests once with shuffled order
+make test-race      # run tests with the race detector
+make test-stress    # run release stress tests
+make tidy-check     # verify go.mod and go.sum are tidy
+make lint           # run golangci-lint
+make vuln           # run govulncheck
+make check          # run the local pre-PR gate
+make release-check  # validate GoReleaser configuration
+make release-snapshot # build a local snapshot without publishing
+```
+
+The CI and release workflows read the Go toolchain from `go.mod` instead of using `stable`, so local builds and GitHub Actions use the same Go version.
 
 ### Environment Variables
 To include detailed metadata in your builds, set the following:
