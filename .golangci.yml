@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 OpenCHAMI Contributors
+# SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
 #
 # SPDX-License-Identifier: MIT
 
@@ -7,7 +7,8 @@ run:
   timeout: 5m
   allow-parallel-runners: true
 linters:
-  enable: []
+  enable:
+    - govet
   disable:
     - staticcheck
     - unused

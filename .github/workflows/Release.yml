@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+# SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
 #
 # SPDX-License-Identifier: MIT
 
@@ -17,8 +17,19 @@ permissions:
   id-token: write
 
 jobs:
+  go-version:
+    runs-on: ubuntu-slim
+    outputs:
+      version: ${{ steps.go-mod.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          persist-credentials: false
+      - id: go-mod
+        run: echo "version=$(awk '/^go / {print $2; exit}' go.mod)" >> "$GITHUB_OUTPUT"
+
   stress-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v6.0.3
         with:
@@ -30,11 +41,13 @@ jobs:
         run: make test-stress
 
   release:
-    needs: stress-tests
+    needs:
+      - go-version
+      - stress-tests
     uses: OpenCHAMI/github-actions/.github/workflows/go-build-release.yml@v3.2
     with:
-      cgo-enabled: 1
-      go-version: "1.26.5"
+      cgo-enabled: "1"
+      go-version: ${{ needs.go-version.outputs.version }}
       goreleaser-version: "v2.11.2"
       pre-build-commands: |
         go install github.com/swaggo/swag/cmd/swag@v1.16.6

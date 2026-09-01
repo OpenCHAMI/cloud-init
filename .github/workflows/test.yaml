@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 OpenCHAMI Contributors
+# SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
 #
 # SPDX-License-Identifier: MIT
 
@@ -20,7 +20,7 @@ permissions:
 jobs:
   unit:
     name: Unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -38,7 +38,7 @@ jobs:
 
   race:
     name: Race tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 20
     steps:
       - name: Checkout repository
@@ -56,7 +56,7 @@ jobs:
 
   build:
     name: Build binary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     steps:
       - name: Checkout repository

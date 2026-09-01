@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
+
+version = 1
+SPDX-PackageName = "cloud-init"
+SPDX-PackageSupplier = "OpenCHAMI <info@openchami.org>"
+SPDX-PackageDownloadLocation = "https://github.com/OpenCHAMI/cloud-init"
+
+[[annotations]]
+path = [
+    "docs/swagger.json",
+    "go.sum",
+    "tests/bss/bss_add.json",
+    "tests/harbor/add_entry.json",
+    "tests/harbor/compute_group.json",
+    "tests/harbor/test_compute1.json",
+    "tests/harbor/test_compute2.json",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC"
+SPDX-License-Identifier = "MIT"
