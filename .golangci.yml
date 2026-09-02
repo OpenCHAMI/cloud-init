@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
+
+version: "2"
+run:
+  timeout: 5m
+  allow-parallel-runners: true
+linters:
+  enable:
+    - govet
+  disable:
+    - staticcheck
+    - unused
+    - errcheck
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/openchami/cloud-init
+  exclusions:
+    generated: lax

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+//
+// SPDX-License-Identifier: MIT
+
 package quackstore
 
 import (
@@ -7,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/OpenCHAMI/quack/quack"
+
 	"github.com/openchami/cloud-init/pkg/cistore"
 )
 

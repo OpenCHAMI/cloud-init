@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+//
+// SPDX-License-Identifier: MIT
+
 package quackstore
 
 import (
@@ -6,8 +10,9 @@ import (
 	"testing"
 	"time"
 
-	storetesting "github.com/openchami/cloud-init/pkg/cistore/testing"
 	"github.com/stretchr/testify/assert"
+
+	storetesting "github.com/openchami/cloud-init/pkg/cistore/testing"
 )
 
 func TestQuackStore(t *testing.T) {

@@ -1,10 +1,15 @@
+// SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+//
+// SPDX-License-Identifier: MIT
+
 package main
 
 import (
 	"fmt"
 
-	"github.com/openchami/cloud-init/pkg/cistore"
 	"github.com/rs/zerolog/log"
+
+	"github.com/openchami/cloud-init/pkg/cistore"
 )
 
 type MetaData struct {

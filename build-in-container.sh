@@ -1,4 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
+
+set -euo pipefail
 
 # This script uses the latest Ubuntu 24.04 container to build the project with GoReleaser.  It emulates the GitHub Actions environment as closely as possible.
 # Before submitting a PR for release/build. please run this script to ensure your PR will pass the build.
@@ -8,14 +14,16 @@ CONTAINER_NAME="goreleaser-build"
 
 # Directory where built binaries will be available
 OUTPUT_DIR="$(pwd)/dist"
+GO_VERSION="${GO_VERSION:-$(awk '/^go / {print $2; exit}' go.mod)}"
+GORELEASER_VERSION="${GORELEASER_VERSION:-v2.11.2}"
 
 export GIT_STATE=$(if git diff-index --quiet HEAD --; then echo 'clean'; else echo 'dirty'; fi)
 export BUILD_HOST=$(hostname)
-export GO_VERSION=$(go version | awk '{print $3}')
+export GO_VERSION
 export BUILD_USER=$(whoami)
 
 # Start a new disposable Ubuntu 24.04 container with the current directory mounted
-${CONTAINER_CMD:-docker} run --rm -it \
+${CONTAINER_CMD:-docker} run --rm \
     --name "$CONTAINER_NAME" \
     -v "$(pwd)":/workspace \
     -v ${CONTAINER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock \
@@ -47,8 +55,7 @@ ${CONTAINER_CMD:-docker} run --rm -it \
     apt update && apt install -y \
     docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-    # Install Go (match GitHub runner version)
-    curl -fsSL https://golang.org/dl/go1.21.5.linux-amd64.tar.gz | tar -C /usr/local -xz
+    curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz | tar -C /usr/local -xz
     export PATH=\$PATH:/usr/local/go/bin
     go version  # Verify Go installation
 
@@ -57,8 +64,7 @@ ${CONTAINER_CMD:-docker} run --rm -it \
     export PATH=\$PATH:\$GOPATH/bin
     echo \"GOPATH: \$GOPATH\" && echo \"PATH: \$PATH\"
 
-    # Install Goreleaser
-    curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin
+    curl -sL https://github.com/goreleaser/goreleaser/releases/download/${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin
     goreleaser --version  # Verify Goreleaser installation
 
     # Setup Docker buildx for multi-platform builds
@@ -69,14 +75,14 @@ ${CONTAINER_CMD:-docker} run --rm -it \
     export GIT_STATE="$GIT_STATE"
     export BUILD_HOST="$BUILD_HOST"
     export BUILD_USER="$BUILD_USER"
-    export GO_VERSION=$(go version | awk '{print $3}')
+    export GO_VERSION=\$(go version | awk '{print \$3}')
 
     # Convince git that our directory is safe
     git config --global --add safe.directory /workspace
 
     # Run Goreleaser
-    goreleaser release --snapshot --clean --skip archive,publish
+    goreleaser release --snapshot --clean --skip=publish
 "
 
 # Notify user of success
-echo "✅ Build complete! Check the output in: $OUTPUT_DIR"
+echo "Build complete. Check the output in: $OUTPUT_DIR"

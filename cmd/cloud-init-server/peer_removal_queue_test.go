@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+//
+// SPDX-License-Identifier: MIT
+
 package main
 
 import (
@@ -8,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+
 	"github.com/openchami/cloud-init/internal/smdclient"
 )
 

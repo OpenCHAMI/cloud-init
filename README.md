@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+
+SPDX-License-Identifier: MIT
+-->
+
 # OpenCHAMI Cloud-Init Server
 
 ## Summary of Repo
@@ -7,6 +13,7 @@ The **OpenCHAMI cloud-init service** retrieves detailed inventory information fr
 1. [About / Introduction](#about--introduction)
 2. [Build / Install](#build--install)
    - [Environment Variables](#environment-variables)
+   - [Local Automation](#local-automation)
    - [Building Locally with GoReleaser](#building-locally-with-goreleaser)
 3. [Running the Service](#running-the-service)
    - [Cluster Name](#cluster-name)
@@ -49,13 +56,32 @@ Cloud-init on nodes retrieves data in a fixed order:
 
 This project uses **[GoReleaser](https://goreleaser.com/)** for building and releasing, embedding additional metadata such as commit info, build time, and version. Below is a brief overview for local builds.
 
+### Local Automation
+
+The repository provides a `Makefile` that mirrors the GitHub Actions quality gates. Common targets are:
+
+```bash
+make build          # build bin/cloud-init-server
+make test           # run unit tests once with shuffled order
+make test-race      # run tests with the race detector
+make test-stress    # run release stress tests
+make tidy-check     # verify go.mod and go.sum are tidy
+make lint           # run golangci-lint
+make vuln           # run govulncheck
+make check          # run the local pre-PR gate
+make release-check  # validate GoReleaser configuration
+make release-snapshot # build a local snapshot without publishing
+```
+
+The CI and release workflows read the Go toolchain from `go.mod` instead of using `stable`, so local builds and GitHub Actions use the same Go version.
+
 ### Environment Variables
 To include detailed metadata in your builds, set the following:
 
-- **GIT_STATE**: `clean` if your repo is clean, `dirty` if uncommitted changes exist  
-- **BUILD_HOST**: Hostname of the build machine  
-- **GO_VERSION**: Version of Go used (for consistent versioning info)  
-- **BUILD_USER**: Username of the person/system performing the build  
+- **GIT_STATE**: `clean` if your repo is clean, `dirty` if uncommitted changes exist
+- **BUILD_HOST**: Hostname of the build machine
+- **GO_VERSION**: Version of Go used (for consistent versioning info)
+- **BUILD_USER**: Username of the person/system performing the build
 
 ```bash
 export GIT_STATE=$(if git diff-index --quiet HEAD --; then echo 'clean'; else echo 'dirty'; fi)
@@ -65,7 +91,7 @@ export BUILD_USER=$(whoami)
 ```
 
 ### Building Locally with GoReleaser
-1. [Install GoReleaser](https://goreleaser.com/install/) following their documentation.  
+1. [Install GoReleaser](https://goreleaser.com/install/) following their documentation.
 2. Run in snapshot mode to build locally without releasing:
 
    ```bash
@@ -226,7 +252,7 @@ curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
 
 ## More Reading
 
-- [Official cloud-init documentation](https://cloud-init.io/)  
-- [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager)  
-- [GoReleaser Documentation](https://goreleaser.com/)  
-- [SMD Documentation](https://github.com/OpenCHAMI/smd)  
+- [Official cloud-init documentation](https://cloud-init.io/)
+- [OpenCHAMI TPM-manager service](https://github.com/OpenCHAMI/TPM-manager)
+- [GoReleaser Documentation](https://goreleaser.com/)
+- [SMD Documentation](https://github.com/OpenCHAMI/smd)

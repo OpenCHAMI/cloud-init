@@ -1,4 +1,9 @@
 #!/bin/sh
+
+# SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+#
+# SPDX-License-Identifier: MIT
+
 set -e -o pipefail
 
 # As configured in systemd, we expect to inherit the "ochami_ci_url" cmdline

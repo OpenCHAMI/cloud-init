@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+//
+// SPDX-License-Identifier: MIT
+
 package wgtunnel
 
 import (
@@ -7,8 +11,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/openchami/cloud-init/internal/smdclient"
 	"github.com/rs/zerolog/log"
+
+	"github.com/openchami/cloud-init/internal/smdclient"
 )
 
 // PublicKeyRequest represents the JSON payload for a WireGuard public key.
