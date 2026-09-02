@@ -178,6 +178,16 @@ func (m *InterfaceManager) RemovePeer(peerName string) error {
 	return nil
 }
 
+func (m *InterfaceManager) GetPublicKey(peerName string) (string, bool) {
+	m.peersMutex.RLock()
+	defer m.peersMutex.RUnlock()
+	peer, ok := m.peers[peerName]
+	if !ok {
+		return "", false
+	}
+	return peer.PublicKey, true
+}
+
 func (m *InterfaceManager) GetPeers() map[string]PeerConfig {
 	m.peersMutex.RLock()
 	defer m.peersMutex.RUnlock()

@@ -37,6 +37,11 @@ func (r *blockingPeerRemover) RemovePeer(peerName string) error {
 	return nil
 }
 
+// GetPublicKey implements peerRemover but returns no key for tests.
+func (r *blockingPeerRemover) GetPublicKey(peerName string) (string, bool) {
+	return "", false
+}
+
 type phoneHomeSMDClient struct {
 	smdclient.FakeSMDClient
 }
