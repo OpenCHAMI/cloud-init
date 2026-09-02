@@ -20,7 +20,7 @@ permissions:
 jobs:
   govulncheck:
     name: govulncheck
-    uses: OpenCHAMI/github-actions/.github/workflows/govulncheck.yml@v3.2
+    uses: OpenCHAMI/github-actions/.github/workflows/govulncheck.yml@464e059fbd56372b085ea7956712d41bd6df59d0 # v3.6
     with:
       go-package: ./...
 
@@ -30,7 +30,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: OpenCHAMI/github-actions/.github/workflows/dependency-review.yml@v3.2
+    uses: OpenCHAMI/github-actions/.github/workflows/dependency-review.yml@464e059fbd56372b085ea7956712d41bd6df59d0 # v3.6
     with:
       fail-on-severity: high
       comment-summary-in-pr: never
@@ -40,4 +40,4 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    uses: OpenCHAMI/github-actions/.github/workflows/lint-workflows.yml@v3.2
+    uses: OpenCHAMI/github-actions/.github/workflows/lint-workflows.yml@464e059fbd56372b085ea7956712d41bd6df59d0 # v3.6
