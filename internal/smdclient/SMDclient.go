@@ -45,6 +45,7 @@ type SMDClientInterface interface {
 
 // SMDClient is a client for SMD
 type SMDClient struct {
+	refreshLock       sync.Mutex
 	clusterName       string
 	smdClient         *http.Client
 	smdBaseURL        string
