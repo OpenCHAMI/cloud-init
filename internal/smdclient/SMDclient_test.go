@@ -135,7 +135,7 @@ func TestPopulateNodes(t *testing.T) {
 	defer requestsMutex.Unlock()
 	require.Equal(t, []string{
 		"/hsm/v2/Inventory/EthernetInterfaces/",
-		"/hsm/v2/State/Components",
+		"/hsm/v2/State/Components?type=Node",
 		"/hsm/v2/memberships?type=node",
 	}, requests)
 	for _, request := range requests {

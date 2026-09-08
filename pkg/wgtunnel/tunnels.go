@@ -151,6 +151,16 @@ func (m *InterfaceManager) IpForPeer(peerName string, publicKey string) string {
 	return m.peers[peerName].IP.IP.String()
 }
 
+func (m *InterfaceManager) GetPublicKey(peerName string) (string, bool) {
+	m.peersMutex.RLock()
+	defer m.peersMutex.RUnlock()
+	peer, ok := m.peers[peerName]
+	if !ok {
+		return "", false
+	}
+	return peer.PublicKey, true
+}
+
 func (m *InterfaceManager) RemovePeer(peerName string) error {
 	m.peersMutex.RLock()
 	peer, found := m.peers[peerName]
