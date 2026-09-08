@@ -13,11 +13,17 @@ const (
 
 type peerRemover interface {
 	RemovePeer(peerName string) error
+	GetPublicKey(peerName string) (string, bool)
 }
 
 type PeerRemovalQueue struct {
 	remover peerRemover
-	jobs    chan string
+	jobs    chan removalJob
+}
+
+type removalJob struct {
+	name string
+	key  string
 }
 
 func NewPeerRemovalQueue(remover peerRemover) *PeerRemovalQueue {
@@ -27,7 +33,7 @@ func NewPeerRemovalQueue(remover peerRemover) *PeerRemovalQueue {
 func newPeerRemovalQueue(remover peerRemover, workers int, buffer int) *PeerRemovalQueue {
 	queue := &PeerRemovalQueue{
 		remover: remover,
-		jobs:    make(chan string, buffer),
+		jobs:    make(chan removalJob, buffer),
 	}
 	for range workers {
 		go queue.work()
@@ -39,8 +45,11 @@ func (q *PeerRemovalQueue) TryEnqueue(peerName string) bool {
 	if q == nil || q.remover == nil {
 		return true
 	}
+	// Capture the current public key for the peer (if any).
+	key, _ := q.remover.GetPublicKey(peerName)
+	job := removalJob{name: peerName, key: key}
 	select {
-	case q.jobs <- peerName:
+	case q.jobs <- job:
 		return true
 	default:
 		return false
@@ -48,9 +57,17 @@ func (q *PeerRemovalQueue) TryEnqueue(peerName string) bool {
 }
 
 func (q *PeerRemovalQueue) work() {
-	for peerName := range q.jobs {
-		if err := q.remover.RemovePeer(peerName); err != nil {
-			log.Error().Err(err).Str("peer", peerName).Msg("failed to remove WireGuard peer")
+	for job := range q.jobs {
+		// Verify that the public key hasn't changed since enqueue time.
+		currentKey, ok := q.remover.GetPublicKey(job.name)
+		if ok && job.key != "" && currentKey != job.key {
+			// Stale removal – skip and log.
+			log.Warn().Str("peer", job.name).Str("queuedKey", job.key).Str("currentKey", currentKey).
+				Msg("stale removal job skipped")
+			continue
+		}
+		if err := q.remover.RemovePeer(job.name); err != nil {
+			log.Error().Err(err).Str("peer", job.name).Msg("failed to remove WireGuard peer")
 		}
 	}
 }
