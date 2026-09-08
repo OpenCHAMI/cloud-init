@@ -13,12 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added Makefile and standard OpenCHAMI CI/CD workflows
+
 ### Fixed
+
 - Fixed race condition in PeerRemovalQueue where stale removal could happen after a node reconnects. Queue now stores peer key and validates before removal. Added tests for queue behavior.
 - Added timeout to SMD token refresh to avoid deadlocks; introduced context with 10s timeout and refreshed token logic. Added benchmark for token refresh.
 - Filtered component fetch endpoint to only return Node components, fixing component information cache miss. Added test for component cache behavior.
 
 ### Changed
+
 - Updated StopCacheRefresh to safely close channel using safeClose pattern.
 
 ## [1.4.10] - 2026-08-25
