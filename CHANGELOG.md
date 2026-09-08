@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [1.4.11] - 2026-09-08
+
 ### Added
 
 - Added Makefile and standard OpenCHAMI CI/CD workflows
