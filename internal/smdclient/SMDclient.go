@@ -52,7 +52,6 @@ type SMDClient struct {
 	tokenEndpoint     string
 	accessToken       string
 	accessTokenMutex  sync.Mutex
-	refreshLock       sync.Mutex
 	nodes             map[string]NodeMapping
 	components        map[string]base.Component
 	nodesMutex        *sync.RWMutex
