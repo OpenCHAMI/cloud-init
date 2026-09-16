@@ -48,6 +48,7 @@ type SMDClient struct {
 	refreshLock       sync.Mutex
 	clusterName       string
 	smdClient         *http.Client
+	tokenClient       *http.Client
 	smdBaseURL        string
 	tokenEndpoint     string
 	accessToken       string
@@ -115,6 +116,7 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 	client := &SMDClient{
 		clusterName:       clusterName,
 		smdClient:         c,
+		tokenClient:       &http.Client{Timeout: 10 * time.Second},
 		smdBaseURL:        baseurl,
 		tokenEndpoint:     jwtURL,
 		accessToken:       accessToken,
@@ -197,13 +199,8 @@ func (s *SMDClient) getSMD(ep string, smd any) error {
 			if !freshToken {
 				log.Info().Msg("Fetching new JWT and retrying...")
 				// Try to refresh the token and retry once
-				if err2 := s.refreshTokenIfCurrent(usedToken); err2 != nil {
-					// If token refresh fails, refresh will attempt again.
-					// While effectively we could ignore the error, it helps
-					// to see why the failure is occurring in case the error
-					// is unusual (RefreshToken() has a few different failure
-					// modes).
-					log.Debug().Err(err).Msg("failed to refresh token")
+				if err := s.refreshTokenIfCurrent(usedToken); err != nil {
+					return fmt.Errorf("refreshing rejected SMD access token: %w", err)
 				}
 				freshToken = true
 			} else {

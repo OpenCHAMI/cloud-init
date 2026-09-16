@@ -10,15 +10,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
 // Structure of a token reponse from OIDC server
 type oidcTokenData struct {
-	Access_token string `json:"access_token" yaml:"access_token"`
-	Expires_in   int    `json:"expires_in" yaml:"expires_in"`
-	Scope        string `json:"scope" yaml:"scope"`
-	Token_type   string `json:"token_type" yaml:"token_type"`
+	AccessToken string `json:"access_token" yaml:"access_token"`
+	ExpiresIn   int    `json:"expires_in" yaml:"expires_in"`
+	Scope       string `json:"scope" yaml:"scope"`
+	TokenType   string `json:"token_type" yaml:"token_type"`
 }
 
 // Refresh the cached access token, using the provided JWT server
@@ -64,31 +65,40 @@ func (s *SMDClient) refreshTokenIfCurrent(rejectedToken string) error {
 }
 
 func (s *SMDClient) refreshTokenWithContext(ctx context.Context) error {
+	if s.tokenClient == nil {
+		return fmt.Errorf("token HTTP client is not configured")
+	}
+
 	// Request new token from OIDC server using the provided context.
-	req, err := http.NewRequestWithContext(ctx, "GET", s.tokenEndpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.tokenEndpoint, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating token request: %w", err)
 	}
-	if s.smdClient == nil {
-		return fmt.Errorf("SMD HTTP client was nil (was NewSMDClient() run?)")
-	}
-	r, err := s.smdClient.Do(req)
+	r, err := s.tokenClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("requesting token: %w", err)
 	}
 	defer r.Body.Close()
+	if r.StatusCode < http.StatusOK || r.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("token endpoint returned HTTP %d", r.StatusCode)
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("reading token response: %w", err)
 	}
 	// Decode server's response to the expected structure
 	var tokenResp oidcTokenData
 	if err = json.Unmarshal(body, &tokenResp); err != nil {
-		return err
+		return fmt.Errorf("decoding token response: %w", err)
 	}
+	token := strings.TrimSpace(tokenResp.AccessToken)
+	if token == "" {
+		return fmt.Errorf("token response contains an empty access token")
+	}
+
 	// Store the JWT safely.
 	s.accessTokenMutex.Lock()
-	s.accessToken = tokenResp.Access_token
+	s.accessToken = token
 	s.accessTokenMutex.Unlock()
 	return nil
 }

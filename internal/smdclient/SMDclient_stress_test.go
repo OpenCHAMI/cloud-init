@@ -84,6 +84,7 @@ func TestStressConcurrentGetSMDCoalescesTokenRefresh10K(t *testing.T) {
 
 	client := &SMDClient{
 		smdClient:     &http.Client{Transport: tokenAwareRoundTripper{}},
+		tokenClient:   tokenServer.Client(),
 		smdBaseURL:    "http://smd.example",
 		tokenEndpoint: tokenServer.URL,
 		accessToken:   "stale-token",
