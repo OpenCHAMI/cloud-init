@@ -44,7 +44,7 @@ jobs:
     needs:
       - go-version
       - stress-tests
-    uses: OpenCHAMI/github-actions/.github/workflows/go-build-release.yml@v3.2
+    uses: OpenCHAMI/github-actions/.github/workflows/go-build-release.yml@c07065a1a490d5576e5ef210dd0c6627f9358fed # v3.10
     with:
       cgo-enabled: "1"
       go-version: ${{ needs.go-version.outputs.version }}
