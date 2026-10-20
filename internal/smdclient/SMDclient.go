@@ -94,7 +94,7 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 		if err != nil {
 			return nil, fmt.Errorf("failed to read cert from path %s: %v", certPath, err)
 		}
-		certPool := x509.NewCertPool()
+		certPool = x509.NewCertPool()
 		certPool.AppendCertsFromPEM(cacert)
 	}
 
@@ -114,9 +114,12 @@ func NewSMDClient(clusterName, baseurl, jwtURL, accessToken, certPath string, in
 	}
 
 	client := &SMDClient{
-		clusterName:       clusterName,
-		smdClient:         c,
-		tokenClient:       &http.Client{Timeout: 10 * time.Second},
+		clusterName: clusterName,
+		smdClient:   c,
+		tokenClient: &http.Client{
+			Transport: c.Transport,
+			Timeout:   c.Timeout,
+		},
 		smdBaseURL:        baseurl,
 		tokenEndpoint:     jwtURL,
 		accessToken:       accessToken,
