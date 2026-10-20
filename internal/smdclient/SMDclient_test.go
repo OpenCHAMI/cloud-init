@@ -5,10 +5,13 @@
 package smdclient
 
 import (
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,6 +22,68 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewSMDClientTokenRefreshTLS(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		customCA bool
+		insecure bool
+	}{
+		{name: "custom CA", customCA: true},
+		{name: "insecure", insecure: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var tokenRequests atomic.Int64
+			var smdRequests atomic.Int64
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == "/token" {
+					tokenRequests.Add(1)
+					_, _ = w.Write([]byte(`{"access_token":"fresh-token"}`))
+					return
+				}
+				smdRequests.Add(1)
+				if r.Header.Get("Authorization") != "Bearer fresh-token" {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				switch r.URL.Path {
+				case "/hsm/v2/Inventory/EthernetInterfaces/":
+					_, _ = w.Write([]byte(`[{"ComponentID":"x1000","MACAddress":"00:11:22:33:44:55"}]`))
+				case "/hsm/v2/State/Components":
+					writeTestComponents(w)
+				case "/hsm/v2/memberships":
+					_, _ = w.Write([]byte(`[]`))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+
+			var certPath string
+			if tt.customCA {
+				certPath = filepath.Join(t.TempDir(), "ca.pem")
+				certPEM := pem.EncodeToMemory(&pem.Block{
+					Type:  "CERTIFICATE",
+					Bytes: server.Certificate().Raw,
+				})
+				require.NoError(t, os.WriteFile(certPath, certPEM, 0600))
+			}
+
+			client, err := NewSMDClient("test", server.URL, server.URL+"/token", "stale-token", certPath, tt.insecure)
+			require.NoError(t, err)
+			defer client.StopCacheRefresh()
+			defer client.smdClient.CloseIdleConnections()
+
+			assert.Equal(t, "fresh-token", client.currentAccessToken())
+			assert.Equal(t, int64(1), tokenRequests.Load())
+			assert.Equal(t, int64(4), smdRequests.Load())
+			xname, err := client.IDfromMAC("00:11:22:33:44:55")
+			require.NoError(t, err)
+			assert.Equal(t, "x1000", xname)
+		})
+	}
+}
 
 func TestPopulateNodes(t *testing.T) {
 	var requestsMutex sync.Mutex
@@ -165,6 +230,7 @@ func TestConcurrentGetSMDCoalescesTokenRefresh(t *testing.T) {
 
 	client := &SMDClient{
 		smdClient:     smdServer.Client(),
+		tokenClient:   tokenServer.Client(),
 		smdBaseURL:    smdServer.URL,
 		tokenEndpoint: tokenServer.URL,
 		accessToken:   "stale-token",
@@ -203,6 +269,83 @@ func TestConcurrentGetSMDCoalescesTokenRefresh(t *testing.T) {
 	if got := client.currentAccessToken(); got != "fresh-token" {
 		t.Fatalf("current access token = %q, want fresh-token", got)
 	}
+}
+
+func TestRefreshTokenFailurePreservesAccessToken(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		body       string
+	}{
+		{
+			name:       "non-2xx response",
+			statusCode: http.StatusInternalServerError,
+			body:       `{"access_token":"replacement-token"}`,
+		},
+		{
+			name:       "empty access token",
+			statusCode: http.StatusOK,
+			body:       `{"access_token":" \t "}`,
+		},
+		{
+			name:       "malformed JSON",
+			statusCode: http.StatusOK,
+			body:       `{"access_token":`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer tokenServer.Close()
+
+			client := &SMDClient{
+				tokenEndpoint: tokenServer.URL,
+				tokenClient:   tokenServer.Client(),
+				accessToken:   "previous-token",
+			}
+
+			err := client.RefreshToken()
+
+			require.Error(t, err)
+			assert.Equal(t, "previous-token", client.currentAccessToken())
+		})
+	}
+}
+
+func TestGetSMDReturnsTokenRefreshFailureWithoutRetry(t *testing.T) {
+	var smdRequests atomic.Int64
+	smdServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		smdRequests.Add(1)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer smdServer.Close()
+
+	var tokenRequests atomic.Int64
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenRequests.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer tokenServer.Close()
+
+	client := &SMDClient{
+		smdClient:     smdServer.Client(),
+		tokenClient:   tokenServer.Client(),
+		smdBaseURL:    smdServer.URL,
+		tokenEndpoint: tokenServer.URL,
+		accessToken:   "previous-token",
+	}
+
+	var response map[string]string
+	err := client.getSMD("/component", &response)
+
+	require.ErrorContains(t, err, "refreshing rejected SMD access token")
+	assert.Equal(t, int64(1), smdRequests.Load())
+	assert.Equal(t, int64(1), tokenRequests.Load())
+	assert.Equal(t, "previous-token", client.currentAccessToken())
 }
 
 func TestComponentInformationUsesCache(t *testing.T) {

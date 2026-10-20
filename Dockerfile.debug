@@ -12,7 +12,7 @@
 #
 # dlv connect container-hostname.example:2345
 
-FROM golang:1.26.5-bookworm
+FROM golang:1.26.9-bookworm
 
 # Configure go env
 ENV GOPATH=/usr/local/golib
