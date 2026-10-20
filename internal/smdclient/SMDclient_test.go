@@ -5,10 +5,13 @@
 package smdclient
 
 import (
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,6 +22,68 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewSMDClientTokenRefreshTLS(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		customCA bool
+		insecure bool
+	}{
+		{name: "custom CA", customCA: true},
+		{name: "insecure", insecure: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var tokenRequests atomic.Int64
+			var smdRequests atomic.Int64
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == "/token" {
+					tokenRequests.Add(1)
+					_, _ = w.Write([]byte(`{"access_token":"fresh-token"}`))
+					return
+				}
+				smdRequests.Add(1)
+				if r.Header.Get("Authorization") != "Bearer fresh-token" {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				switch r.URL.Path {
+				case "/hsm/v2/Inventory/EthernetInterfaces/":
+					_, _ = w.Write([]byte(`[{"ComponentID":"x1000","MACAddress":"00:11:22:33:44:55"}]`))
+				case "/hsm/v2/State/Components":
+					writeTestComponents(w)
+				case "/hsm/v2/memberships":
+					_, _ = w.Write([]byte(`[]`))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+
+			var certPath string
+			if tt.customCA {
+				certPath = filepath.Join(t.TempDir(), "ca.pem")
+				certPEM := pem.EncodeToMemory(&pem.Block{
+					Type:  "CERTIFICATE",
+					Bytes: server.Certificate().Raw,
+				})
+				require.NoError(t, os.WriteFile(certPath, certPEM, 0600))
+			}
+
+			client, err := NewSMDClient("test", server.URL, server.URL+"/token", "stale-token", certPath, tt.insecure)
+			require.NoError(t, err)
+			defer client.StopCacheRefresh()
+			defer client.smdClient.CloseIdleConnections()
+
+			assert.Equal(t, "fresh-token", client.currentAccessToken())
+			assert.Equal(t, int64(1), tokenRequests.Load())
+			assert.Equal(t, int64(4), smdRequests.Load())
+			xname, err := client.IDfromMAC("00:11:22:33:44:55")
+			require.NoError(t, err)
+			assert.Equal(t, "x1000", xname)
+		})
+	}
+}
 
 func TestPopulateNodes(t *testing.T) {
 	var requestsMutex sync.Mutex
