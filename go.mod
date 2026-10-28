@@ -9,7 +9,7 @@ go 1.26.9
 require (
 	github.com/OpenCHAMI/jwtauth/v5 v5.0.0-20240321222802-e6cb468a2a18
 	github.com/OpenCHAMI/quack v0.0.3
-	github.com/go-chi/chi/v5 v5.3.1
+	github.com/go-chi/chi/v5 v5.4.0
 	github.com/lestrrat-go/jwx/v2 v2.1.7
 	github.com/marcboeker/go-duckdb v1.8.5
 	github.com/openchami/chi-middleware/auth v0.0.0-20240812224658-b16b83c70700
