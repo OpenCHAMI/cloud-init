@@ -4,7 +4,13 @@
 #
 # SPDX-License-Identifier: MIT
 
-curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
+set -euo pipefail
+
+: "${CLOUD_INIT_ADMIN_TOKEN:?Set CLOUD_INIT_ADMIN_TOKEN to an administrative JWT}"
+CLOUD_INIT_URL="${CLOUD_INIT_URL:-http://localhost:27777/cloud-init}"
+
+curl --fail-with-body -X POST "${CLOUD_INIT_URL%/}/admin/cluster-defaults/" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{
           "cloud_provider": "OpenCHAMI",

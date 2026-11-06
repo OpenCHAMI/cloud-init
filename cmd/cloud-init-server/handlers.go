@@ -83,6 +83,9 @@ func DocsHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400		{object}	nil
 //	@Failure		500		{object}	nil
 //	@Param			data	body		cistore.ClusterDefaults	true	"Cluster defaults data"
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
 //	@Router			/admin/cluster-defaults [post]
 func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -121,6 +124,9 @@ func SetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 //	@Produce		json
 //	@Success		200	{object}	cistore.ClusterDefaults
 //	@Failure		500	{object}	nil
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
 //	@Router			/admin/cluster-defaults [get]
 func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -157,6 +163,9 @@ func GetClusterDataHandler(store cistore.Store) http.HandlerFunc {
 //	@Failure		500				{object}	nil
 //	@Param			id				path		string							true	"Node ID"
 //	@Param			instance-info	body		cistore.OpenCHAMIInstanceInfo	true	"Instance info data"
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
 //	@Router			/admin/instance-info/{id} [put]
 func InstanceInfoHandler(sm smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
