@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
-#
-# SPDX-License-Identifier: MIT
-
 definitions:
   cistore.CloudConfigFile:
     properties:
@@ -67,6 +63,8 @@ definitions:
         additionalProperties:
           type: string
         type: object
+    type: object
+  cistore.OpenCHAMIComponent:
     type: object
   cistore.OpenCHAMIInstanceInfo:
     properties:
@@ -177,6 +175,8 @@ definitions:
       version:
         type: string
     type: object
+  smdclient.OpenCHAMINodeWithGroups:
+    type: object
   wgtunnel.PublicKeyRequest:
     properties:
       public_key:
@@ -246,8 +246,18 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/cistore.ClusterDefaults'
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "500":
           description: Internal Server Error
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
       summary: Get cluster defaults
       tags:
       - admin
@@ -268,12 +278,130 @@ paths:
           description: Created
         "400":
           description: Bad Request
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "500":
           description: Internal Server Error
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
       summary: Set cluster defaults
       tags:
       - admin
       - cluster-defaults
+  /admin/fake-sm/nodes:
+    get:
+      description: Available only when fake SMD is enabled.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/cistore.OpenCHAMIComponent'
+            type: array
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: List fake SMD nodes
+      tags:
+      - admin
+      - fake-smd
+    post:
+      consumes:
+      - application/json
+      description: Available only when fake SMD is enabled.
+      parameters:
+      - description: Node data and groups
+        in: body
+        name: node
+        required: true
+        schema:
+          $ref: '#/definitions/smdclient.OpenCHAMINodeWithGroups'
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Add a fake SMD node
+      tags:
+      - admin
+      - fake-smd
+  /admin/fake-sm/nodes/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Available only when fake SMD is enabled.
+      parameters:
+      - description: Node data and groups
+        in: body
+        name: node
+        required: true
+        schema:
+          $ref: '#/definitions/smdclient.OpenCHAMINodeWithGroups'
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Update a fake SMD node
+      tags:
+      - admin
+      - fake-smd
   /admin/groups:
     get:
       description: |-
@@ -289,8 +417,18 @@ paths:
             additionalProperties:
               $ref: '#/definitions/cistore.ClusterDefaults'
             type: object
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "500":
           description: Internal Server Error
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
       summary: Get groups known by cloud-init
       tags:
       - admin
@@ -324,10 +462,20 @@ paths:
             Location:
               description: /groups/{id}
               type: string
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "409":
           description: Conflict
         "422":
           description: Unprocessable Entity
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
       summary: Add a new group
       tags:
       - admin
@@ -344,8 +492,18 @@ paths:
       responses:
         "200":
           description: OK
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "500":
           description: Internal Server Error
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
       summary: Delete a group
       tags:
       - admin
@@ -367,10 +525,20 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/cistore.GroupData'
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "404":
           description: Not Found
         "500":
           description: Internal Server Error
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
       summary: Get data for single group
       tags:
       - admin
@@ -406,26 +574,32 @@ paths:
             Location:
               description: /groups/{name}
               type: string
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "422":
           description: Unprocessable Entity
         "500":
           description: Internal Server Error
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
       summary: Set group-specific meta-data and/or cloud-init config
       tags:
       - admin
       - groups
   /admin/impersonation/{id}/{group}.yaml:
     get:
-      description: |-
-        Get user-data for a particular group based on its name.
-
-        If the impersonation API is enabled, an ID can be provided in
-        the URL path using `/admin/impersonation`. In this case, the
-        group user-data will be retrieved for the requested ID.
+      description: Available only when impersonation is enabled.
       parameters:
       - description: Node ID
         in: path
         name: id
+        required: true
         type: string
       - description: Group name
         in: path
@@ -439,23 +613,32 @@ paths:
           description: OK
           schema:
             type: string
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "404":
           description: Not Found
         "500":
           description: Internal Server Error
-      summary: Get user-data for a particular group
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get group user-data for an impersonated node
+      tags:
+      - admin
+      - impersonation
   /admin/impersonation/{id}/meta-data:
     get:
-      description: |-
-        Get meta-data for requesting node based on the requesting IP.
-
-        If the impersonation API is enabled, an ID can be provided in
-        the URL path using `/admin/impersonation`. In this case, the
-        meta-data will be retrieved for the requested ID.
+      description: Available only when impersonation is enabled.
       parameters:
       - description: Node ID
         in: path
         name: id
+        required: true
         type: string
       produces:
       - application/x-yaml
@@ -464,26 +647,34 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.MetaData'
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "404":
           description: Not Found
         "422":
           description: Unprocessable Entity
         "500":
           description: Internal Server Error
-      summary: Get meta-data for requesting node
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get meta-data for an impersonated node
+      tags:
+      - admin
+      - impersonation
   /admin/impersonation/{id}/user-data:
     get:
-      description: |-
-        Get user-data for requesting node base on the requesting IP. For
-        OpenCHAMI, this will always be `#cloud-config`.
-
-        If the impersonation API is enabled, an ID can be provided in
-        the URL path using `/admin/impersonation`. In this case, the
-        user-data will be retrieved for the requested ID.
+      description: Available only when impersonation is enabled.
       parameters:
       - description: Node ID
         in: path
         name: id
+        required: true
         type: string
       produces:
       - text/plain
@@ -492,20 +683,28 @@ paths:
           description: OK
           schema:
             type: string
-      summary: Get user-data for requesting node
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get user-data for an impersonated node
+      tags:
+      - admin
+      - impersonation
   /admin/impersonation/{id}/vendor-data:
     get:
-      description: |-
-        For OpenCHAMI, the vendor-data will always be a list of other
-        `#cloud-config` URLs to download and merge.
-
-        If the impersonation API is enabled, an ID can be provided in
-        the URL path using `/admin/impersonation`. In this case, the
-        vendor-data will be retrieved for the requested ID.
+      description: Available only when impersonation is enabled.
       parameters:
       - description: Node ID
         in: path
         name: id
+        required: true
         type: string
       produces:
       - text/plain
@@ -514,7 +713,20 @@ paths:
           description: OK
           schema:
             type: string
-      summary: Get vendor data
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get vendor-data for an impersonated node
+      tags:
+      - admin
+      - impersonation
   /admin/instance-info/{id}:
     put:
       consumes:
@@ -538,8 +750,18 @@ paths:
           description: Created
         "400":
           description: Bad Request
+        "401":
+          description: Missing or invalid bearer JWT
+          schema:
+            type: string
         "500":
           description: Internal Server Error
+        "503":
+          description: Admin JWT verifier unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
       summary: Set node-specific meta-data
       tags:
       - admin
@@ -702,4 +924,10 @@ paths:
         "500":
           description: Internal Server Error
       summary: Add a WireGuard client
+securityDefinitions:
+  BearerAuth:
+    description: 'Supply a JWT as: Bearer <token>.'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

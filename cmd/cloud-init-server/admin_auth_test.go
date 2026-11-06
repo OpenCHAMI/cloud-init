@@ -97,8 +97,8 @@ func TestAdminRoutesDenyWhenJWTVerifierUnavailable(t *testing.T) {
 }
 
 func TestAdminJWTExistingClaimProfile(t *testing.T) {
-	// This PR requires JWT authentication without introducing an audience/role
-	// migration. Characterize that boundary so it cannot be mistaken for one.
+	// Configured signing keys grant admin authority; audience values and exp
+	// presence are not enforced by the existing claim profile.
 	keyset := jwtauth.New("HS256", []byte(adminTestSigningKey), nil)
 	router, _ := adminTestRouter(t, keyset)
 	claims := adminTestClaims()

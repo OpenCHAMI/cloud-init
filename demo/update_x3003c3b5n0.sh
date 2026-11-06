@@ -4,8 +4,13 @@
 #
 # SPDX-License-Identifier: MIT
 
+set -euo pipefail
+
+: "${CLOUD_INIT_ADMIN_TOKEN:?Set CLOUD_INIT_ADMIN_TOKEN to an administrative JWT}"
+CLOUD_INIT_URL="${CLOUD_INIT_URL:-http://localhost:27777/cloud-init}"
+
 # Define the cloud-config content
-COMPUTE_CLOUD_CONFIG_CONTENT=$(cat <<EOF
+COMPUTE_CLOUD_CONFIG_CONTENT=$(cat <<'EOF'
 #cloud-config
 merge_how:
  - name: list
@@ -31,7 +36,7 @@ COMPUTE_JSON_PAYLOAD=$(cat <<EOF
   "name": "compute",
   "description": "Compute nodes",
   "file": {
-    "content": "$(echo "$COMPUTE_CLOUD_CONFIG_CONTENT" | base64 -w 0)",
+    "content": "$(echo "$COMPUTE_CLOUD_CONFIG_CONTENT" | base64 | tr -d '\n')",
     "encoding": "base64"
   }
 }
@@ -39,7 +44,7 @@ EOF
 )
 
 # Define the all content
-ALL_CLOUD_CONFIG_CONTENT=$(cat <<EOF
+ALL_CLOUD_CONFIG_CONTENT=$(cat <<'EOF'
 ## template: jinja
 #cloud-config
 merge_how:
@@ -89,7 +94,7 @@ ALL_JSON_PAYLOAD=$(cat <<EOF
   "name": "all",
   "description": "all nodes",
   "file": {
-    "content": "$(echo "$ALL_CLOUD_CONFIG_CONTENT" | base64 -w 0)",
+    "content": "$(echo "$ALL_CLOUD_CONFIG_CONTENT" | base64 | tr -d '\n')",
     "encoding": "base64"
   }
 }
@@ -97,14 +102,17 @@ EOF
 )
 
 # Make the POST requests
-curl -X PUT http://localhost:27777/cloud-init/admin/groups/compute \
+curl --fail-with-body -X PUT "${CLOUD_INIT_URL%/}/admin/groups/compute" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
      -H "Content-Type: application/json" \
      -d "$COMPUTE_JSON_PAYLOAD"
-curl -X PUT http://localhost:27777/cloud-init/admin/groups/all \
+curl --fail-with-body -X PUT "${CLOUD_INIT_URL%/}/admin/groups/all" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
      -H "Content-Type: application/json" \
      -d "$ALL_JSON_PAYLOAD"
 
-curl -X PUT http://localhost:27777/cloud-init/admin/fake-sm/nodes/x3003c3b5n0 \
+curl --fail-with-body -X PUT "${CLOUD_INIT_URL%/}/admin/fake-sm/nodes/x3003c3b5n0" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
      -H "Content-Type: application/json" \
      -d '  {
     "ID": "x3003c3b5n0",
@@ -116,7 +124,8 @@ curl -X PUT http://localhost:27777/cloud-init/admin/fake-sm/nodes/x3003c3b5n0 \
     "groups": ["x3003", "compute", "all" ]
   }'
 
-curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
+curl --fail-with-body -X POST "${CLOUD_INIT_URL%/}/admin/cluster-defaults/" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{
           "cloud_provider": "OpenCHAMI",

@@ -26,9 +26,7 @@ import (
 //	@Description	vendor-data will be retrieved for the requested ID.
 //	@Produce		plain
 //	@Success		200	{string}	string
-//	@Param			id	path		string	false	"Node ID"
 //	@Router			/vendor-data [get]
-//	@Router			/admin/impersonation/{id}/vendor-data [get]
 func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store, baseUrl string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		urlId := chi.URLParam(r, "id")
@@ -89,3 +87,18 @@ func VendorDataHandler(smd smdclient.SMDClientInterface, store cistore.Store, ba
 		}
 	}
 }
+
+// documentAdminVendorData documents the protected alias of the shared bootstrap handler.
+// Keeping its annotations separate prevents JWT requirements on public routes.
+//
+//	@Summary		Get vendor-data for an impersonated node
+//	@Description	Available only when impersonation is enabled.
+//	@Tags			admin,impersonation
+//	@Produce		plain
+//	@Success		200	{object}	string
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
+//	@Param			id	path		string	true	"Node ID"
+//	@Router			/admin/impersonation/{id}/vendor-data [get]
+func documentAdminVendorData() {}

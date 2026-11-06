@@ -136,7 +136,7 @@ By default, the service determines what configuration to return based on the IP 
 
 **Sample commands:**
 ```bash
-curl -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
+curl --fail-with-body -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/meta-data
 ```
 
@@ -207,7 +207,7 @@ The service supports advanced configuration through group handling and instance 
 This example sets a syslog aggregator via jinja templating. The group data is stored under the group name and then used in the vendor-data file.
 
 ```bash
-curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+curl --fail-with-body -X POST http://localhost:27777/cloud-init/admin/groups/ \
     -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{
@@ -232,7 +232,7 @@ To add more sophisticated vendor-data (for example, installing the slurm client)
 #### Set Cluster Defaults:
 
 ```bash
-curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
+curl --fail-with-body -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
     -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{
@@ -250,7 +250,7 @@ curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
 #### Override Instance Data:
 
 ```bash
-curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
+curl --fail-with-body -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
     -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{

@@ -4,11 +4,16 @@
 
 package main
 
-//	@Title			OpenCHAMI Cloud-Init Server API
-//	@Version		1.0.0
-//	@Description	API for cloud-init clients using the OpenCHAMI cloud-init server
-//	@License.name	MIT
-//	@License.url	https://github.com/OpenCHAMI/.github/blob/main/LICENSE
+//	@Title						OpenCHAMI Cloud-Init Server API
+//	@Version					1.0.0
+//	@Description				API for cloud-init clients using the OpenCHAMI cloud-init server
+//	@License.name				MIT
+//	@License.url				https://github.com/OpenCHAMI/.github/blob/main/LICENSE
+//
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Supply a JWT as: Bearer <token>.
 
 import (
 	"fmt"

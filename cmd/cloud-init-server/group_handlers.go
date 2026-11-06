@@ -24,6 +24,9 @@ import (
 //	@Produce		json
 //	@Success		200	{object}	map[string]cistore.ClusterDefaults
 //	@Failure		500	{object}	nil
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
 //	@Router			/admin/groups [get]
 func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -64,6 +67,9 @@ func (h CiHandler) GetGroups(w http.ResponseWriter, r *http.Request) {
 //	@Failure		422		{object}	nil
 //	@Header			201		{string}	Location			"/groups/{id}"
 //	@Param			group	body		cistore.GroupData	true	"Group data"
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
 //	@Router			/admin/groups [post]
 func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -98,6 +104,9 @@ func (h CiHandler) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	nil
 //	@Failure		500	{object}	nil
 //	@Param			id	path		string	true	"Group ID"
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
 //	@Router			/admin/groups/{id} [get]
 func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -147,6 +156,9 @@ func (h CiHandler) GetGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Header			201			{string}	Location			"/groups/{name}"
 //	@Param			name		path		string				true	"Group name"
 //	@Param			group_data	body		cistore.GroupData	true	"Group data"
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
 //	@Router			/admin/groups/{name} [put]
 func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -181,6 +193,9 @@ func (h CiHandler) UpdateGroupHandler(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	nil
 //	@Failure		500	{object}	nil
 //	@Param			id	path		string	true	"Group ID"
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
 //	@Router			/admin/groups/{id} [delete]
 func (h CiHandler) RemoveGroupHandler(w http.ResponseWriter, r *http.Request) {
 	var (

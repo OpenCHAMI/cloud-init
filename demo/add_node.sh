@@ -4,7 +4,13 @@
 #
 # SPDX-License-Identifier: MIT
 
-curl -X POST http://localhost:27777/cloud-init/admin/fake-sm/nodes \
+set -euo pipefail
+
+: "${CLOUD_INIT_ADMIN_TOKEN:?Set CLOUD_INIT_ADMIN_TOKEN to an administrative JWT}"
+CLOUD_INIT_URL="${CLOUD_INIT_URL:-http://localhost:27777/cloud-init}"
+
+curl --fail-with-body -X POST "${CLOUD_INIT_URL%/}/admin/fake-sm/nodes" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
      -H "Content-Type: application/json" \
      -d '{
            "ID": "x4000c1b1n1",
