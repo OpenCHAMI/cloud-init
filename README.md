@@ -117,6 +117,12 @@ _Example:_
 
 ### Fake SMD Mode
 
+All `/admin/` APIs, including impersonation and simulator administration, now require
+a bearer JWT. Configure `JWKS_URL` or `--jwks-url`; absent or failed JWKS initialization
+leaves admin requests unavailable (503), while node bootstrap remains tokenless.
+See [admin authentication and upgrade guidance](docs/admin-authentication.md) for
+the existing claim profile, key trust/rotation limits and client migration.
+
 For development purposes, you can run the cloud-init server without connecting to a real SMD instance. By setting the environment variable `CLOUD_INIT_SMD_SIMULATOR` to `true`, the service will generate a set of simulated nodes.
 
 **Example command:**
@@ -130,7 +136,8 @@ By default, the service determines what configuration to return based on the IP 
 
 **Sample commands:**
 ```bash
-curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/meta-data
+curl -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
+    http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/meta-data
 ```
 
 ### Nocloud-net Datasource
@@ -201,6 +208,7 @@ This example sets a syslog aggregator via jinja templating. The group data is st
 
 ```bash
 curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{
         "name": "x3001",
@@ -225,6 +233,7 @@ To add more sophisticated vendor-data (for example, installing the slurm client)
 
 ```bash
 curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{
         "cloud-provider": "openchami",
@@ -242,6 +251,7 @@ curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
 
 ```bash
 curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{
         "local-hostname": "compute-1",

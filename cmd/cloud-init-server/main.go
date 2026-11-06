@@ -89,7 +89,7 @@ func setupFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&ciEndpoint, "listen", getEnv("LISTEN", "0.0.0.0:27777"), "Server IP and port for cloud-init-server to listen on")
 	flags.StringVar(&tokenEndpoint, "token-url", getEnv("TOKEN_URL", "http://opaal:3333/token"), "OIDC server endpoint to fetch new tokens from (for SMD access)")
 	flags.StringVar(&smdEndpoint, "smd-url", getEnv("SMD_URL", "http://smd:27779"), "Server host and port for running SMD (do not include /hsm/v2)")
-	flags.StringVar(&jwksUrl, "jwks-url", getEnv("JWKS_URL", ""), "JWT keyserver URL, required to enable secure route")
+	flags.StringVar(&jwksUrl, "jwks-url", getEnv("JWKS_URL", ""), "JWT keyserver URL for admin authentication; admin APIs are unavailable without it")
 	flags.StringVar(&accessToken, "access-token", getEnv("ACCESS_TOKEN", ""), "Encoded JWT access token")
 	flags.StringVar(&clusterName, "cluster-name", getEnv("CLUSTER_NAME", ""), "Name of the cluster")
 	flags.StringVar(&region, "region", getEnv("REGION", ""), "Region of the cluster")
@@ -228,7 +228,7 @@ func startServer() error {
 			secureRouteEnable = true
 		}
 	} else {
-		fmt.Println("No JWKS URL provided; secure route will be disabled")
+		fmt.Println("No JWKS URL provided; admin APIs will be unavailable")
 	}
 
 	// Create SMD client
@@ -291,7 +291,7 @@ func startServer() error {
 
 	// Setup routes
 	initCiClientRouter(router, handler, wgInterfaceManager, peerRemovalQueue)
-	initCiAdminRouter(router, handler)
+	initCiAdminRouter(router, handler, keyset)
 
 	// Add secure routes if JWKS is configured
 	if secureRouteEnable && keyset != nil {
@@ -342,9 +342,10 @@ func initCiClientRouter(router chi.Router, handler *CiHandler, wgInterfaceManage
 	router.Post("/wg-init", wgtunnel.AddClientHandler(wgInterfaceManager, handler.sm))
 }
 
-func initCiAdminRouter(router chi.Router, handler *CiHandler) {
+func initCiAdminRouter(router chi.Router, handler *CiHandler, keyset *jwtauth.JWTAuth) {
 	// admin API subrouter
 	router.Route("/admin/", func(r chi.Router) {
+		r.Use(adminJWTMiddleware(keyset))
 
 		// Cluster Defaults
 		r.Get("/cluster-defaults", GetClusterDataHandler(handler.store))
