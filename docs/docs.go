@@ -1123,7 +1123,66 @@ const docTemplate = `{
             }
         },
         "cistore.OpenCHAMIComponent": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "Arch": {
+                    "type": "string"
+                },
+                "Class": {
+                    "type": "string"
+                },
+                "Enabled": {
+                    "type": "boolean"
+                },
+                "Flag": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "string"
+                },
+                "Locked": {
+                    "type": "boolean"
+                },
+                "NID": {
+                    "type": "string"
+                },
+                "NetType": {
+                    "type": "string"
+                },
+                "ReservationDisabled": {
+                    "type": "boolean"
+                },
+                "Role": {
+                    "type": "string"
+                },
+                "SoftwareStatus": {
+                    "type": "string"
+                },
+                "State": {
+                    "type": "string"
+                },
+                "SubRole": {
+                    "type": "string"
+                },
+                "Subtype": {
+                    "type": "string"
+                },
+                "Type": {
+                    "type": "string"
+                },
+                "ip": {
+                    "description": "IP address of the interface used to boot the component",
+                    "type": "string"
+                },
+                "mac": {
+                    "description": "MAC address of the inteface used to boot the component",
+                    "type": "string"
+                },
+                "wgip": {
+                    "description": "Wireguard IP address of the interface used for cloud-init",
+                    "type": "string"
+                }
+            }
         },
         "cistore.OpenCHAMIInstanceInfo": {
             "type": "object",
@@ -1284,7 +1343,72 @@ const docTemplate = `{
             }
         },
         "smdclient.OpenCHAMINodeWithGroups": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "Arch": {
+                    "type": "string"
+                },
+                "Class": {
+                    "type": "string"
+                },
+                "Enabled": {
+                    "type": "boolean"
+                },
+                "Flag": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "string"
+                },
+                "Locked": {
+                    "type": "boolean"
+                },
+                "NID": {
+                    "type": "string"
+                },
+                "NetType": {
+                    "type": "string"
+                },
+                "ReservationDisabled": {
+                    "type": "boolean"
+                },
+                "Role": {
+                    "type": "string"
+                },
+                "SoftwareStatus": {
+                    "type": "string"
+                },
+                "State": {
+                    "type": "string"
+                },
+                "SubRole": {
+                    "type": "string"
+                },
+                "Subtype": {
+                    "type": "string"
+                },
+                "Type": {
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ip": {
+                    "description": "IP address of the interface used to boot the component",
+                    "type": "string"
+                },
+                "mac": {
+                    "description": "MAC address of the inteface used to boot the component",
+                    "type": "string"
+                },
+                "wgip": {
+                    "description": "Wireguard IP address of the interface used for cloud-init",
+                    "type": "string"
+                }
+            }
         },
         "wgtunnel.PublicKeyRequest": {
             "type": "object",

@@ -112,3 +112,82 @@ func TestSwaggerAdminAuthenticationContract(t *testing.T) {
 		t.Error("served /openapi.json differs from checked-in swagger.json")
 	}
 }
+
+func TestSwaggerSimulatorNodeSchemas(t *testing.T) {
+	data, err := os.ReadFile("../../docs/swagger.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	type schema struct {
+		Ref        string                     `json:"$ref"`
+		Type       string                     `json:"type"`
+		Properties map[string]json.RawMessage `json:"properties"`
+		Items      json.RawMessage            `json:"items"`
+	}
+	var spec struct {
+		Definitions map[string]schema `json:"definitions"`
+		Paths       map[string]map[string]struct {
+			Parameters []struct {
+				In     string `json:"in"`
+				Schema schema `json:"schema"`
+			} `json:"parameters"`
+			Responses map[string]struct {
+				Schema schema `json:"schema"`
+			} `json:"responses"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(data, &spec); err != nil {
+		t.Fatal(err)
+	}
+	for _, operation := range []struct{ method, path string }{
+		{"post", "/admin/fake-sm/nodes"}, {"put", "/admin/fake-sm/nodes/{id}"},
+		{"get", "/admin/fake-sm/nodes"},
+	} {
+		t.Run(operation.method+" "+operation.path, func(t *testing.T) {
+			entry := spec.Paths[operation.path][operation.method]
+			var ref string
+			if operation.method == "get" {
+				response := entry.Responses["200"].Schema
+				if response.Type != "array" {
+					t.Fatalf("node list must be an array, got %q", response.Type)
+				}
+				var item schema
+				if err := json.Unmarshal(response.Items, &item); err != nil {
+					t.Fatal(err)
+				}
+				ref = item.Ref
+			} else {
+				for _, parameter := range entry.Parameters {
+					if parameter.In == "body" {
+						ref = parameter.Schema.Ref
+					}
+				}
+			}
+			if !strings.HasPrefix(ref, "#/definitions/") {
+				t.Fatalf("missing simulator node schema reference: %q", ref)
+			}
+			node := spec.Definitions[strings.TrimPrefix(ref, "#/definitions/")]
+			for _, field := range []string{"ID", "mac", "ip", "wgip"} {
+				var property schema
+				if err := json.Unmarshal(node.Properties[field], &property); err != nil {
+					t.Errorf("missing or invalid node field %s in %s", field, ref)
+				} else if property.Type != "string" {
+					t.Errorf("node field %s must be a string, got %q", field, property.Type)
+				}
+			}
+			if operation.method != "get" {
+				var groups schema
+				if err := json.Unmarshal(node.Properties["groups"], &groups); err != nil {
+					t.Fatal("missing or invalid groups request field")
+				}
+				var item schema
+				if err := json.Unmarshal(groups.Items, &item); err != nil {
+					t.Fatal(err)
+				}
+				if groups.Type != "array" || item.Type != "string" {
+					t.Error("groups must be an array of strings")
+				}
+			}
+		})
+	}
+}
