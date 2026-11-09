@@ -79,7 +79,7 @@ definitions:
       Locked:
         type: boolean
       NID:
-        type: string
+        type: number
       NetType:
         type: string
       ReservationDisabled:
@@ -230,7 +230,7 @@ definitions:
       Locked:
         type: boolean
       NID:
-        type: string
+        type: number
       NetType:
         type: string
       ReservationDisabled:

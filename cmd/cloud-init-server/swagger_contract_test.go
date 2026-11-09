@@ -175,6 +175,12 @@ func TestSwaggerSimulatorNodeSchemas(t *testing.T) {
 					t.Errorf("node field %s must be a string, got %q", field, property.Type)
 				}
 			}
+			var nid schema
+			if err := json.Unmarshal(node.Properties["NID"], &nid); err != nil {
+				t.Error("missing or invalid NID field")
+			} else if nid.Type != "number" {
+				t.Errorf("NID must match json.Number numeric serialization, got %q", nid.Type)
+			}
 			if operation.method != "get" {
 				var groups schema
 				if err := json.Unmarshal(node.Properties["groups"], &groups); err != nil {

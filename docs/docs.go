@@ -1144,7 +1144,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "NID": {
-                    "type": "string"
+                    "type": "number"
                 },
                 "NetType": {
                     "type": "string"
@@ -1364,7 +1364,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "NID": {
-                    "type": "string"
+                    "type": "number"
                 },
                 "NetType": {
                     "type": "string"

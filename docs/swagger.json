@@ -1136,7 +1136,7 @@
                     "type": "boolean"
                 },
                 "NID": {
-                    "type": "string"
+                    "type": "number"
                 },
                 "NetType": {
                     "type": "string"
@@ -1356,7 +1356,7 @@
                     "type": "boolean"
                 },
                 "NID": {
-                    "type": "string"
+                    "type": "number"
                 },
                 "NetType": {
                     "type": "string"

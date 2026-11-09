@@ -1,0 +1,5 @@
+// SPDX-FileCopyrightText: Copyright © 2026 OpenCHAMI a Series of LF Projects, LLC
+// SPDX-License-Identifier: MIT
+
+// json.Number marshals as a JSON number, despite its underlying Go string type.
+replace encoding/json.Number number
