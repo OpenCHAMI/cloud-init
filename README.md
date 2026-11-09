@@ -128,6 +128,24 @@ container images without publishing. It requires Docker/Buildx and the Linux C/C
 cross-compilers; macOS users need a Linux build environment for these CGO binaries.
 Snapshot images receive architecture suffixes and do not publish release tags.
 
+Pull requests also run **Release build and runtime** on Ubuntu 24.04. This job
+shares release toolchain/compiler/BuildKit setup with the tag workflow, runs
+`goreleaser release --snapshot --clean`, and tests both snapshot images with
+networking disabled. Each image must initialize a temporary DuckDB store and
+serve `/version` successfully. The job then exports a combined OCI image to a
+local file and checks both platform manifests, provenance and SBOM statements,
+including their image subject digests. Production attestation settings are read
+from GoReleaser's effective configuration, so disabling them fails validation.
+The PR job has read-only permissions, no registry login, and never pushes images
+or creates a release. Python verification uses the pinned dependency in
+[requirements-release.txt](.github/scripts/requirements-release.txt).
+
+After the check first runs, a repository administrator must mark **Release build
+and runtime** as required in the branch protection/ruleset for `main`. Defining
+the workflow alone does not prevent a merge after a failed check. Registry upload,
+GitHub release permissions, and delivery of GitHub attestations still require
+validation during the actual release.
+
 Before tagging a release, run `make release-check`, the repository checks, and
 `node --test .github/scripts/release-image-digests.test.cjs`. Smoke-test both runtime
 images, inspect the combined index for amd64/arm64 and attestations, and verify
