@@ -32,12 +32,12 @@ jobs:
       - name: Test release build verification
         run: python3 -m unittest discover -s .github/scripts -p 'test_release_build.py'
       - name: Validate Linux release configuration
-        uses: goreleaser/goreleaser-action@v7.2.2
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
         with:
           version: v2.17.1
           args: check
       - name: Validate Darwin release configuration
-        uses: goreleaser/goreleaser-action@v7.2.2
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
         with:
           version: v2.17.1
           args: check --config .goreleaser-darwin.yaml
@@ -54,7 +54,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/release-setup
       - name: Build release snapshot without publishing
-        uses: goreleaser/goreleaser-action@v7.2.2
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
         with:
           version: v2.17.1
           args: release --snapshot --clean

@@ -124,13 +124,16 @@ GoReleaser stages container binaries at `linux/amd64/cloud-init-server` and
 The binary must target the image's architecture and Ubuntu 24.04 runtime.
 
 `make release-snapshot` builds local binary archives and architecture-specific
-container images without publishing. It requires Docker/Buildx and the Linux C/C++
-cross-compilers; macOS users need a Linux build environment for these CGO binaries.
+container images without publishing. It requires Docker/Buildx with the
+[containerd image store](https://docs.docker.com/engine/storage/containerd/) enabled
+to load provenance-bearing images, and the Linux C/C++ cross-compilers. macOS users
+need a Linux build environment for these CGO binaries.
 Snapshot images receive architecture suffixes and do not publish release tags.
 
 Pull requests also run **Release build and runtime** on Ubuntu 24.04. This job
-shares release toolchain/compiler/BuildKit setup with the tag workflow, runs
-`goreleaser release --snapshot --clean`, and tests both snapshot images with
+shares release toolchain/compiler/BuildKit setup with the tag workflow, including
+the containerd image store. It runs `goreleaser release --snapshot --clean` and
+tests both snapshot images with
 networking disabled. Each image must initialize a temporary DuckDB store and
 serve `/version` successfully. The job then exports a combined OCI image to a
 local file and checks both platform manifests, provenance and SBOM statements,

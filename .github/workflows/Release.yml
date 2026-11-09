@@ -17,12 +17,13 @@ jobs:
   stress-tests:
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
-      - uses: actions/setup-go@v6.4.0
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
+          cache: false
       - name: Run release stress tests
         run: make test-stress
 
@@ -38,12 +39,12 @@ jobs:
     # runs-on to ubuntu-latest, which can produce binaries Ubuntu 24.04 cannot run.
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/release-setup
-      - uses: docker/login-action@v4.2.0
+      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           registry: ghcr.io
@@ -59,7 +60,7 @@ jobs:
           fi
       - name: Build and release
         id: goreleaser
-        uses: goreleaser/goreleaser-action@v7.2.2
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -67,7 +68,7 @@ jobs:
           args: release --clean ${{ steps.mode.outputs.flags }}
       - name: Attest binaries
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest-build-provenance@v4.1.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: dist/cloud-init*.tar.gz
       - name: Select published image digests
@@ -79,21 +80,21 @@ jobs:
           node .github/scripts/release-image-digests.cjs
       - name: Attest multi-architecture image
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest-build-provenance@v4.1.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: ghcr.io/openchami/cloud-init
           subject-digest: ${{ steps.images.outputs.multiarch }}
           push-to-registry: true
       - name: Attest amd64 image
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest-build-provenance@v4.1.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: ghcr.io/openchami/cloud-init
           subject-digest: ${{ steps.images.outputs.amd64 }}
           push-to-registry: true
       - name: Attest arm64 image
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest-build-provenance@v4.1.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: ghcr.io/openchami/cloud-init
           subject-digest: ${{ steps.images.outputs.arm64 }}
