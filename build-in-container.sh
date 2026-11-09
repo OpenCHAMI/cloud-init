@@ -15,7 +15,8 @@ CONTAINER_NAME="goreleaser-build"
 # Directory where built binaries will be available
 OUTPUT_DIR="$(pwd)/dist"
 GO_VERSION="${GO_VERSION:-$(awk '/^go / {print $2; exit}' go.mod)}"
-GORELEASER_VERSION="${GORELEASER_VERSION:-v2.11.2}"
+GO_VERSION="${GO_VERSION#go}"
+GORELEASER_VERSION="${GORELEASER_VERSION:-v2.17.1}"
 
 export GIT_STATE=$(if git diff-index --quiet HEAD --; then echo 'clean'; else echo 'dirty'; fi)
 export BUILD_HOST=$(hostname)
@@ -24,11 +25,14 @@ export BUILD_USER=$(whoami)
 
 # Start a new disposable Ubuntu 24.04 container with the current directory mounted
 ${CONTAINER_CMD:-docker} run --rm \
+    --platform linux/amd64 \
     --name "$CONTAINER_NAME" \
     -v "$(pwd)":/workspace \
     -v ${CONTAINER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock \
     -w /workspace \
     ubuntu:24.04 bash -c "
+
+    set -euo pipefail
 
     # Suppress timezone prompts
     export DEBIAN_FRONTEND=noninteractive
@@ -39,7 +43,7 @@ ${CONTAINER_CMD:-docker} run --rm \
     ca-certificates curl gnupg \
     gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
     libc6-dev-arm64-cross software-properties-common \
-    clang-tools libstdc++-13-dev-arm64-cross
+    clang-tools g++-aarch64-linux-gnu
 
     install -m 0755 -d /etc/apt/keyrings
 
@@ -68,7 +72,10 @@ ${CONTAINER_CMD:-docker} run --rm \
     goreleaser --version  # Verify Goreleaser installation
 
     # Setup Docker buildx for multi-platform builds
-    docker buildx create --use --name goreleaser-builder || true
+    docker buildx create --use --name goreleaser-builder \
+      --driver docker-container \
+      --driver-opt image=moby/buildkit:v0.30.0@sha256:0168606be2315b7c807a03b3d8aa79beefdb31c98740cebdffdfeebf31190c9f
+    trap 'docker buildx rm goreleaser-builder' EXIT
     docker buildx inspect --bootstrap
 
     # Set Build Environment Variables

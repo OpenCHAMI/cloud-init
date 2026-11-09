@@ -37,7 +37,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates iproute2 wireguard-tools tini \
  && rm -rf /var/lib/apt/lists/*
 
-COPY cloud-init-server /usr/local/bin/cloud-init-server
+# GoReleaser Docker v2 stages binaries under their target platform. Keep the
+# BINARY_DIR can be overridden for manual builds with a root-level binary.
+ARG TARGETPLATFORM
+ARG BINARY_DIR=${TARGETPLATFORM}
+COPY ${BINARY_DIR}/cloud-init-server /usr/local/bin/cloud-init-server
 
 #Set the golang modcache
 ENV GOMODCACHE=/tmp/.cache
