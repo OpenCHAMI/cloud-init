@@ -258,7 +258,6 @@ func (m *InterfaceManager) StartServer() error {
 
 	log.Info().
 		Str("Interface Name", m.interfaceName).
-		Str("Private Key", m.privateKey).
 		Str("Public Key", m.publicKey).
 		Int("Listen Port", m.listenPort).
 		Str("IP Address", m.ipAddress.String()).

@@ -47,9 +47,7 @@ func getActualRequestIP(r *http.Request) string {
 //	@Failure		404	{object}	nil
 //	@Failure		422	{object}	nil
 //	@Failure		500	{object}	nil
-//	@Param			id	path		string	false	"Node ID"
 //	@Router			/meta-data [get]
-//	@Router			/admin/impersonation/{id}/meta-data [get]
 func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		urlId := chi.URLParam(r, "id")
@@ -136,3 +134,21 @@ func MetaDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http
 		}
 	}
 }
+
+// documentAdminMetaData documents the protected alias of the shared bootstrap handler.
+// Keeping its annotations separate prevents JWT requirements on public routes.
+//
+//	@Summary		Get meta-data for an impersonated node
+//	@Description	Available only when impersonation is enabled.
+//	@Tags			admin,impersonation
+//	@Produce		application/x-yaml
+//	@Success		200	{object}	MetaData
+//	@Failure		404	{object}	nil
+//	@Failure		422	{object}	nil
+//	@Failure		500	{object}	nil
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
+//	@Param			id	path		string	true	"Node ID"
+//	@Router			/admin/impersonation/{id}/meta-data [get]
+func documentAdminMetaData() {}

@@ -4,7 +4,13 @@
 #
 # SPDX-License-Identifier: MIT
 
-curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+set -euo pipefail
+
+: "${CLOUD_INIT_ADMIN_TOKEN:?Set CLOUD_INIT_ADMIN_TOKEN to an administrative JWT}"
+CLOUD_INIT_URL="${CLOUD_INIT_URL:-http://localhost:27777/cloud-init}"
+
+curl --fail-with-body -X POST "${CLOUD_INIT_URL%/}/admin/groups/" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
      -H "Content-Type: application/json" \
      -d '{
           "name": "x3000",
@@ -18,7 +24,8 @@ curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
           }
         }'
 
-curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+curl --fail-with-body -X POST "${CLOUD_INIT_URL%/}/admin/groups/" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{
         "name": "x3001",
@@ -34,7 +41,8 @@ curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
 
 
 
-curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+curl --fail-with-body -X POST "${CLOUD_INIT_URL%/}/admin/groups/" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{
         "name": "x3002",
@@ -45,7 +53,8 @@ curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
         }
     }'
 
-curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+curl --fail-with-body -X POST "${CLOUD_INIT_URL%/}/admin/groups/" \
+    -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" \
      -H "Content-Type: application/json" \
      -d '{
           "name": "x3003",

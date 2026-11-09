@@ -10,27 +10,54 @@ Updates to the cloud-init service are designed to push the complexity of merging
 
 ## Running the service
 
+All demo administration requires an `Authorization: Bearer` header. Configure the
+server's `JWKS_URL` with verification keys trusted for administrative authority and
+obtain an admin JWT from the site's issuer. `TOKEN_URL` and `ACCESS_TOKEN` configure
+outbound SMD access, not inbound administration. See the
+[admin token profile and operational checks](../docs/admin-authentication.md).
+
+For the shell scripts, set the API base URL (including any proxy prefix) and read
+the token without placing it in shell history:
+
+```bash
+export CLOUD_INIT_URL=http://localhost:27777/cloud-init
+read -r -s -p 'Cloud-init admin JWT: ' CLOUD_INIT_ADMIN_TOKEN
+echo
+export CLOUD_INIT_ADMIN_TOKEN
+bash demo/set_cluster_defaults.sh
+```
+
+The URL above retains the existing trusted local proxy example. For a direct
+backend, use `http://127.0.0.1:27777` without `/cloud-init`; for remote access use
+the site's HTTPS ingress. Scripts require Bash and curl with `--fail-with-body`
+support (7.76.0 or newer), reject missing tokens before requests and stop on the
+first HTTP error. A configured verifier returns 401 for missing/invalid tokens;
+absent or failed JWKS initialization returns 503. Neither is a successful setup.
+The impersonation and simulator routes also require their server feature flags.
+Run `unset CLOUD_INIT_ADMIN_TOKEN` when finished.
+
 There are a few additional flags and environment variables to be aware of with cloud-init.
 
 ### Cluster Name
 
-Each instance of cloud-init is linked to a single SMD and operates for a single cluster.  Ideally, the cluster name should be available through the inventory system.  Until that is true, it will need to be specified on the commandline with the `-cluster-name` flag.
+Each instance of cloud-init is linked to a single SMD and operates for a single cluster.  Ideally, the cluster name should be available through the inventory system.  Until that is true, it will need to be specified on the commandline with the `--cluster-name` flag.
 
 ### Fake SMD
 ```
-CLOUD_INIT_SMD_SIMULATOR=true dist/cloud-init_darwin_arm64_v8.0/cloud-init-server -cluster-name venado -insecure -impersonation=true
+CLOUD_INIT_SMD_SIMULATOR=true JWKS_URL=https://issuer.example/jwks.json \
+  cloud-init-server --cluster-name venado --impersonation
 ```
 
 For development purposes, you can run the cloud-init server without an SMD instance to connect to by setting `CLOUD_INIT_SMD_SIMULATOR` to `true` in your environment.  This will create a set of nodes spread across a few cabinets and add them to various groups for testing.  This also adds a set of endpoints under `cloud-init/admin/fake-sm/` which allow additional testing nodes to be created as needed.
 
 ### Impersonation
 
-Since the HTTP handlers within cloud-init use the ip address of the requesting node to determine what to send, we have a set of impersonation routes that are not enabled by default.  They sit under the `admin` subrouter and can be enabled at runtime with `-impersonation=true` on the commandline.
+Since the HTTP handlers within cloud-init use the ip address of the requesting node to determine what to send, we have a set of impersonation routes that are not enabled by default.  They sit under the `admin` subrouter and can be enabled at runtime with `--impersonation` on the commandline.
 
-* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/meta-data`
-* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/user-data`
-* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/vendor-data`
-* `curl http://localhost:27777/cloud-init/admin/impersonation/x3000c1b1n1/compute.yaml`
+* `curl --fail-with-body -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" "${CLOUD_INIT_URL%/}/admin/impersonation/x3000c1b1n1/meta-data"`
+* `curl --fail-with-body -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" "${CLOUD_INIT_URL%/}/admin/impersonation/x3000c1b1n1/user-data"`
+* `curl --fail-with-body -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" "${CLOUD_INIT_URL%/}/admin/impersonation/x3000c1b1n1/vendor-data"`
+* `curl --fail-with-body -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" "${CLOUD_INIT_URL%/}/admin/impersonation/x3000c1b1n1/compute.yaml"`
 
 ## Nocloud-net Datasource
 
@@ -72,7 +99,7 @@ Nodes are assigned to groups in smd, but we store the user-data and any paramete
 This sets the syslog aggregator based on the contents of `meta-data`.  The `data` element in the json is added to the meta-data payload under the group name so `vendor-data.groups.x3001.syslog_aggregator` is valid within jinja2 templating
 
 ```bash
-curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+curl --fail-with-body -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" -X POST "${CLOUD_INIT_URL%/}/admin/groups/" \
     -H "Content-Type: application/json" \
     -d '{
         "name": "x3001",
@@ -124,7 +151,7 @@ EOF
 )
 
 # Make the POST request
-curl -X POST http://localhost:27777/cloud-init/admin/groups/ \
+curl --fail-with-body -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" -X POST "${CLOUD_INIT_URL%/}/admin/groups/" \
      -H "Content-Type: application/json" \
      -d "$JSON_PAYLOAD"
 ```
@@ -165,7 +192,7 @@ instance_data:
 Many of the items in the above yaml will not change from node to node within a cluster.  Things like `cluster-name`, `region`, and `availability-zone` are unlikely to be different within a cluster.  These can be set through commandline arguments when starting the cloud-init server or through the `/cloud-init/admin/cluser-defaults` endpoint.
 
 ```bash
-curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
+curl --fail-with-body -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" -X POST "${CLOUD_INIT_URL%/}/admin/cluster-defaults/" \
     -H "Content-Type: application/json" \
     -d '{
         "cloud-provider": "openchami",
@@ -183,7 +210,7 @@ curl -X POST http://localhost:27777/cloud-init/admin/cluster-defaults/ \
 
 There are some portions of the `meta-data` that can be overridden at a node level.  `/cloud-init/admin/instance-info/{id}`
 ```bash
-curl -X PUT http://localhost:27777/cloud-init/admin/instance-info/x3000c1b1n1 \
+curl --fail-with-body -H "Authorization: Bearer ${CLOUD_INIT_ADMIN_TOKEN}" -X PUT "${CLOUD_INIT_URL%/}/admin/instance-info/x3000c1b1n1" \
     -H "Content-Type: application/json" \
     -d '{
         "local-hostname": "compute-1",

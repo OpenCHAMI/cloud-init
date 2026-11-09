@@ -19,6 +19,20 @@ type OpenCHAMINodeWithGroups struct {
 	Groups []string `json:"groups,omitempty" yaml:"groups,omitempty"`
 }
 
+// AddNodeToInventoryHandler godoc
+//
+//	@Summary		Add a fake SMD node
+//	@Description	Available only when fake SMD is enabled.
+//	@Tags			admin,fake-smd
+//	@Accept			json
+//	@Param			node	body		OpenCHAMINodeWithGroups	true	"Node data and groups"
+//	@Failure		400		{string}	string
+//	@Success		201		{object}	nil
+//	@Failure		500		{string}	string
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
+//	@Router			/admin/fake-sm/nodes [post]
 func AddNodeToInventoryHandler(f *FakeSMDClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var addNode OpenCHAMINodeWithGroups
@@ -46,6 +60,18 @@ func AddNodeToInventoryHandler(f *FakeSMDClient) http.HandlerFunc {
 	}
 }
 
+// ListNodesHandler godoc
+//
+//	@Summary		List fake SMD nodes
+//	@Description	Available only when fake SMD is enabled.
+//	@Tags			admin,fake-smd
+//	@Produce		json
+//	@Success		200	{array}		cistore.OpenCHAMIComponent
+//	@Failure		500	{string}	string
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
+//	@Router			/admin/fake-sm/nodes [get]
 func ListNodesHandler(f *FakeSMDClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		nodes := f.ListNodes()
@@ -59,6 +85,21 @@ func ListNodesHandler(f *FakeSMDClient) http.HandlerFunc {
 	}
 }
 
+// UpdateNodeHandler godoc
+//
+//	@Summary		Update a fake SMD node
+//	@Description	Available only when fake SMD is enabled.
+//	@Tags			admin,fake-smd
+//	@Accept			json
+//	@Param			node	body		OpenCHAMINodeWithGroups	true	"Node data and groups"
+//	@Failure		400		{string}	string
+//	@Param			id		path		string	true	"Node ID"
+//	@Success		200		{object}	nil
+//	@Failure		500		{string}	string
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
+//	@Router			/admin/fake-sm/nodes/{id} [put]
 func UpdateNodeHandler(f *FakeSMDClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")

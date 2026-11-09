@@ -13,6 +13,11 @@
     "paths": {
         "/admin/cluster-defaults": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get default meta-data values for cluster.",
                 "produces": [
                     "application/json"
@@ -29,12 +34,29 @@
                             "$ref": "#/definitions/cistore.ClusterDefaults"
                         }
                     },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Set default meta-data values for cluster.",
                 "consumes": [
                     "application/json"
@@ -62,14 +84,199 @@
                     "400": {
                         "description": "Bad Request"
                     },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/fake-sm/nodes": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Available only when fake SMD is enabled.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "fake-smd"
+                ],
+                "summary": "List fake SMD nodes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/cistore.OpenCHAMIComponent"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Available only when fake SMD is enabled.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "fake-smd"
+                ],
+                "summary": "Add a fake SMD node",
+                "parameters": [
+                    {
+                        "description": "Node data and groups",
+                        "name": "node",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/smdclient.OpenCHAMINodeWithGroups"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/fake-sm/nodes/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Available only when fake SMD is enabled.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin",
+                    "fake-smd"
+                ],
+                "summary": "Update a fake SMD node",
+                "parameters": [
+                    {
+                        "description": "Node data and groups",
+                        "name": "node",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/smdclient.OpenCHAMINodeWithGroups"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Node ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         },
         "/admin/groups": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get meta-data and cloud-init config for all groups known to\ncloud-init.  Note that group membership is managed outside of\nthe cloud-init service, normally in SMD.",
                 "produces": [
                     "application/json"
@@ -89,12 +296,29 @@
                             }
                         }
                     },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Add a new group to cloud-init corresponding to an SMD group.\nGroup-wide meta-data and/or a cloud-init configuration (in\neither plain or base64 encoding) can be specified.\n\nIf successful, a 201 Created status is returned and the\n`Location` header is set to the new group's groups endpoint,\n`/groups/{name}`.\n\nIf request parsing fails, a 422 Unprocessable Entity status is\nreturned. If adding group data to the data store fails, a 409\nConflict status is returned.",
                 "consumes": [
                     "application/json"
@@ -125,17 +349,34 @@
                             }
                         }
                     },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "409": {
                         "description": "Conflict"
                     },
                     "422": {
                         "description": "Unprocessable Entity"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         },
         "/admin/groups/{id}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get meta-data and cloud-init config for a single group known to\ncloud-init.",
                 "produces": [
                     "application/json"
@@ -161,15 +402,32 @@
                             "$ref": "#/definitions/cistore.GroupData"
                         }
                     },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "404": {
                         "description": "Not Found"
                     },
                     "500": {
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Delete a group with its meta-data and cloud-init config.",
                 "tags": [
                     "admin",
@@ -189,14 +447,31 @@
                     "200": {
                         "description": "OK"
                     },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         },
         "/admin/groups/{name}": {
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Set meta-data or cloud-init configuration for a specific group,\noverwriting any previous values.\n\nIf successful, a 201 Created status is returned and the\n`Location` header is set to the new group's groups endpoint,\n`/groups/{group}`. This operation is idempotent and replaces\nany existing content.",
                 "consumes": [
                     "application/json"
@@ -234,28 +509,50 @@
                             }
                         }
                     },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "422": {
                         "description": "Unprocessable Entity"
                     },
                     "500": {
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         },
         "/admin/impersonation/{id}/meta-data": {
             "get": {
-                "description": "Get meta-data for requesting node based on the requesting IP.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nmeta-data will be retrieved for the requested ID.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Available only when impersonation is enabled.",
                 "produces": [
                     "application/x-yaml"
                 ],
-                "summary": "Get meta-data for requesting node",
+                "tags": [
+                    "admin",
+                    "impersonation"
+                ],
+                "summary": "Get meta-data for an impersonated node",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Node ID",
                         "name": "id",
-                        "in": "path"
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -263,6 +560,12 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/main.MetaData"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "404": {
@@ -273,28 +576,56 @@
                     },
                     "500": {
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         },
         "/admin/impersonation/{id}/user-data": {
             "get": {
-                "description": "Get user-data for requesting node base on the requesting IP. For\nOpenCHAMI, this will always be `#cloud-config`.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nuser-data will be retrieved for the requested ID.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Available only when impersonation is enabled.",
                 "produces": [
                     "text/plain"
                 ],
-                "summary": "Get user-data for requesting node",
+                "tags": [
+                    "admin",
+                    "impersonation"
+                ],
+                "summary": "Get user-data for an impersonated node",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Node ID",
                         "name": "id",
-                        "in": "path"
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
                         "schema": {
                             "type": "string"
                         }
@@ -304,22 +635,44 @@
         },
         "/admin/impersonation/{id}/vendor-data": {
             "get": {
-                "description": "For OpenCHAMI, the vendor-data will always be a list of other\n`#cloud-config` URLs to download and merge.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\nvendor-data will be retrieved for the requested ID.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Available only when impersonation is enabled.",
                 "produces": [
                     "text/plain"
                 ],
-                "summary": "Get vendor data",
+                "tags": [
+                    "admin",
+                    "impersonation"
+                ],
+                "summary": "Get vendor-data for an impersonated node",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Node ID",
                         "name": "id",
-                        "in": "path"
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
                         "schema": {
                             "type": "string"
                         }
@@ -329,17 +682,27 @@
         },
         "/admin/impersonation/{id}/{group}.yaml": {
             "get": {
-                "description": "Get user-data for a particular group based on its name.\n\nIf the impersonation API is enabled, an ID can be provided in\nthe URL path using `/admin/impersonation`. In this case, the\ngroup user-data will be retrieved for the requested ID.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Available only when impersonation is enabled.",
                 "produces": [
                     "text/plain"
                 ],
-                "summary": "Get user-data for a particular group",
+                "tags": [
+                    "admin",
+                    "impersonation"
+                ],
+                "summary": "Get group user-data for an impersonated node",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Node ID",
                         "name": "id",
-                        "in": "path"
+                        "in": "path",
+                        "required": true
                     },
                     {
                         "type": "string",
@@ -356,17 +719,34 @@
                             "type": "string"
                         }
                     },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "404": {
                         "description": "Not Found"
                     },
                     "500": {
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         },
         "/admin/instance-info/{id}": {
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Set meta-data for a specific node ID, overwriting relevant group meta-data.",
                 "consumes": [
                     "application/json"
@@ -401,8 +781,20 @@
                     "400": {
                         "description": "Bad Request"
                     },
+                    "401": {
+                        "description": "Missing or invalid bearer JWT",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Admin JWT verifier unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
@@ -722,6 +1114,68 @@
                 }
             }
         },
+        "cistore.OpenCHAMIComponent": {
+            "type": "object",
+            "properties": {
+                "Arch": {
+                    "type": "string"
+                },
+                "Class": {
+                    "type": "string"
+                },
+                "Enabled": {
+                    "type": "boolean"
+                },
+                "Flag": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "string"
+                },
+                "Locked": {
+                    "type": "boolean"
+                },
+                "NID": {
+                    "type": "number"
+                },
+                "NetType": {
+                    "type": "string"
+                },
+                "ReservationDisabled": {
+                    "type": "boolean"
+                },
+                "Role": {
+                    "type": "string"
+                },
+                "SoftwareStatus": {
+                    "type": "string"
+                },
+                "State": {
+                    "type": "string"
+                },
+                "SubRole": {
+                    "type": "string"
+                },
+                "Subtype": {
+                    "type": "string"
+                },
+                "Type": {
+                    "type": "string"
+                },
+                "ip": {
+                    "description": "IP address of the interface used to boot the component",
+                    "type": "string"
+                },
+                "mac": {
+                    "description": "MAC address of the inteface used to boot the component",
+                    "type": "string"
+                },
+                "wgip": {
+                    "description": "Wireguard IP address of the interface used for cloud-init",
+                    "type": "string"
+                }
+            }
+        },
         "cistore.OpenCHAMIInstanceInfo": {
             "type": "object",
             "properties": {
@@ -880,6 +1334,74 @@
                 }
             }
         },
+        "smdclient.OpenCHAMINodeWithGroups": {
+            "type": "object",
+            "properties": {
+                "Arch": {
+                    "type": "string"
+                },
+                "Class": {
+                    "type": "string"
+                },
+                "Enabled": {
+                    "type": "boolean"
+                },
+                "Flag": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "string"
+                },
+                "Locked": {
+                    "type": "boolean"
+                },
+                "NID": {
+                    "type": "number"
+                },
+                "NetType": {
+                    "type": "string"
+                },
+                "ReservationDisabled": {
+                    "type": "boolean"
+                },
+                "Role": {
+                    "type": "string"
+                },
+                "SoftwareStatus": {
+                    "type": "string"
+                },
+                "State": {
+                    "type": "string"
+                },
+                "SubRole": {
+                    "type": "string"
+                },
+                "Subtype": {
+                    "type": "string"
+                },
+                "Type": {
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ip": {
+                    "description": "IP address of the interface used to boot the component",
+                    "type": "string"
+                },
+                "mac": {
+                    "description": "MAC address of the inteface used to boot the component",
+                    "type": "string"
+                },
+                "wgip": {
+                    "description": "Wireguard IP address of the interface used for cloud-init",
+                    "type": "string"
+                }
+            }
+        },
         "wgtunnel.PublicKeyRequest": {
             "type": "object",
             "properties": {
@@ -913,6 +1435,14 @@
                     "example": "dHMOGL8vTGhTgqXyYdu6cLGXEPmTcWm+vS18GcQseyg="
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Supply a JWT as: Bearer \u003ctoken\u003e.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }

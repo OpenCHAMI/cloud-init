@@ -27,9 +27,7 @@ import (
 //	@Description	user-data will be retrieved for the requested ID.
 //	@Produce		plain
 //	@Success		200	{object}	string
-//	@Param			id	path		string	false	"Node ID"
 //	@Router			/user-data [get]
-//	@Router			/admin/impersonation/{id}/user-data [get]
 func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 	payload := `#cloud-config`
 	if _, err := w.Write([]byte(payload)); err != nil {
@@ -49,10 +47,8 @@ func UserDataHandler(w http.ResponseWriter, r *http.Request) {
 //	@Success		200		{object}	string
 //	@Failure		404		{object}	nil
 //	@Failure		500		{object}	nil
-//	@Param			id		path		string	false	"Node ID"
 //	@Param			group	path		string	true	"Group name"
 //	@Router			/{group}.yaml [get]
-//	@Router			/admin/impersonation/{id}/{group}.yaml [get]
 func GroupUserDataHandler(smd smdclient.SMDClientInterface, store cistore.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, group, err := getIDAndGroup(r, smd)
@@ -128,3 +124,36 @@ func contains(list []string, item string) bool {
 	}
 	return false
 }
+
+// documentAdminUserData documents the protected alias of the shared bootstrap handler.
+// Keeping its annotations separate prevents JWT requirements on public routes.
+//
+//	@Summary		Get user-data for an impersonated node
+//	@Description	Available only when impersonation is enabled.
+//	@Tags			admin,impersonation
+//	@Produce		plain
+//	@Success		200	{object}	string
+//	@Security		BearerAuth
+//	@Failure		401	{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503	{string}	string	"Admin JWT verifier unavailable"
+//	@Param			id	path		string	true	"Node ID"
+//	@Router			/admin/impersonation/{id}/user-data [get]
+func documentAdminUserData() {}
+
+// documentAdminGroupUserData documents the protected alias of the shared bootstrap handler.
+// Keeping its annotations separate prevents JWT requirements on public routes.
+//
+//	@Summary		Get group user-data for an impersonated node
+//	@Description	Available only when impersonation is enabled.
+//	@Tags			admin,impersonation
+//	@Produce		plain
+//	@Success		200	{object}	string
+//	@Failure		404	{object}	nil
+//	@Failure		500	{object}	nil
+//	@Security		BearerAuth
+//	@Failure		401		{string}	string	"Missing or invalid bearer JWT"
+//	@Failure		503		{string}	string	"Admin JWT verifier unavailable"
+//	@Param			id		path		string	true	"Node ID"
+//	@Param			group	path		string	true	"Group name"
+//	@Router			/admin/impersonation/{id}/{group}.yaml [get]
+func documentAdminGroupUserData() {}

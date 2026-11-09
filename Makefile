@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-.PHONY: help build clean docker-build fmt mod-install lint lint-fix release-check release-snapshot run test test-race test-stress tidy tidy-check vet vuln check
+.PHONY: help build clean docker-build fmt mod-install lint lint-fix release-check release-snapshot run test test-race test-stress tidy tidy-check vet vuln check swagger
 
 GO ?= go
 GIT ?= git
@@ -19,6 +19,7 @@ GO_MOD_VERSION ?= $(shell awk '/^go / {print $$2; exit}' go.mod)
 GO_TOOLCHAIN_VERSION ?= $(GO_MOD_VERSION)
 GOTOOLCHAIN ?= go$(GO_TOOLCHAIN_VERSION)
 GO_ENV := GOTOOLCHAIN=$(GOTOOLCHAIN)
+SWAG_VERSION ?= v1.16.6
 GORELEASER_VERSION ?= v2.11.2
 GORELEASER ?= $(GO_ENV) $(GO) run github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
 
@@ -44,6 +45,9 @@ LDFLAGS := -ldflags "-X 'main.GitCommit=$(COMMIT)' \
 
 help: ## Display this help screen
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m[VAR=val]... <target>\033[0m\n\nTargets:\n"} /^[a-zA-Z0-9_\/.-]+:.*##/ {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+swagger: ## Regenerate API docs, including embedded simulator node models
+	$(GO_ENV) $(GO) run github.com/swaggo/swag/cmd/swag@$(SWAG_VERSION) init -g main.go --dir cmd/cloud-init-server,internal/smdclient,pkg/cistore,pkg/wgtunnel --parseDependencyLevel 1 --parseInternal
 
 mod-install: ## Download and verify Go modules
 	$(GO_ENV) $(GO) mod download
