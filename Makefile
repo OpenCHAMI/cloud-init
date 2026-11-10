@@ -20,7 +20,7 @@ GO_TOOLCHAIN_VERSION ?= $(GO_MOD_VERSION)
 GOTOOLCHAIN ?= go$(GO_TOOLCHAIN_VERSION)
 GO_ENV := GOTOOLCHAIN=$(GOTOOLCHAIN)
 SWAG_VERSION ?= v1.16.6
-GORELEASER_VERSION ?= v2.11.2
+GORELEASER_VERSION ?= v2.17.1
 GORELEASER ?= $(GO_ENV) $(GO) run github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
 
 VERSION ?= $(shell $(GIT) describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -100,7 +100,7 @@ vuln: ## Run govulncheck
 	$(GO_ENV) $(GOVULNCHECK) ./...
 
 docker-build: ## Build the runtime container image locally
-	$(CONTAINER_PROG) build -t $(BINARY_NAME):$(CONTAINER_TAG) .
+	$(CONTAINER_PROG) build --build-arg BINARY_DIR=. -t $(BINARY_NAME):$(CONTAINER_TAG) .
 
 release-check: ## Validate GoReleaser configuration
 	$(GORELEASER) check

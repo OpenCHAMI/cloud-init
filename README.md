@@ -100,7 +100,66 @@ export BUILD_USER=$(whoami)
 3. Check the `dist/` directory for compiled binaries, which will include the injected metadata.
 
 > [!NOTE]
-> If you encounter errors, ensure your GoReleaser version matches the one used in the [Release Action](.github/workflows/Release.yml).
+> Use GoReleaser v2.17.1, matching the Makefile and [Release Action](.github/workflows/Release.yml). The application still uses the Go version declared in `go.mod`.
+
+### Container releases
+
+Linux releases use GoReleaser's `dockers_v2` pipeline with a Docker container
+Buildx builder. It publishes the combined amd64/arm64 image directly, retaining
+BuildKit provenance and SBOM attestations. The existing `latest`, version, major,
+minor, and architecture-specific tags are preserved. The amd64 container still
+requires an x86-64-v3 CPU; both v1 and v3 binary archives remain available.
+
+The release job uses Ubuntu 24.04 to match the runtime image's libc. It currently
+runs locally defined workflow steps because the shared release workflow fixes its
+runner to `ubuntu-latest`. Moving these steps back to the shared workflow requires
+support for pinning the runner and selecting all intended attestation subjects.
+GitHub provenance is attached separately to the binary archives and each of the
+three published image digests.
+
+GoReleaser stages container binaries at `linux/amd64/cloud-init-server` and
+`linux/arm64/cloud-init-server`. The Dockerfile selects that directory using
+`TARGETPLATFORM`. For manual builds with a binary at the context root, use
+`docker build --build-arg BINARY_DIR=. .`; `make docker-build` supplies this override.
+The binary must target the image's architecture and Ubuntu 24.04 runtime.
+
+`make release-snapshot` builds local binary archives and architecture-specific
+container images without publishing. It requires Docker/Buildx with the
+[containerd image store](https://docs.docker.com/engine/storage/containerd/) enabled
+to load provenance-bearing images, and the Linux C/C++ cross-compilers. macOS users
+need a Linux build environment for these CGO binaries.
+Snapshot images receive architecture suffixes and do not publish release tags.
+
+Pull requests also run **Release build and runtime** on Ubuntu 24.04. This job
+shares release toolchain/compiler/BuildKit setup with the tag workflow, including
+the containerd image store. It runs `goreleaser release --snapshot --clean` and
+tests both snapshot images with
+networking disabled. Each image must initialize a temporary DuckDB store and
+serve `/version` successfully. The job then exports a combined OCI image to a
+local file and checks both platform manifests, provenance and SBOM statements,
+including their image subject digests. Production attestation settings are read
+from GoReleaser's effective configuration, so disabling them fails validation.
+The PR job has read-only permissions, no registry login, and never pushes images
+or creates a release. Python verification uses the pinned dependency in
+[requirements-release.txt](.github/scripts/requirements-release.txt).
+
+After the check first runs, a repository administrator must mark **Release build
+and runtime** as required in the branch protection/ruleset for `main`. Defining
+the workflow alone does not prevent a merge after a failed check. Registry upload,
+GitHub release permissions, and delivery of GitHub attestations still require
+validation during the actual release.
+
+Before tagging a release, run `make release-check`, the repository checks, and
+`node --test .github/scripts/release-image-digests.test.cjs`. Smoke-test both runtime
+images, inspect the combined index for amd64/arm64 and attestations, and verify
+GitHub provenance subjects after publication. Production Docker builds and pushes
+are one operation in the new pipeline; `--skip=publish` on a production build does
+not validate container creation.
+
+If a release fails after image publication, inventory the existing tags, digests,
+and release assets first. A rerun of the old tag retains its original workflow and
+configuration. Fixes should use the normal reviewed release process; do not move
+published tags to recover a failed run.
 
 ---
 

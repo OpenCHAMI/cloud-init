@@ -9,7 +9,8 @@ before:
     - make swagger
 
 builds:
-  - id: linux
+  - &linux_build
+    id: linux
     main: ./cmd/cloud-init-server
     binary: cloud-init-server
     # export GIT_STATE=$(if git diff-index --quiet HEAD --; then echo 'clean'; else echo 'dirty'; fi)
@@ -33,71 +34,70 @@ builds:
       - arm64
     goamd64:
       - v3
-      - v1
     env:
       - CGO_ENABLED=1
       - CC={{ if eq .Arch "arm64" }}aarch64-linux-gnu-gcc{{ else }}gcc{{ end }}
       - CXX={{ if eq .Arch "arm64" }}aarch64-linux-gnu-g++{{ else }}g++{{ end }}
 
 
-dockers:
-  - image_templates:
-      - &amd64_linux_image ghcr.io/openchami/{{.ProjectName}}:{{ .Tag }}-amd64
-      - ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}-amd64
-      - ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}.{{ .Minor }}-amd64
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    goarch: amd64
-    goamd64: v3
+  # Keep the baseline archive, but select only the v3 build for container images.
+  # Docker v2 in GoReleaser v2.17 does not filter artifacts by GOAMD64.
+  - <<: *linux_build
+    id: linux-baseline
+    goarch:
+      - amd64
+    goamd64:
+      - v1
 
+dockers_v2:
+  - &container_image
+    id: multiarch
+    ids:
+      - linux
+    images:
+      - ghcr.io/openchami/{{ .ProjectName }}
+    tags:
+      - latest
+      - "{{ .Tag }}"
+      - "{{ .Major }}"
+      - "{{ .Major }}.{{ .Minor }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    flags:
+      - --pull=true
+      - --provenance=mode=min
+    labels:
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.version: "{{ .Version }}"
     extra_files:
       - LICENSES/MIT.txt
       - CHANGELOG.md
       - README.md
-  - image_templates:
-      - &arm64v8_linux_image ghcr.io/openchami/{{.ProjectName}}:{{ .Tag }}-arm64
-      - ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}-arm64
-      - ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}.{{ .Minor }}-arm64
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    extra_files:
-      - LICENSES/MIT.txt
-      - CHANGELOG.md
-      - README.md
-    goarch: arm64
 
-docker_manifests:
-  - name_template: "ghcr.io/openchami/{{.ProjectName}}:latest"
-    image_templates:
-      - *amd64_linux_image
-      - *arm64v8_linux_image
+  # Preserve the architecture-specific tags used by existing deployments.
+  # Snapshots already add architecture suffixes to the multiarch entry's tags.
+  - <<: *container_image
+    id: amd64
+    disable: "{{ .IsSnapshot }}"
+    platforms:
+      - linux/amd64
+    tags:
+      - "{{ .Tag }}-amd64"
+      - "{{ .Major }}-amd64"
+      - "{{ .Major }}.{{ .Minor }}-amd64"
 
-  - name_template: "ghcr.io/openchami/{{.ProjectName}}:{{ .Tag }}"
-    image_templates:
-      - *amd64_linux_image
-      - *arm64v8_linux_image
-
-  - name_template: "ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}"
-    image_templates:
-      - *amd64_linux_image
-      - *arm64v8_linux_image
-
-  - name_template: "ghcr.io/openchami/{{.ProjectName}}:{{ .Major }}.{{ .Minor }}"
-    image_templates:
-      - *amd64_linux_image
-      - *arm64v8_linux_image
+  - <<: *container_image
+    id: arm64
+    disable: "{{ .IsSnapshot }}"
+    platforms:
+      - linux/arm64
+    tags:
+      - "{{ .Tag }}-arm64"
+      - "{{ .Major }}-arm64"
+      - "{{ .Major }}.{{ .Minor }}-arm64"
 
 archives:
   - formats:
@@ -131,5 +131,5 @@ changelog:
 
 # The lines beneath this are called `modelines`. See `:help modeline`
 # Feel free to remove those if you don't want/use them.
-# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.11.2/www/docs/static/schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.17.1/www/docs/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj

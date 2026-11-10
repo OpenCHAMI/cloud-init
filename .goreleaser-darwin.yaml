@@ -39,5 +39,5 @@ builds:
 
 # The lines beneath this are called `modelines`. See `:help modeline`
 # Feel free to remove those if you don't want/use them.
-# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.11.2/www/docs/static/schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.17.1/www/docs/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj

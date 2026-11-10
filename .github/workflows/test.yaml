@@ -18,6 +18,53 @@ permissions:
   contents: read
 
 jobs:
+  release-config:
+    name: Release configuration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Test attestation subjects
+        run: node --test .github/scripts/release-image-digests.test.cjs
+      - name: Test release build verification
+        run: python3 -m unittest discover -s .github/scripts -p 'test_release_build.py'
+      - name: Validate Linux release configuration
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
+        with:
+          version: v2.17.1
+          args: check
+      - name: Validate Darwin release configuration
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
+        with:
+          version: v2.17.1
+          args: check --config .goreleaser-darwin.yaml
+
+  release-build:
+    name: Release build and runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/release-setup
+      - name: Build release snapshot without publishing
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
+        with:
+          version: v2.17.1
+          args: release --snapshot --clean
+      - name: Install release verification dependency
+        run: |
+          python3 -m venv "$RUNNER_TEMP/release-verify"
+          "$RUNNER_TEMP/release-verify/bin/pip" install --disable-pip-version-check -r .github/scripts/requirements-release.txt
+      - name: Verify runtime images and multi-architecture OCI export
+        run: '"$RUNNER_TEMP/release-verify/bin/python" .github/scripts/release_build.py'
+
   unit:
     name: Unit tests
     runs-on: ubuntu-slim
